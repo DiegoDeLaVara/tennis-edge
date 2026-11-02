@@ -55,7 +55,7 @@ def trades(ticker, historical_, max_ts):
 
 def start_from_candles(c):
     """Start of the first hour where volume surges (in-play began); None if never."""
-    v = [(x["end_period_ts"] - 3600, float(x.get("volume_fp") or 0)) for x in c]
+    v = [(x["end_period_ts"] - 3600, x["volume"]) for x in c]
     for i in range(len(v) - 1):
         prior = sorted(x for _, x in v[max(0, i - 24):i] if x > 0)
         med = prior[len(prior) // 2] if prior else 0.0
@@ -68,11 +68,8 @@ def quote_before(c, start):
     """A's yes bid/ask at the close of the last full hour before the start (what you could actually trade)."""
     pre = [x for x in c if x["end_period_ts"] <= start]
     for x in reversed(pre):
-        try:
-            b, a = float(x["yes_bid"]["close_dollars"]), float(x["yes_ask"]["close_dollars"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if 0 < a <= 1 and 0 <= b < a:
+        b, a = x["bid"], x["ask"]
+        if b is not None and a is not None and 0 < a <= 1 and 0 <= b < a:
             return {"bid": b, "ask": a, "ts": x["end_period_ts"]}
     return None
 
@@ -81,12 +78,12 @@ def one(series, et, ms, hist_cut):
     a, b = sorted(ms, key=lambda m: m["ticker"])
     end = ts(a.get("close_time") or a["expected_expiration_time"])
     opened = ts(a["open_time"])
-    c = src.kalshi_candles(series, a["ticker"], opened - 3600, end + 3600, 60)
+    is_hist = end < hist_cut               # settled before Kalshi's cutoff: data lives under /historical
+    c = src.kalshi_candles(series, a["ticker"], opened - 3600, end + 3600, 60, historical=is_hist)
     start = start_from_candles(c)
     if start is None:                      # thin market: treat the last 2 hours before close as in-play
         start = end - 2 * 3600
     q = quote_before(c, start)
-    is_hist = start < hist_cut
     ta = trades(a["ticker"], is_hist, start)
     tb = trades(b["ticker"], is_hist, start)
     tname, rnd = src.parse_rules(a)
@@ -99,7 +96,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--since", default="2025-06-01")
     ap.add_argument("--workers", type=int, default=10)
+    ap.add_argument("--series", nargs="*", default=None, help="limit to these series")
+    ap.add_argument("--max", type=int, default=0, help="at most this many new events per series (most recent first)")
     args = ap.parse_args()
+    src.KALSHI_PACE.gap = 1 / 6.0
     since_ts = datetime.fromisoformat(args.since).replace(tzinfo=timezone.utc).timestamp()
     cut = src.kalshi("/historical/cutoff")
     hist_cut = ts(cut.get("trades_created_ts", "2026-09-03T00:00:00Z"))
@@ -107,7 +107,7 @@ def main():
     if OUT.exists():
         done = {json.loads(l)["event"] for l in OUT.open()}
     jobs = []
-    for s in SERIES:
+    for s in (args.series or SERIES):
         ms = src.kalshi_markets(s, status="settled", max_pages=40) + historical(s, since_ts)
         ev = src.group_events(ms)
         n0 = len(jobs)
@@ -117,6 +117,9 @@ def main():
             if ts(pair[0].get("close_time") or pair[0]["expected_expiration_time"]) < since_ts:
                 continue
             jobs.append((s, et, pair))
+        if args.max and len(jobs) - n0 > args.max:
+            mine = sorted(jobs[n0:], key=lambda j: -ts(j[2][0].get("close_time") or j[2][0]["expected_expiration_time"]))[:args.max]
+            jobs = jobs[:n0] + mine
         print(s, "events", len(ev), "new jobs", len(jobs) - n0, flush=True)
     with OUT.open("a") as fh, ThreadPoolExecutor(args.workers) as ex:
         futs = [ex.submit(one, s, et, pair, hist_cut) for s, et, pair in jobs]

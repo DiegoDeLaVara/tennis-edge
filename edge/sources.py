@@ -299,9 +299,23 @@ def kalshi_trades(ticker, min_ts=None, max_pages=10):
     return out
 
 
-def kalshi_candles(series, ticker, start_ts, end_ts, period=60):
-    d = kalshi(f"/series/{series}/markets/{ticker}/candlesticks", {"start_ts": int(start_ts), "end_ts": int(end_ts), "period_interval": period})
-    return d.get("candlesticks") or []
+def kalshi_candles(series, ticker, start_ts, end_ts, period=60, historical=False):
+    """Hourly candles normalised to {end_period_ts, volume, bid, ask}. Markets settled before Kalshi's historical
+    cutoff live under /historical with plain field names; live ones use *_dollars / *_fp."""
+    path = f"/historical/markets/{ticker}/candlesticks" if historical else f"/series/{series}/markets/{ticker}/candlesticks"
+    d = kalshi(path, {"start_ts": int(start_ts), "end_ts": int(end_ts), "period_interval": period})
+    out = []
+    for x in d.get("candlesticks") or []:
+        def f(side):
+            v = (x.get(side) or {})
+            v = v.get("close_dollars", v.get("close"))
+            try:
+                return float(v) if v not in (None, "") else None
+            except ValueError:
+                return None
+        out.append({"end_period_ts": x["end_period_ts"], "volume": float(x.get("volume_fp") or x.get("volume") or 0),
+                    "bid": f("yes_bid"), "ask": f("yes_ask")})
+    return out
 
 
 # ---------------------------------------------------------------- surfaces

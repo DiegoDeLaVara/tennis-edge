@@ -2,7 +2,7 @@ name: refresh board
 
 on:
   schedule:
-    - cron: "*/20 * * * *"
+    - cron: "7,27,47 * * * *"
   workflow_dispatch:
   push:
     branches: [main]

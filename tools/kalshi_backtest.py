@@ -137,10 +137,13 @@ def main():
     for p_col, lab in (("p_model", "Model alone"), ("p_blend", "Model + market blend")):
         for r in roi_table(T, p_col, lab):
             rows.append(r); print(f"  {r['rule']:38s} n={r['n']:5d} win {r['win']:.3f} ROI {r['roi'] * 100:+.1f}% ± {r['se'] * 100:.1f}")
-    print("\n== by tier, model alone EV ≥ 5% (held-out)")
+    print("\n== by tier (held-out)")
     for s, g in T.groupby("series"):
-        for r in roi_table(g, "p_model", s, thresholds=(0.05,)):
-            print(f"  {r['rule']:40s} n={r['n']:5d} win {r['win']:.3f} ROI {r['roi'] * 100:+.1f}% ± {r['se'] * 100:.1f}")
+        print(f"  {s}: n={len(g)} market ll {ll(g.y.values, g.px.values):.4f} model {ll(g.y.values, g.p_model.values):.4f} blend {ll(g.y.values, g.p_blend.values):.4f}")
+        for p_col, lab in (("p_model", "model"), ("p_blend", "blend")):
+            for r in roi_table(g, p_col, f"{s} {lab}", thresholds=(0.03, 0.06)):
+                print(f"    {r['rule']:44s} n={r['n']:5d} win {r['win']:.3f} ROI {r['roi'] * 100:+.1f}% ± {r['se'] * 100:.1f}")
+                rows.append(r)
     for p_col, lab in (("p_model", "model alone"), ("p_blend", "blend")):
         print(f"\n== by the price of the side bet, {lab} EV ≥ 5% (held-out)")
         for lo, hi in ((0.05, 0.3), (0.3, 0.5), (0.5, 0.7), (0.7, 0.95)):
