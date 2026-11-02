@@ -26,7 +26,7 @@
     "value": {
       "label": "Model + market value",
       "basis": "blend",
-      "min_ev": 0.04,
+      "min_ev": 0.03,
       "min_price": 0.2,
       "max_price": 0.88,
       "min_matches": 25,
@@ -38,10 +38,11 @@
         "C"
       ],
       "min_vol": 300,
-      "kelly_mult": 1.0
+      "kelly_mult": 0.5,
+      "proven": false
     },
     "model_edge": {
-      "label": "Model-only edge",
+      "label": "Model-only edge (paper)",
       "basis": "model",
       "min_ev": 0.08,
       "min_price": 0.2,
@@ -55,10 +56,11 @@
         "C"
       ],
       "min_vol": 300,
-      "kelly_mult": 0.5
+      "kelly_mult": 0.0,
+      "proven": false
     },
     "value_sharp": {
-      "label": "Value + money agrees",
+      "label": "Value + money agrees (paper)",
       "basis": "blend",
       "min_ev": 0.03,
       "min_price": 0.2,
@@ -73,7 +75,8 @@
       ],
       "min_vol": 300,
       "need_signal": true,
-      "kelly_mult": 1.0
+      "kelly_mult": 0.0,
+      "proven": false
     },
     "deriv": {
       "label": "Sets / games value",
@@ -87,11 +90,24 @@
         "A",
         "F"
       ],
-      "min_vol": 0
+      "min_vol": 0,
+      "proven": false,
+      "kelly_mult": 0.5
     },
     "combo": {
       "label": "2-leg combo",
-      "min_ev": 0.06
+      "min_ev": 0.06,
+      "proven": false
+    },
+    "price_gap": {
+      "label": "Kalshi cheaper than Polymarket",
+      "min_gap": 0.03,
+      "min_poly_vol": 2000,
+      "max_spread": 0.04,
+      "min_price": 0.1,
+      "max_price": 0.9,
+      "proven": false,
+      "kelly_mult": 0.5
     }
   },
   "smart_refresh_hours": 24

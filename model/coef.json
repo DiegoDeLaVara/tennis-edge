@@ -118,163 +118,175 @@
   }
  ],
  "market": {
-  "a": 0.6228,
-  "b": 0.4471,
-  "c": 0.0366,
-  "n": 542
+  "a": 0.0938,
+  "b": 0.8979,
+  "c": 0.0447,
+  "n": 5516
  },
  "kalshi_backtest": {
-  "period": "2026-09-02 to 2026-11-02, 542 matches",
+  "period": "2025-06-19 to 2026-11-02, 5516 matches",
   "rows": [
    {
     "rule": "Model alone: EV \u2265 0%",
-    "n": 180,
-    "win": 0.6167,
-    "roi": 0.2163
+    "n": 1750,
+    "win": 0.4954,
+    "roi": -0.0107
    },
    {
     "rule": "Model alone: EV \u2265 3%",
-    "n": 160,
-    "win": 0.5875,
-    "roi": 0.1564
+    "n": 1458,
+    "win": 0.4801,
+    "roi": 0.0007
    },
    {
     "rule": "Model alone: EV \u2265 5%",
-    "n": 138,
-    "win": 0.5797,
-    "roi": 0.1846
+    "n": 1245,
+    "win": 0.449,
+    "roi": -0.0088
    },
    {
     "rule": "Model alone: EV \u2265 8%",
-    "n": 118,
-    "win": 0.5593,
-    "roi": 0.2099
+    "n": 1004,
+    "win": 0.4243,
+    "roi": 0.0056
    },
    {
     "rule": "Model alone: EV \u2265 12%",
-    "n": 91,
-    "win": 0.5055,
-    "roi": 0.1499
+    "n": 774,
+    "win": 0.4083,
+    "roi": 0.0346
    },
    {
     "rule": "Model + market blend: EV \u2265 0%",
-    "n": 168,
-    "win": 0.6369,
-    "roi": 0.0935
+    "n": 482,
+    "win": 0.2614,
+    "roi": -0.0587
    },
    {
     "rule": "Model + market blend: EV \u2265 3%",
-    "n": 134,
-    "win": 0.6119,
-    "roi": 0.0655
+    "n": 11,
+    "win": 0.0,
+    "roi": -1.0
    },
    {
-    "rule": "Model + market blend: EV \u2265 5%",
-    "n": 107,
-    "win": 0.5888,
-    "roi": 0.0395
+    "rule": "KXATPCHALLENGERMATCH model: EV \u2265 3%",
+    "n": 145,
+    "win": 0.4,
+    "roi": -0.14
    },
    {
-    "rule": "Model + market blend: EV \u2265 8%",
-    "n": 68,
-    "win": 0.5441,
-    "roi": 0.0583
+    "rule": "KXATPCHALLENGERMATCH model: EV \u2265 6%",
+    "n": 118,
+    "win": 0.3305,
+    "roi": -0.2293
    },
    {
-    "rule": "Model + market blend: EV \u2265 12%",
-    "n": 45,
-    "win": 0.4667,
-    "roi": -0.0452
+    "rule": "KXATPCHALLENGERMATCH blend: EV \u2265 3%",
+    "n": 1,
+    "win": 0.0,
+    "roi": -1.0
    },
    {
-    "rule": "Model alone EV \u2265 5%, price 5-30c",
-    "n": 21,
-    "win": 0.381,
-    "roi": 0.5219
+    "rule": "KXATPMATCH model: EV \u2265 3%",
+    "n": 509,
+    "win": 0.5147,
+    "roi": 0.052
    },
    {
-    "rule": "Model alone EV \u2265 5%, price 30-50c",
-    "n": 53,
-    "win": 0.5283,
-    "roi": 0.267
+    "rule": "KXATPMATCH model: EV \u2265 6%",
+    "n": 415,
+    "win": 0.4892,
+    "roi": 0.0519
    },
    {
-    "rule": "Model alone EV \u2265 5%, price 50-70c",
-    "n": 36,
-    "win": 0.5833,
-    "roi": -0.0348
-   },
-   {
-    "rule": "Model alone EV \u2265 5%, price 70-95c",
-    "n": 28,
-    "win": 0.8214,
-    "roi": 0.0578
-   },
-   {
-    "rule": "Blend EV \u2265 5%, price 5-30c",
-    "n": 9,
-    "win": 0.3333,
-    "roi": 0.3227
-   },
-   {
-    "rule": "Blend EV \u2265 5%, price 30-50c",
-    "n": 36,
-    "win": 0.3889,
-    "roi": -0.0908
-   },
-   {
-    "rule": "Blend EV \u2265 5%, price 50-70c",
-    "n": 34,
-    "win": 0.6176,
-    "roi": 0.0185
-   },
-   {
-    "rule": "Blend EV \u2265 5%, price 70-95c",
-    "n": 28,
-    "win": 0.8929,
-    "roi": 0.1415
-   },
-   {
-    "rule": "Model EV \u2265 3% and money agrees",
-    "n": 85,
-    "win": 0.6706,
-    "roi": 0.1675
-   },
-   {
-    "rule": "Model EV \u2265 3% and money disagrees",
-    "n": 72,
-    "win": 0.5139,
-    "roi": 0.1915
-   },
-   {
-    "rule": "Model EV \u2265 3% and no money signal",
+    "rule": "KXATPMATCH blend: EV \u2265 3%",
     "n": 3,
     "win": 0.0,
     "roi": -1.0
    },
    {
+    "rule": "KXWTAMATCH model: EV \u2265 3%",
+    "n": 804,
+    "win": 0.4726,
+    "roi": -0.0064
+   },
+   {
+    "rule": "KXWTAMATCH model: EV \u2265 6%",
+    "n": 628,
+    "win": 0.4268,
+    "roi": -0.0094
+   },
+   {
+    "rule": "KXWTAMATCH blend: EV \u2265 3%",
+    "n": 7,
+    "win": 0.0,
+    "roi": -1.0
+   },
+   {
+    "rule": "Model alone EV \u2265 5%, price 5-30c",
+    "n": 306,
+    "win": 0.1765,
+    "roi": -0.1115
+   },
+   {
+    "rule": "Model alone EV \u2265 5%, price 30-50c",
+    "n": 487,
+    "win": 0.4497,
+    "roi": 0.0903
+   },
+   {
+    "rule": "Model alone EV \u2265 5%, price 50-70c",
+    "n": 301,
+    "win": 0.5847,
+    "roi": -0.0348
+   },
+   {
+    "rule": "Model alone EV \u2265 5%, price 70-95c",
+    "n": 151,
+    "win": 0.7285,
+    "roi": -0.0681
+   },
+   {
+    "rule": "Model EV \u2265 3% and money agrees",
+    "n": 582,
+    "win": 0.5876,
+    "roi": 0.0079
+   },
+   {
+    "rule": "Model EV \u2265 3% and money disagrees",
+    "n": 765,
+    "win": 0.4,
+    "roi": -0.0065
+   },
+   {
+    "rule": "Model EV \u2265 3% and no money signal",
+    "n": 111,
+    "win": 0.4685,
+    "roi": 0.0126
+   },
+   {
     "rule": "Follow: Big tickets one way ($750+, 60%+)",
-    "n": 304,
-    "win": 0.6184,
-    "roi": -0.0697
+    "n": 3865,
+    "win": 0.6851,
+    "roi": -0.0327
    },
    {
     "rule": "Follow: Line moved 6c+ since open",
-    "n": 205,
-    "win": 0.4878,
-    "roi": -0.0929
+    "n": 2786,
+    "win": 0.5847,
+    "roi": -0.002
    },
    {
     "rule": "Follow: Steam 5c+ in an hour",
-    "n": 104,
-    "win": 0.5577,
-    "roi": 0.0122
+    "n": 1649,
+    "win": 0.5585,
+    "roi": -0.0006
    },
    {
     "rule": "Follow: 35%+ one-way flow",
-    "n": 355,
-    "win": 0.631,
-    "roi": -0.0386
+    "n": 4490,
+    "win": 0.6786,
+    "roi": -0.0325
    }
   ],
   "note": "Held-out = the most recent 40% of matches, never used to fit the blend. Entry at the real Kalshi ask about an hour before the start, plus the taker fee."

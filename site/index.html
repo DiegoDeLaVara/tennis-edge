@@ -288,9 +288,9 @@ function pickCard(p, i) {
   return `<div class="pick">
     <div><div class="what">${esc(p.label)}</div>
       <div class="sub">${esc(p.names.join(" vs "))} · ${esc(p.tourney)} · ${dayOf(p.start)} ${when(p.start)}</div></div>
-    <div class="right"><div class="units">${p.units}<small>u</small></div><div class="note">$${usd}</div></div>
+    <div class="right">${p.units ? `<div class="units">${p.units}<small>u</small></div><div class="note">$${usd}</div>` : `<div class="units" style="color:var(--mute);font-size:15px">paper</div><div class="note">tracking only</div>`}</div>
     <div class="row2">
-      <span class="badge good">Model ${pct(p.p)}</span>${p.p_model != null && Math.abs(p.p_model - p.p) >= 0.01 ? `<span class="badge">Ratings alone ${pct(p.p_model)}</span>` : ""}<span class="badge">Ask ${cents(p.ask)}</span>
+      ${p.poly != null ? `<span class="badge good">Polymarket ${cents(p.poly)}</span>` : ""}<span class="badge good">Fair ${pct(p.p)}</span>${p.p_model != null && Math.abs(p.p_model - p.p) >= 0.01 ? `<span class="badge">Ratings alone ${pct(p.p_model)}</span>` : ""}<span class="badge">Ask ${cents(p.ask)}</span>
       <span class="badge good">${sgn(p.ev)} EV</span><span class="badge warn">Take ≤ ${p.take_at ?? "—"}¢</span>
       ${tagNames.map(t => `<span class="badge">${esc(t)}</span>`).join("")}
       ${m.signals ? sigBadges(m, side) : ""}
@@ -299,14 +299,18 @@ function pickCard(p, i) {
 }
 function renderPicks() {
   const picks = (B.picks || []).filter(p => p.start > Date.now() / 1000 - 600);
-  const straights = picks.filter(p => p.kind === "match");
+  const gaps = picks.filter(p => p.kind === "match" && p.tags.includes("price_gap"));
+  const straights = picks.filter(p => p.kind === "match" && !p.tags.includes("price_gap"));
   const derivs = picks.filter(p => p.kind === "deriv");
   const rec = B.record?.by_strategy || {};
-  const best = Object.entries(rec).filter(([k]) => k !== "all").sort((a, b) => b[1].roi_flat - a[1].roi_flat);
-  let h = `<div class="callout" style="margin-top:12px"><b>How to read this:</b> each pick is a Kalshi contract the model prices higher than the ask, after Kalshi's fee.
-    Bet the units shown (1u = $${unitVal().toFixed(0)}, change it in My bets) and only at or below the <b>Take ≤</b> price. Expect losing days; judge it over 100+ bets.
-    ${best.length ? `<br>Model record so far: ${best.slice(0, 3).map(([k, s]) => `${esc(B.config.strategies[k]?.label || k)} <b class="${s.roi_flat >= 0 ? "pos" : "neg"}">${sgn(s.roi_flat)}</b> (${s.n})`).join(" · ")}` : ""}</div>`;
-  h += `<h2 class="sec">Straight bets <span>${straights.length} today</span></h2>`;
+  const best = Object.entries(rec).filter(([k]) => k !== "all" && rec[k].n >= 20).sort((a, b) => b[1].roi_flat - a[1].roi_flat);
+  const proven = Object.values(B.config.strategies).some(s => s.proven);
+  let h = `<div class="callout" style="margin-top:12px">${proven ? "" : `<b>No strategy is proven yet.</b> On 5,500 Kalshi matches the market price was more accurate than the ratings model, and tailing sharp money lost after fees. So everything below is being <b>tested</b>: stakes are half-size, "paper" picks are tracked only, and the Model record tab shows which ones earn their keep. Stay small until one does.<br><br>`}
+    Bet only at or below the <b>Take ≤</b> price (1u = $${unitVal().toFixed(0)}; change it in My bets). Judge any strategy over 100+ bets, not a few days.
+    ${best.length ? `<br>Record so far: ${best.slice(0, 3).map(([k, s]) => `${esc(B.config.strategies[k]?.label || k)} <b class="${s.roi_flat >= 0 ? "pos" : "neg"}">${sgn(s.roi_flat)}</b> (${s.n})`).join(" · ")}` : ""}</div>`;
+  h += `<h2 class="sec">Price gaps <span>Kalshi cheaper than Polymarket</span></h2>`;
+  h += gaps.length ? `<div class="card list">${gaps.map(pickCard).join("")}</div>` : `<div class="card empty">No Kalshi price is cheaper than Polymarket by more than the fee right now. These come and go within minutes.</div>`;
+  h += `<h2 class="sec">Model value <span>${straights.length} today</span></h2>`;
   h += straights.length ? `<div class="card list">${straights.map(pickCard).join("")}</div>` : `<div class="card empty">No match bets clear the bar right now. That's normal — Kalshi prices are sharp, and the board refreshes every ~20 minutes.</div>`;
   h += `<h2 class="sec">Sets &amp; games <span>${derivs.length}</span></h2>`;
   h += derivs.length ? `<div class="card list">${derivs.map(pickCard).join("")}</div>` : `<div class="card empty">No set or games-total prices with an edge right now.</div>`;
@@ -528,7 +532,12 @@ function renderGuide() {
   <p><b>Match maths.</b> Each player's chance of winning a point on serve feeds an exact simulation of games, tiebreaks and sets. That gives the win probability and also set scores, total games, game spreads and set winners — all consistent, so combos are priced with real correlation.</p>
   <p><b>Market.</b> The final number blends the model with Kalshi's price (weights fitted on settled Kalshi matches). A bet is only flagged when the model still beats the ask after Kalshi's fee by enough margin.</p>
   <p><b>Sharp money.</b> Kalshi's trade tape is public: big tickets ($250+) moving one way, fast "steam" moves, and line movement since open. <b>Smart money:</b> Polymarket wallets are public, so wallets with a proven profit across many tennis matches are tracked and their current positions shown.</p>
-  <p><b>What the tests found about money signals:</b> on ~1,000 Kalshi ATP matches, blindly following big tickets, steam or line moves lost about 5% (the fee and spread) — by the time the money shows, the price already reflects it. Following the best Polymarket tennis wallets (ranked on earlier matches, tested on later ones) was break-even over 222 matches. So money signals are shown as context, not as bets on their own; the "Value + sharp money agrees" strategy keeps testing whether they help when they line up with the model.</p>
+  <p><b>What the tests found</b> (5,500 Kalshi ATP, WTA and Challenger matches, June 2025 – Nov 2026, priced at the real ask an hour before the start):</p>
+  <ul style="margin:0 0 10px;padding-left:18px">
+    <li>Kalshi's price was <b>more accurate</b> than the ratings model (log-loss 0.594 vs 0.612). Fitted together, the market gets ~90% of the weight. Betting the model's "edges" broke even (about 0% ROI).</li>
+    <li>Tailing big tickets or one-way flow <b>lost 3%</b> after fees; line moves and steam broke even. Following the best Polymarket tennis wallets also broke even out of sample.</li>
+    <li>So the board's fair prices lean on the market, and every strategy is tracked on paper until its own record proves it. The best-founded idea left is <b>price gaps between venues</b> (Kalshi cheaper than Polymarket), plus sets/games markets priced consistently from the match odds.</li>
+  </ul>
   <p><b>Units.</b> Stakes are quarter-Kelly in units (1u = 1% of bankroll by default), capped at ${B.config.max_units}u.</p>
   <p><b>Strategies being tracked:</b> ${Object.values(s).map(x => esc(x.label)).join(" · ")}. Every pick is logged before the match and graded automatically on the Model record tab. Trust the strategies that keep positive CLV and ROI over hundreds of bets; drop the ones that don't.</p>
   <p class="note">Not financial advice. Betting loses money for most people; bet only what you can afford to lose. Data: Jeff Sackmann's archive (CC BY-NC-SA), TennisMyLife, ESPN, Kalshi and Polymarket public APIs.</p></div>

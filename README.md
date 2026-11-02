@@ -24,6 +24,13 @@ calibrated within ~0.5 pts per decile). Serve-point probabilities solved to matc
 exact Markov model of games/tiebreaks/sets with a "form on the day" random effect (fitted so three-set rate and
 total games match reality), which prices set scores, totals, spreads, set winners and same-match combos.
 
+## What the Kalshi backtest found (5,500 matches, June 2025 - Nov 2026)
+
+Priced at the real ask about an hour before each match: Kalshi's price beat the ratings model on log-loss
+(0.594 vs 0.612) and took ~90% of the weight in the fitted blend; betting model "edges" broke even. Tailing big
+tickets or one-way flow lost ~3% after fees; line moves, steam and top Polymarket wallets broke even. So fair prices
+lean on the market and every strategy is paper-tracked (half stakes or none) until its live record proves it.
+
 ## Local commands
 
 ```

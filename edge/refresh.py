@@ -346,10 +346,14 @@ def run(data, cfg, do_smart=True, verbose=True):
                         and m["level"] in sc["levels"] and vol >= sc["min_vol"] and (not sc.get("need_signal") or sig_dir > 0)):
                     tags.append(name)
                     u = max(u, units(p_, ask, cfg) * sc.get("kelly_mult", 1.0))
-            u = round(min(max(u, cfg["min_units"]), cfg["max_units"]) * 4) / 4 if tags else 0
+            gap = price_gap(m, i, q, strat["price_gap"])
+            if gap is not None:
+                tags.append("price_gap")
+                u = max(u, units(gap[0], ask, cfg) * strat["price_gap"].get("kelly_mult", 1.0))
+            u = round(min(max(u, cfg["min_units"]), cfg["max_units"]) * 4) / 4 if u > 0 else 0
             m["bets"].append({"ticker": q["ticker"], "label": f"{m['names'][i]} to win", "kind": "match", "p": round(pi, 4), "p_model": round(pmi, 4),
                               "ask": ask, "ev": round(ev, 4), "ev_model": round(ev_m, 4), "take_at": max_price(pi, 0.03),
-                              "units": u, "tags": tags, "money": sig_dir})
+                              "units": u, "tags": tags, "money": sig_dir, "poly": gap[0] if gap else None})
         D = m.pop("_D", None)
         for s, dm in derivs.get((m["tour"], m["id"]), []):
             pr = deriv_prob(s, dm, D, m)
@@ -363,7 +367,8 @@ def run(data, cfg, do_smart=True, verbose=True):
             sc = strat["deriv"]
             tags = ["deriv"] if (ev >= sc["min_ev"] and sc["min_price"] <= ask <= sc["max_price"] and nmin >= sc["min_matches"] and m["level"] in sc["levels"]) else []
             m["bets"].append({"ticker": dm["ticker"], "label": label, "kind": "deriv", "p": round(pi, 4), "ask": ask, "bid": src.px(dm, "yes_bid"),
-                              "ev": round(ev, 4), "take_at": max_price(pi, 0.05), "units": units(pi, ask, cfg) if tags else 0, "tags": tags})
+                              "ev": round(ev, 4), "take_at": max_price(pi, 0.05),
+                              "units": round(units(pi, ask, cfg) * sc.get("kelly_mult", 1.0) * 4) / 4 if tags else 0, "tags": tags})
     for m in board:
         m.pop("_D", None)
 
@@ -394,6 +399,20 @@ def run(data, cfg, do_smart=True, verbose=True):
         print(f"matches {len(board)}, with model {sum(1 for m in board if m.get('model'))}, picks {len(picks)}, combos {len(combos)}, "
               f"new results {added}, notes {notes}")
     return out
+
+
+def price_gap(m, i, q, sc):
+    """Polymarket's price for side i, when Kalshi's ask (plus fee) is at least min_gap below it on liquid books."""
+    pl = m.get("poly")
+    ask, bid = q.get("ask"), q.get("bid")
+    if not pl or ask is None or bid is None or pl.get("poly_vol", 0) < sc["min_poly_vol"] or ask - bid > sc["max_spread"]:
+        return None
+    pp = pl["poly_price"] if i == 0 else 1 - pl["poly_price"]
+    if not (sc["min_price"] <= ask <= sc["max_price"]):
+        return None
+    if pp - (ask + fee(ask)) >= sc["min_gap"]:
+        return pp, pp - ask - fee(ask)
+    return None
 
 
 def deriv_prob(series, dm, D, m):
