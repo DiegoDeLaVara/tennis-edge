@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: refresh
@@ -51,3 +52,17 @@ jobs:
           git add -A
           git commit -q -m "board $(date -u +%FT%TZ)"
           git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
+
+      # GitHub's cron can lag for hours on new repos. While no scheduled run has happened in the last hour,
+      # wait out the interval and start the next run ourselves; once the schedule fires, this stops.
+      - name: Keep the cycle going if the scheduler is late
+        if: always() && github.event_name != 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last=$(gh run list -R "${{ github.repository }}" -w "refresh board" -e schedule -L 1 --json createdAt --jq '.[0].createdAt // ""')
+          if [ -n "$last" ] && [ $(( $(date +%s) - $(date -d "$last" +%s) )) -lt 3600 ]; then
+            echo "schedule is firing ($last); not chaining"; exit 0
+          fi
+          sleep 900
+          gh workflow run refresh.yml -R "${{ github.repository }}" --ref main
