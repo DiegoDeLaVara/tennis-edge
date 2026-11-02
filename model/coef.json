@@ -1,0 +1,282 @@
+{
+ "w": [
+  0.32955,
+  0.528023,
+  0.088822,
+  -0.010392,
+  1.055159,
+  0.028672,
+  -0.294371,
+  0.193308,
+  0.014524,
+  0.14387,
+  0.163895
+ ],
+ "b": 0.006499,
+ "features": [
+  "elo_blend",
+  "elo_all",
+  "stats",
+  "has_stats",
+  "form",
+  "fatigue",
+  "layoff",
+  "h2h",
+  "rookie_x_elo",
+  "wta_x_elo",
+  "lowtier_x_elo"
+ ],
+ "trained_rows": 738485,
+ "walk_forward": [
+  {
+   "year": 2016,
+   "n": 51233,
+   "ll_elo": 0.5654163542102795,
+   "ll_model": 0.5596006327433126,
+   "acc_elo": 0.7029844045829836,
+   "acc_model": 0.7076688852887787
+  },
+  {
+   "year": 2017,
+   "n": 49415,
+   "ll_elo": 0.5726717517391291,
+   "ll_model": 0.5674563762987281,
+   "acc_elo": 0.697116260244865,
+   "acc_model": 0.7022563998785794
+  },
+  {
+   "year": 2018,
+   "n": 47716,
+   "ll_elo": 0.5847492269840797,
+   "ll_model": 0.580186535563326,
+   "acc_elo": 0.6883016179059435,
+   "acc_model": 0.6903554363316288
+  },
+  {
+   "year": 2019,
+   "n": 55497,
+   "ll_elo": 0.58063517087246,
+   "ll_model": 0.5763656130072893,
+   "acc_elo": 0.6894066345928609,
+   "acc_model": 0.6911724958105844
+  },
+  {
+   "year": 2020,
+   "n": 18647,
+   "ll_elo": 0.5935851521577015,
+   "ll_model": 0.58858384261885,
+   "acc_elo": 0.6776961441518743,
+   "acc_model": 0.6802166568348796
+  },
+  {
+   "year": 2021,
+   "n": 44811,
+   "ll_elo": 0.5884334238598581,
+   "ll_model": 0.5804451497782098,
+   "acc_elo": 0.6840954229988172,
+   "acc_model": 0.6894289348597442
+  },
+  {
+   "year": 2022,
+   "n": 59330,
+   "ll_elo": 0.5754263101694742,
+   "ll_model": 0.5689360094442106,
+   "acc_elo": 0.6941176470588235,
+   "acc_model": 0.6989381425922805
+  },
+  {
+   "year": 2023,
+   "n": 63778,
+   "ll_elo": 0.5759446954253775,
+   "ll_model": 0.5700150772321192,
+   "acc_elo": 0.6939383486468689,
+   "acc_model": 0.6977327605130296
+  },
+  {
+   "year": 2024,
+   "n": 68433,
+   "ll_elo": 0.5682762386950978,
+   "ll_model": 0.5616036621332986,
+   "acc_elo": 0.7007291803661976,
+   "acc_model": 0.7038271009600632
+  },
+  {
+   "year": 2025,
+   "n": 53801,
+   "ll_elo": 0.5824174084237222,
+   "ll_model": 0.5769420189334814,
+   "acc_elo": 0.6866415122395495,
+   "acc_model": 0.6906748945186892
+  },
+  {
+   "year": 2026,
+   "n": 38548,
+   "ll_elo": 0.5920406845848886,
+   "ll_model": 0.5875069404254035,
+   "acc_elo": 0.6807357061326139,
+   "acc_model": 0.684315658399917
+  }
+ ],
+ "market": {
+  "a": 0.6228,
+  "b": 0.4471,
+  "c": 0.0366,
+  "n": 542
+ },
+ "kalshi_backtest": {
+  "period": "2026-09-02 to 2026-11-02, 542 matches",
+  "rows": [
+   {
+    "rule": "Model alone: EV \u2265 0%",
+    "n": 180,
+    "win": 0.6167,
+    "roi": 0.2163
+   },
+   {
+    "rule": "Model alone: EV \u2265 3%",
+    "n": 160,
+    "win": 0.5875,
+    "roi": 0.1564
+   },
+   {
+    "rule": "Model alone: EV \u2265 5%",
+    "n": 138,
+    "win": 0.5797,
+    "roi": 0.1846
+   },
+   {
+    "rule": "Model alone: EV \u2265 8%",
+    "n": 118,
+    "win": 0.5593,
+    "roi": 0.2099
+   },
+   {
+    "rule": "Model alone: EV \u2265 12%",
+    "n": 91,
+    "win": 0.5055,
+    "roi": 0.1499
+   },
+   {
+    "rule": "Model + market blend: EV \u2265 0%",
+    "n": 168,
+    "win": 0.6369,
+    "roi": 0.0935
+   },
+   {
+    "rule": "Model + market blend: EV \u2265 3%",
+    "n": 134,
+    "win": 0.6119,
+    "roi": 0.0655
+   },
+   {
+    "rule": "Model + market blend: EV \u2265 5%",
+    "n": 107,
+    "win": 0.5888,
+    "roi": 0.0395
+   },
+   {
+    "rule": "Model + market blend: EV \u2265 8%",
+    "n": 68,
+    "win": 0.5441,
+    "roi": 0.0583
+   },
+   {
+    "rule": "Model + market blend: EV \u2265 12%",
+    "n": 45,
+    "win": 0.4667,
+    "roi": -0.0452
+   },
+   {
+    "rule": "Model alone EV \u2265 5%, price 5-30c",
+    "n": 21,
+    "win": 0.381,
+    "roi": 0.5219
+   },
+   {
+    "rule": "Model alone EV \u2265 5%, price 30-50c",
+    "n": 53,
+    "win": 0.5283,
+    "roi": 0.267
+   },
+   {
+    "rule": "Model alone EV \u2265 5%, price 50-70c",
+    "n": 36,
+    "win": 0.5833,
+    "roi": -0.0348
+   },
+   {
+    "rule": "Model alone EV \u2265 5%, price 70-95c",
+    "n": 28,
+    "win": 0.8214,
+    "roi": 0.0578
+   },
+   {
+    "rule": "Blend EV \u2265 5%, price 5-30c",
+    "n": 9,
+    "win": 0.3333,
+    "roi": 0.3227
+   },
+   {
+    "rule": "Blend EV \u2265 5%, price 30-50c",
+    "n": 36,
+    "win": 0.3889,
+    "roi": -0.0908
+   },
+   {
+    "rule": "Blend EV \u2265 5%, price 50-70c",
+    "n": 34,
+    "win": 0.6176,
+    "roi": 0.0185
+   },
+   {
+    "rule": "Blend EV \u2265 5%, price 70-95c",
+    "n": 28,
+    "win": 0.8929,
+    "roi": 0.1415
+   },
+   {
+    "rule": "Model EV \u2265 3% and money agrees",
+    "n": 85,
+    "win": 0.6706,
+    "roi": 0.1675
+   },
+   {
+    "rule": "Model EV \u2265 3% and money disagrees",
+    "n": 72,
+    "win": 0.5139,
+    "roi": 0.1915
+   },
+   {
+    "rule": "Model EV \u2265 3% and no money signal",
+    "n": 3,
+    "win": 0.0,
+    "roi": -1.0
+   },
+   {
+    "rule": "Follow: Big tickets one way ($750+, 60%+)",
+    "n": 304,
+    "win": 0.6184,
+    "roi": -0.0697
+   },
+   {
+    "rule": "Follow: Line moved 6c+ since open",
+    "n": 205,
+    "win": 0.4878,
+    "roi": -0.0929
+   },
+   {
+    "rule": "Follow: Steam 5c+ in an hour",
+    "n": 104,
+    "win": 0.5577,
+    "roi": 0.0122
+   },
+   {
+    "rule": "Follow: 35%+ one-way flow",
+    "n": 355,
+    "win": 0.631,
+    "roi": -0.0386
+   }
+  ],
+  "note": "Held-out = the most recent 40% of matches, never used to fit the blend. Entry at the real Kalshi ask about an hour before the start, plus the taker fee."
+ }
+}

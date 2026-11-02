@@ -1,0 +1,53 @@
+name: refresh board
+
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch the published site (rolling state lives there)
+        run: |
+          git fetch origin gh-pages --depth=1 || true
+          mkdir -p pub
+          if git rev-parse --verify -q origin/gh-pages >/dev/null; then
+            git --work-tree=pub checkout origin/gh-pages -- . && git reset -q
+          fi
+          ls -la pub
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -q requests
+
+      - name: Refresh
+        run: python -m edge.refresh --data pub
+
+      - name: Publish
+        run: |
+          cp site/index.html pub/index.html
+          cp site/manifest.webmanifest pub/ 2>/dev/null || true
+          touch pub/.nojekyll
+          cd pub
+          git init -q -b gh-pages
+          git config user.name "tennis-edge bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -q -m "board $(date -u +%FT%TZ)"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages

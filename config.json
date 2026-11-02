@@ -1,0 +1,98 @@
+{
+  "bankroll": 1000,
+  "unit_pct": 0.01,
+  "kelly_frac": 0.25,
+  "max_units": 3.0,
+  "min_units": 0.25,
+  "match_series": [
+    "KXATPMATCH",
+    "KXWTAMATCH",
+    "KXATPCHALLENGERMATCH",
+    "KXWTACHALLENGERMATCH",
+    "KXITFMATCH",
+    "KXITFWMATCH"
+  ],
+  "deriv_series": [
+    "KXATPGTOTAL",
+    "KXWTAGTOTAL",
+    "KXATPGSPREAD",
+    "KXATPEXACTMATCH",
+    "KXATPSETWINNER",
+    "KXWTASETWINNER"
+  ],
+  "horizon_hours": 40,
+  "trade_fetch_min_volume": 50,
+  "strategies": {
+    "value": {
+      "label": "Model + market value",
+      "basis": "blend",
+      "min_ev": 0.04,
+      "min_price": 0.2,
+      "max_price": 0.88,
+      "min_matches": 25,
+      "levels": [
+        "G",
+        "M",
+        "A",
+        "F",
+        "C"
+      ],
+      "min_vol": 300,
+      "kelly_mult": 1.0
+    },
+    "model_edge": {
+      "label": "Model-only edge",
+      "basis": "model",
+      "min_ev": 0.08,
+      "min_price": 0.2,
+      "max_price": 0.85,
+      "min_matches": 25,
+      "levels": [
+        "G",
+        "M",
+        "A",
+        "F",
+        "C"
+      ],
+      "min_vol": 300,
+      "kelly_mult": 0.5
+    },
+    "value_sharp": {
+      "label": "Value + money agrees",
+      "basis": "blend",
+      "min_ev": 0.03,
+      "min_price": 0.2,
+      "max_price": 0.88,
+      "min_matches": 25,
+      "levels": [
+        "G",
+        "M",
+        "A",
+        "F",
+        "C"
+      ],
+      "min_vol": 300,
+      "need_signal": true,
+      "kelly_mult": 1.0
+    },
+    "deriv": {
+      "label": "Sets / games value",
+      "min_ev": 0.08,
+      "min_price": 0.08,
+      "max_price": 0.9,
+      "min_matches": 30,
+      "levels": [
+        "G",
+        "M",
+        "A",
+        "F"
+      ],
+      "min_vol": 0
+    },
+    "combo": {
+      "label": "2-leg combo",
+      "min_ev": 0.06
+    }
+  },
+  "smart_refresh_hours": 24
+}
