@@ -56,7 +56,11 @@ def match_events(closed, pages=10, since_iso=None):
                 prices = [float(x) for x in json.loads(m["outcomePrices"])]
             except (KeyError, ValueError, TypeError):
                 continue
-            out.append({"event": e["title"], "tourney": mt.group(1), "a": outcomes[0], "b": outcomes[1], "cid": m["conditionId"],
+            try:
+                tokens = json.loads(m.get("clobTokenIds") or "[]")
+            except ValueError:
+                tokens = []
+            out.append({"event": e["title"], "tourney": mt.group(1), "a": outcomes[0], "b": outcomes[1], "cid": m["conditionId"], "tokens": tokens,
                         "prices": prices, "volume": float(m.get("volume") or 0), "start": m.get("gameStartTime") or e.get("startDate"),
                         "closed": bool(m.get("closed"))})
         if len(ev) < 100:

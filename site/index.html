@@ -536,7 +536,9 @@ function renderGuide() {
   <ul style="margin:0 0 10px;padding-left:18px">
     <li>Kalshi's price was <b>more accurate</b> than the ratings model (log-loss 0.594 vs 0.612). Fitted together, the market gets ~90% of the weight. Betting the model's "edges" broke even (about 0% ROI).</li>
     <li>Tailing big tickets or one-way flow <b>lost 3%</b> after fees; line moves and steam broke even. Following the best Polymarket tennis wallets also broke even out of sample.</li>
-    <li>So the board's fair prices lean on the market, and every strategy is tracked on paper until its own record proves it. The best-founded idea left is <b>price gaps between venues</b> (Kalshi cheaper than Polymarket), plus sets/games markets priced consistently from the match odds.</li>
+    <li>Also tested and failed at real prices: early lines right after markets open (as sharp as the close), games totals and spreads (Kalshi's own prices beat the model; gaps lost 11–15%), in-play gaps vs the score model (−6 to −19%), fading big in-play swings (−19%), following them (−1%), and resting limit orders (makers broke even per match).</li>
+    <li>Cheap longshots look overpriced, but that's mostly the spread and fee being large next to a 5–15¢ price; nobody collects it after costs.</li>
+    <li>So the board's fair prices lean on the market, and every strategy is tracked on paper until its own record proves it. Ideas still open: <b>price gaps between venues</b> (Kalshi vs Polymarket, tracked live here), <b>sportsbook line shopping</b> against Pinnacle, and <b>tournament-winner / reach-a-round markets</b> priced by simulating the draw.</li>
   </ul>
   <p><b>Units.</b> Stakes are quarter-Kelly in units (1u = 1% of bankroll by default), capped at ${B.config.max_units}u.</p>
   <p><b>Strategies being tracked:</b> ${Object.values(s).map(x => esc(x.label)).join(" · ")}. Every pick is logged before the match and graded automatically on the Model record tab. Trust the strategies that keep positive CLV and ROI over hundreds of bets; drop the ones that don't.</p>

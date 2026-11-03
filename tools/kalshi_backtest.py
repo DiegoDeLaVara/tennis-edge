@@ -57,7 +57,7 @@ def load():
         if not q or q["ask"] - q["bid"] > 0.12 or q["bid"] <= 0 or q["ask"] >= 1:
             continue
         rows.append({"event": e["event"], "series": e["series"], "tour": tour, "date": d, "ka": key(e["a"], tour), "kb": key(e["b"], tour),
-                     "y": e["y"], "px": (q["bid"] + q["ask"]) / 2, "ask_a": q["ask"], "ask_b": 1 - q["bid"], "spread": q["ask"] - q["bid"],
+                     "y": e["y"], "px": (q["bid"] + q["ask"]) / 2, "ask_a": q["ask"], "ask_b": 1 - q["bid"], "spread": q["ask"] - q["bid"], "qts": q.get("ts"),
                      "px_trade": f["px_last"], "px_first": f["px_first"], "vol": f["vol"], "net_share": f.get("net_share", 0),
                      "big_net": f.get("big_net", 0), "big_vol": f.get("big_vol", 0), "late_net": f.get("late_net", 0), "steam": f.get("steam", 0),
                      "whale": f.get("whale", 0), "whale_dir": f.get("whale_dir", 0), "n_trades": f["n"], "round": e.get("round")})
