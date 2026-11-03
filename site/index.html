@@ -172,6 +172,7 @@ dialog header { padding: 12px 14px; border-bottom: 1px solid var(--line); font-w
 <nav class="tabs" role="tablist">
   <button data-tab="picks" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.5 7L12 17.6 5.7 21l1.5-7L2 9.3l7-.8z"/></svg>Picks</button>
   <button data-tab="board" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M4.5 7.5c5 2.5 5 6.5 0 9M19.5 7.5c-5 2.5-5 6.5 0 9"/></svg>Matches</button>
+  <button data-tab="books" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 4v16"/></svg>Books</button>
   <button data-tab="tracker" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>My bets</button>
   <button data-tab="record" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Model record</button>
   <button data-tab="guide" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>How</button>
@@ -192,6 +193,7 @@ const store = {
 };
 const fee = p => 0.07 * p * (1 - p);
 let B = null;                         // board.json
+let SB = null;                        // sportsbook.json (all-sports line shopping)
 const S = { tab: store.get("te_tab", "picks"), f: store.get("te_filter", "all"), q: "", open: new Set() };
 
 // ------------------------------------------------------------- tennis maths (same as the Python engine)
@@ -341,6 +343,13 @@ function renderPicks() {
   let h = `<h2 class="sec" style="margin-top:14px">✅ Bets to take now <span>${takes.length ? takes.length + " right now" : "none right now"}</span></h2>`;
   h += takes.length ? `<div class="card list">${takes.map(takeCard).join("")}</div>`
     : `<div class="card empty">Nothing to take right now — that's the normal state. Bets only appear here when a price is clearly off; the board checks every ~20 minutes.</div>`;
+  const dropped = (B.dropped || []).filter(d => d.start > now);
+  if (dropped.length) h += `<h2 class="sec">⛔ No longer a bet <span>was a TAKE earlier, not any more</span></h2><div class="card list">${dropped.map(d => `<div class="pick">
+      <div><div class="what" style="color:var(--mute)">${esc(d.label)}</div><div class="sub">${esc(d.names.join(" vs "))} · ${esc(d.tourney)} · ${dayOf(d.start)} ${when(d.start)}</div></div>
+      <div class="right"><div class="units" style="color:var(--mute);font-size:15px">skip</div></div>
+      <div class="row2"><span class="badge">was ${d.units}u at ${cents(d.entry)}</span><span class="badge bad">now ${d.now == null ? "off the board" : cents(d.now)}</span>
+        <span class="note">${d.now != null && d.now > d.entry + 0.005 ? `The price went up, so the edge is gone. If you already bet it at ${cents(d.entry)}, keep it: you got the better number.`
+          : d.now == null ? "No longer listed before the match." : "Same price, but it no longer meets the rule (the strategy was tightened or the fair price moved). Don't add to it."}</span></div></div>`).join("")}</div>`;
   h += `<div class="callout"><b>How to use this:</b> only the green <b>TAKE</b> cards above are bets. Stake the units shown (1u = $${unitVal().toFixed(0)}) and only at the price shown or better.
     These come from the strategies with a real basis — ${staking.map(esc).join(", ")} — and none is proven on tennis yet, so stakes are small. Everything in the watchlist below is tracked on paper only: <b>don't bet it</b>; the Model record tab shows if it ever earns a stake.</div>`;
   h += `<details class="card" style="margin-top:14px;padding:4px 12px"><summary style="padding:8px 0;font-weight:700;cursor:pointer">👀 Watchlist — paper only, don't bet (${watch.length})</summary>
@@ -381,6 +390,39 @@ function renderLines() {
     <div class="right"><div class="units">${u}<small>u</small></div><div class="note">$${(u * unitVal()).toFixed(0)}</div></div>
     <div class="row2"><span class="badge good">${esc(o.book)} ${esc(o.us)}</span><span class="badge">Pinnacle fair ${pct(p)}</span><span class="badge good">${sgn(o.ev)} EV</span>
       <span style="flex:1"></span><button class="btn small primary" data-logbook='${esc(JSON.stringify({ n: o.player, b: o.book, o: o.price, m: o.ln.names.join(" vs "), t: (o.ln.tickers || {})[o.player] || null, u }))}'>I bet this</button></div></div>`; }).join("")}</div>` + note;
+  return h;
+}
+
+// ------------------------------------------------------------- all-sports sportsbook board
+const SPORT = { americanfootball_nfl: "NFL", americanfootball_ncaaf: "College football", basketball_nba: "NBA", basketball_ncaab: "College basketball",
+  icehockey_nhl: "NHL", baseball_mlb: "MLB", basketball_wnba: "WNBA", mma_mixed_martial_arts: "MMA", boxing_boxing: "Boxing" };
+const sportName = s => SPORT[s] || s.replace("soccer_", "Soccer: ").replace("tennis_", "Tennis: ").split("_").join(" ");
+const betText = b => b.market === "spreads" ? `${b.outcome} ${b.point > 0 ? "+" : ""}${b.point}` : b.market === "totals" ? `${b.outcome} ${b.point}` : `${b.outcome} to win`;
+function renderBooks() {
+  if (!SB) return `<div class="card empty" style="margin-top:14px">The sportsbook board hasn't been generated yet.</div>`;
+  const r = SB.record, c = SB.clv_all || {}, uv = unitVal();
+  let h = `<h2 class="sec" style="margin-top:14px">✅ Sportsbook bets to take <span>${SB.open.length || "none"} open</span></h2>`;
+  if (!SB.has_key) h += `<div class="callout">Waiting for the Odds API key to be added to the cloud job (one command on your PC; see our chat).</div>`;
+  h += SB.open.length ? `<div class="card list">${SB.open.map(b => `<div class="pick take">
+      <div><div class="what"><span class="takechip">TAKE</span>${esc(betText(b))}</div><div class="sub">${esc(sportName(b.sport))} · ${esc(b.game)} · ${dayOf(b.start)} ${when(b.start)}</div></div>
+      <div class="right"><div class="units">${b.units}<small>u</small></div><div class="note">$${(b.units * uv).toFixed(0)}</div></div>
+      <div class="row2"><span class="badge good">${esc(b.book)} ${esc(b.us)}</span><span class="badge warn">only at ${esc(b.min_us)} or better</span><span class="badge good">${sgn(b.ev)} EV</span><span class="badge">fair ${pct(b.fair)}</span>
+        <span style="flex:1"></span><button class="btn small primary" data-logbook='${esc(JSON.stringify({ n: betText(b), b: b.book, o: b.price, m: b.game, t: null, u: b.units }))}'>I bet this</button></div>
+      ${b.flag ? `<div class="row2" style="margin-top:0"><span class="badge bad">${esc(b.flag)}</span></div>` : ""}</div>`).join("")}</div>`
+    : `<div class="card empty">No sportsbook price beats Pinnacle's fair line right now. They appear for short windows when a book lags Pinnacle.</div>`;
+  h += `<div class="callout">US sportsbook prices that pay more than <b>Pinnacle's no-vig line</b> (the sharpest book), all sports. This is the approach that tested +1.4% to +3.1% per bet. Bet the units shown at the listed book, only if the price is still there. Bets without a Pinnacle line are no longer taken (they had −4% closing-line value).</div>`;
+  h += `<h2 class="sec">Record <span>cloud scanner, since it went live</span></h2><div class="stats">
+    <div class="stat"><small>Record</small><b>${r.w}-${r.l}</b></div>
+    <div class="stat"><small>Units</small><b class="${r.pnl >= 0 ? "pos" : "neg"}">${r.pnl >= 0 ? "+" : ""}${r.pnl}u</b></div>
+    <div class="stat"><small>ROI</small><b class="${r.roi >= 0 ? "pos" : "neg"}">${sgn(r.roi)}</b></div>
+    <div class="stat"><small>Beat the close</small><b>${c.beat == null ? "—" : pct(c.beat)}</b></div>
+    <div class="stat"><small>Avg CLV</small><b class="${(c.avg || 0) >= 0 ? "pos" : "neg"}">${c.avg == null ? "—" : sgn(c.avg)}</b></div></div>
+    <p class="note" style="margin:6px 2px">Closing-line value (did the fair price move your way before the start) is the fast, honest test: positive on average means real edge, long before ROI settles down.</p>`;
+  const tbl = (title, o) => Object.keys(o).length ? `<div class="card tw" style="padding:6px 8px;margin-top:10px"><table><tr><th>${title}</th><th class="n">Bets</th><th class="n">W-L</th><th class="n">Units</th><th class="n">CLV</th></tr>
+    ${Object.entries(o).sort((a, b) => b[1].n - a[1].n).map(([k, v]) => `<tr><td>${esc(title === "Sport" ? sportName(k) : k)}</td><td class="n">${v.n}</td><td class="n">${v.w}-${v.l}</td><td class="n ${v.pnl >= 0 ? "pos" : "neg"}">${v.pnl >= 0 ? "+" : ""}${v.pnl}</td><td class="n">${v.clv == null ? "—" : sgn(v.clv)}</td></tr>`).join("")}</table></div>` : "";
+  h += tbl("Sport", SB.by_sport || {}) + tbl("Book", SB.by_book || {});
+  if ((SB.recent || []).length) h += `<h2 class="sec">Recently settled</h2><div class="card list">${SB.recent.slice(0, 20).map(b => `<div class="bet"><div><div class="what">${esc(betText(b))}</div><div class="sub">${esc(sportName(b.sport))} · ${esc(b.game)} · ${esc(b.book)} ${esc(b.us)} · ${b.units}u${b.clv != null ? ` · CLV ${sgn(b.clv)}` : ""}</div></div><div class="res ${b.result === "win" ? "pos" : b.result === "loss" ? "neg" : ""}">${b.result === "push" ? "push" : (b.pnl_units >= 0 ? "+" : "") + (b.pnl_units || 0).toFixed(2) + "u"}</div></div>`).join("")}</div>`;
+  h += `<p class="note" style="margin:10px 2px">Last scan ${SB.last_scan ? ago(SB.last_scan) : "—"} · Odds API credits left ≈ ${SB.credits_left} · used today ${SB.spent_today}/${SB.daily_budget}. The free plan allows a few scans a day; the $30/month plan would let it rescan every 15–20 minutes and catch far more of these short windows.</p>`;
   return h;
 }
 
@@ -630,7 +672,7 @@ function render() {
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === S.tab));
   renderFilters();
   if (!B) return;
-  const f = { picks: renderPicks, board: renderBoard, tracker: renderTracker, record: renderRecord, guide: renderGuide }[S.tab] || renderPicks;
+  const f = { picks: renderPicks, board: renderBoard, books: renderBooks, tracker: renderTracker, record: renderRecord, guide: renderGuide }[S.tab] || renderPicks;
   $("#main").innerHTML = f();
   const q = $("#q"); if (q) q.oninput = e => { S.q = e.target.value; const pos = e.target.selectionStart; render(); const n = $("#q"); n.focus(); n.setSelectionRange(pos, pos); };
 }
@@ -671,6 +713,7 @@ async function load() {
     const nb = await r.json();
     if (B) nb.matches.forEach(m => { const o = B.matches.find(x => x.id === m.id); if (o && o._live) m._live = o._live; });
     B = nb;
+    try { const r2 = await fetch("sportsbook.json?t=" + Date.now(), { cache: "no-store" }); if (r2.ok) SB = await r2.json(); } catch {}
     $("#upd").innerHTML = `Updated <b>${ago(B.generated)}</b><br>${B.n_matches} matches · refreshes ~20 min`;
     render();
   } catch (e) {

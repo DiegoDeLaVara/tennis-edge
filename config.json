@@ -152,11 +152,19 @@
     "KXATP",
     "KXWTA"
   ],
-  "books": {
-    "daily_credits": 4,
-    "reserve": 100,
-    "rescan_hours": 6,
+  "sportsbook": {
+    "bankroll": 1000.0,
+    "unit_pct": 0.01,
     "min_ev": 0.02,
-    "max_ev": 0.12
+    "min_ev_consensus": 0.045,
+    "max_ev_clean": 0.12,
+    "daily_credits": 12,
+    "close_credits": 4,
+    "reserve": 40,
+    "rescan_hours": 4,
+    "horizon_hours": 30,
+    "max_units": 3.0,
+    "max_odds": 6.0,
+    "require_pinnacle": true
   }
 }

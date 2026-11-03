@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from . import books, context, markov, money, smart
+from . import books, context, markov, money, smart, sportsbook
 from . import sources as src
 from .model import Model, logit, sig
 from .names import Index, key
@@ -326,7 +326,8 @@ def run(data, cfg, do_smart=True, verbose=True):
     # ---- sportsbook lines (Pinnacle fair vs US books and Kalshi)
     lines = []
     try:
-        snap = books.scan(data, cfg, notes)
+        sportsbook.run(data, notes)                 # all-sports line shopping (shares the Odds API budget)
+        snap = books.from_snapshots(data)
         lines = books.value_bets(snap, cfg)
         attach_lines(lines, board, idx, snap.get("ts"))
     except Exception as e:
@@ -425,6 +426,14 @@ def run(data, cfg, do_smart=True, verbose=True):
 
     picks = sorted([dict(b, match=m["id"], names=m["names"], tourney=m["tourney"], start=m["start"], tour=m["tour"], level=m["level"])
                     for m in board for b in m.get("bets", []) if b["tags"]], key=lambda b: -b["ev"])
+    # staked picks that lost their stake since they were flagged (price moved, or the strategy went to paper)
+    staked_now = {b["ticker"] for b in picks if b.get("units")}
+    ask_now = {b["ticker"]: b.get("ask") for m in board for b in m.get("bets", [])}
+    dropped = [{"label": e["label"], "names": e["names"], "tourney": e["tourney"], "start": e["start"], "entry": e["entry"],
+                "units": e["units"], "now": ask_now.get(k), "first_ts": e["first_ts"], "kind": e.get("kind")}
+               for k, e in log.get("bets", {}).items()
+               if e.get("units") and e["result"] is None and e["start"] > NOW and e.get("kind") in ("match", "deriv") and k not in staked_now]
+    dropped.sort(key=lambda e: e["start"])
     for m in board:
         m["bets"] = sorted(m.get("bets", []), key=lambda b: -(b["ev"] or -9))[:14]
     meta = json.loads((ROOT / "model" / "coef.json").read_text())
@@ -432,7 +441,7 @@ def run(data, cfg, do_smart=True, verbose=True):
            "config": {k: cfg[k] for k in ("bankroll", "unit_pct", "kelly_frac", "max_units")} | {"strategies": strat},
            "model_meta": {k: meta.get(k) for k in ("walk_forward", "market", "kalshi_backtest", "features", "futures_backtest")},
            "smart_wallets": len(sw), "matches": sorted(board, key=lambda m: m["start"]), "picks": picks, "combos": combos,
-           "futures": futs, "lines": lines, "lines_meta": {k: snap.get(k) for k in ("ts", "status", "remaining", "usage", "sports")}, "record": rec, "results": settled_map(data, cfg, notes)}
+           "futures": futs, "lines": lines, "dropped": dropped, "lines_meta": {k: snap.get(k) for k in ("ts", "status", "remaining", "usage", "sports")}, "record": rec, "results": settled_map(data, cfg, notes)}
     (data / "board.json").write_text(json.dumps(out, separators=(",", ":"), default=lambda o: None))
     save_state(data, R, surfaces, seen, st)
     if verbose:

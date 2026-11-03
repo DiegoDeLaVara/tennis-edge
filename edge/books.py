@@ -121,3 +121,22 @@ def value_bets(snap, cfg):
         out.append({"id": e["id"], "sport": e["sport"], "start": e["start"], "players": names, "fair": {n: round(p, 4) for n, p in fair.items()},
                     "pinnacle": pin, "best": best, "value": sorted(flagged, key=lambda o: -o["ev"])})
     return out
+
+
+def from_snapshots(data_dir):
+    """Tennis events from the all-sports scanner's latest odds files (edge/sportsbook.py), so tennis spends no extra credits."""
+    events, ts, sports = [], None, []
+    for f in sorted((data_dir / "odds").glob("tennis_*.json")):
+        try:
+            j = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if time.time() - j.get("ts", 0) > 36 * 3600:
+            continue
+        sports.append(f.stem)
+        ts = j["ts"] if ts is None else min(ts, j["ts"])
+        for e in j.get("events", []):
+            events.append({"sport": f.stem, "id": e["id"], "start": e["commence_time"], "home": e["home_team"], "away": e["away_team"],
+                           "books": {b["key"]: {o["name"]: o["price"] for m in b["markets"] if m["key"] == "h2h" for o in m["outcomes"]}
+                                     for b in e.get("bookmakers", [])}})
+    return {"ts": ts, "events": events, "sports": sports, "status": "ok" if os.environ.get("ODDS_API_KEY") else "no key"}
