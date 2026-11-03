@@ -12,7 +12,8 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from edge import context, sources as src
+from edge import context, sources as src, style
+from edge.ratings import p_elo
 from edge.ratings import Ratings
 from edge.names import key
 
@@ -113,6 +114,13 @@ def main():
     cout = open(WORK / "context.csv", "w", newline="", encoding="utf-8")
     cw = csv.writer(cout)
     cw.writerow(ctx_cols)
+    # playing-style matchup history (edge/style.py), tracked from 2002 so styles are warm by 2010
+    SP = style.Style()
+    style_from = date(2002, 1, 1).toordinal()
+    style_cols = ["date", "a", "b", "style_a", "style_b", "vs_a", "vs_b", "vs_n_a", "vs_n_b", "h2h_res", "h2h_n"]
+    sout = open(WORK / "style.csv", "w", newline="", encoding="utf-8")
+    sw_ = csv.writer(sout)
+    sw_.writerow(style_cols)
     # daily rating snapshots for draw backtests (players active in the last 2 years only)
     snap_from = date(2026, 4, 20).toordinal()
     snaps, next_snap = {}, snap_from
@@ -136,11 +144,18 @@ def main():
                 if m["date"] >= ctx_from:
                     cx = context.match_context(R, a, b, m.get("tourney"), m.get("surface"), m["date"])
                     cw.writerow([date.fromordinal(m["date"]).isoformat(), a, b, m.get("tourney") or ""] + [cx[c] for c in ctx_cols[4:]])
+                sf = SP.features(a, b, m["tour"], m["date"])
+                sw_.writerow([date.fromordinal(m["date"]).isoformat(), a, b] + [sf[c] if not isinstance(sf[c], float) else round(sf[c], 5) for c in style_cols[3:]])
+        if m["date"] >= style_from and "W/O" not in m["score"]:
+            W_, L_ = R.P.get(m["w"]), R.P.get(m["l"])
+            pw = p_elo(R.blended(W_, m.get("surface")), R.blended(L_, m.get("surface"))) if (W_ and L_ and W_.n >= 5 and L_.n >= 5) else None
+            SP.update(m, m["date"], pw)
         R.add(m)
         if i % 200000 == 0:
             print(i, round(time.time() - t0, 1), "s")
     out.close()
     cout.close()
+    sout.close()
     with gzip.open(WORK / "elo_snaps.json.gz", "wt") as fh:
         json.dump(snaps, fh, separators=(",", ":"))
     cut = (date.today() - timedelta(days=900)).toordinal()

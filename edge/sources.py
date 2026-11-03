@@ -112,7 +112,7 @@ def std_row(r, tour, src):
          "uid": f"{tour}|{r.get('tourney_id')}|{r.get('match_num')}|{key(r['winner_name'], tour)}",
          "sort": (d.toordinal(), ROUND_ORDER.get(rnd, 5))}
     for side in ("w", "l"):
-        for c in ("svpt", "1stWon", "2ndWon"):
+        for c in ("svpt", "1stWon", "2ndWon", "ace"):
             v = r.get(f"{side}_{c}")
             if v not in (None, ""):
                 m[f"{side}_{c}"] = v
