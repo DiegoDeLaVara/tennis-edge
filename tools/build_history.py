@@ -12,7 +12,7 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from edge import sources as src
+from edge import context, sources as src
 from edge.ratings import Ratings
 from edge.names import key
 
@@ -107,6 +107,12 @@ def main():
             "games_a", "games_b", "sets_a", "sets_b", "ret"]
     wr = csv.writer(out)
     wr.writerow(cols)
+    # situational context for the upset study (rows from 2025 on, same A/B orientation as features.csv)
+    ctx_from = date(2025, 1, 1).toordinal()
+    ctx_cols = ["date", "a", "b", "tourney", "home_country"] + [f + s for f in context.FIELDS for s in ("_a", "_b")]
+    cout = open(WORK / "context.csv", "w", newline="", encoding="utf-8")
+    cw = csv.writer(cout)
+    cw.writerow(ctx_cols)
     # daily rating snapshots for draw backtests (players active in the last 2 years only)
     snap_from = date(2026, 4, 20).toordinal()
     snaps, next_snap = {}, snap_from
@@ -127,10 +133,14 @@ def main():
                 wr.writerow([date.fromordinal(m["date"]).isoformat(), m["tour"], m["level"], m.get("surface") or "", m.get("best_of", 3),
                              m.get("round"), m["uid"].split("|")[0], a, b, y] + [round(f[c], 5) if isinstance(f[c], float) else f[c] for c in cols[10:28]]
                             + [ga, gb, sa, sb, int(ret)])
+                if m["date"] >= ctx_from:
+                    cx = context.match_context(R, a, b, m.get("tourney"), m.get("surface"), m["date"])
+                    cw.writerow([date.fromordinal(m["date"]).isoformat(), a, b, m.get("tourney") or ""] + [cx[c] for c in ctx_cols[4:]])
         R.add(m)
         if i % 200000 == 0:
             print(i, round(time.time() - t0, 1), "s")
     out.close()
+    cout.close()
     with gzip.open(WORK / "elo_snaps.json.gz", "wt") as fh:
         json.dump(snaps, fh, separators=(",", ":"))
     cut = (date.today() - timedelta(days=900)).toordinal()

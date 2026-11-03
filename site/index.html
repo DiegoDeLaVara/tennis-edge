@@ -67,6 +67,8 @@ h2.sec span { text-transform: none; letter-spacing: 0; font-weight: 500; font-si
 .pick .what { font-weight: 700; font-size: 16.5px; letter-spacing: -.01em; }
 .pick .sub { font-size: 12.5px; color: var(--mute); }
 .pick .right { text-align: right; }
+.pick.take { border-left: 4px solid var(--good); }
+.takechip { display: inline-block; font: 800 11px/1 "Inter Tight", sans-serif; letter-spacing: .06em; background: var(--good); color: var(--card); border-radius: 6px; padding: 4px 6px; margin-right: 7px; vertical-align: 2px; }
 .pick .units { font: 700 22px/1 "JetBrains Mono", monospace; color: var(--good); }
 .pick .units small { font-size: 12px; font-weight: 600; }
 .pick .ev { font-size: 12px; color: var(--good); font-weight: 600; }
@@ -290,30 +292,62 @@ function pickCard(p, i) {
       <div class="sub">${esc(p.names.join(" vs "))} · ${esc(p.tourney)} · ${dayOf(p.start)} ${when(p.start)}</div></div>
     <div class="right">${p.units ? `<div class="units">${p.units}<small>u</small></div><div class="note">$${usd}</div>` : `<div class="units" style="color:var(--mute);font-size:15px">paper</div><div class="note">tracking only</div>`}</div>
     <div class="row2">
-      ${p.poly != null ? `<span class="badge good">Polymarket ${cents(p.poly)}</span>` : ""}<span class="badge good">Fair ${pct(p.p)}</span>${p.p_model != null && Math.abs(p.p_model - p.p) >= 0.01 ? `<span class="badge">Ratings alone ${pct(p.p_model)}</span>` : ""}<span class="badge">Ask ${cents(p.ask)}</span>
+      ${p.poly != null ? `<span class="badge good">Polymarket ${cents(p.poly)}</span>` : ""}${p.pin != null ? `<span class="badge good">Pinnacle ${pct(p.pin)}</span>` : ""}<span class="badge good">Fair ${pct(p.p)}</span>${p.p_model != null && Math.abs(p.p_model - p.p) >= 0.01 ? `<span class="badge">Ratings alone ${pct(p.p_model)}</span>` : ""}<span class="badge">Ask ${cents(p.ask)}</span>
       <span class="badge good">${sgn(p.ev)} EV</span><span class="badge warn">Take ≤ ${p.take_at ?? "—"}¢</span>
       ${tagNames.map(t => `<span class="badge">${esc(t)}</span>`).join("")}
       ${m.signals ? sigBadges(m, side) : ""}
       <span style="flex:1"></span><button class="btn small primary" data-log="${esc(p.ticker)}">I bet this</button>
     </div></div>`;
 }
+function takeCard(x) {
+  // x: {what, sub, where, price, max, units, why, strategy, logAttr}
+  return `<div class="pick take">
+    <div><div class="what"><span class="takechip">TAKE</span>${esc(x.what)}</div><div class="sub">${x.sub}</div></div>
+    <div class="right"><div class="units">${x.units}<small>u</small></div><div class="note">$${(x.units * unitVal()).toFixed(0)}</div></div>
+    <div class="row2"><span class="badge good">${esc(x.where)}</span><span class="badge warn">${esc(x.max)}</span><span class="badge good">${esc(x.edge)}</span></div>
+    <div class="row2" style="margin-top:0"><span class="note" style="flex:1">${esc(x.why)}</span><button class="btn small primary" ${x.logAttr}>I bet this</button></div></div>`;
+}
 function renderPicks() {
-  const picks = (B.picks || []).filter(p => p.start > Date.now() / 1000 - 600);
-  const gaps = picks.filter(p => p.kind === "match" && p.tags.includes("price_gap"));
-  const straights = picks.filter(p => p.kind === "match" && !p.tags.includes("price_gap"));
-  const derivs = picks.filter(p => p.kind === "deriv");
-  const rec = B.record?.by_strategy || {};
-  const best = Object.entries(rec).filter(([k]) => k !== "all" && rec[k].n >= 20).sort((a, b) => b[1].roi_flat - a[1].roi_flat);
-  const proven = Object.values(B.config.strategies).some(s => s.proven);
-  let h = `<div class="callout" style="margin-top:12px">${proven ? "" : `<b>No strategy is proven yet.</b> On 5,500 Kalshi matches the market price was more accurate than the ratings model, and tailing sharp money lost after fees. So everything below is being <b>tested</b>: stakes are half-size, "paper" picks are tracked only, and the Model record tab shows which ones earn their keep. Stay small until one does.<br><br>`}
-    Bet only at or below the <b>Take ≤</b> price (1u = $${unitVal().toFixed(0)}; change it in My bets). Judge any strategy over 100+ bets, not a few days.
-    ${best.length ? `<br>Record so far: ${best.slice(0, 3).map(([k, s]) => `${esc(B.config.strategies[k]?.label || k)} <b class="${s.roi_flat >= 0 ? "pos" : "neg"}">${sgn(s.roi_flat)}</b> (${s.n})`).join(" · ")}` : ""}</div>`;
-  h += `<h2 class="sec">Price gaps <span>Kalshi cheaper than Polymarket</span></h2>`;
-  h += gaps.length ? `<div class="card list">${gaps.map(pickCard).join("")}</div>` : `<div class="card empty">No Kalshi price is cheaper than Polymarket by more than the fee right now. These come and go within minutes.</div>`;
-  h += `<h2 class="sec">Model value <span>${straights.length} today</span></h2>`;
-  h += straights.length ? `<div class="card list">${straights.map(pickCard).join("")}</div>` : `<div class="card empty">No match bets clear the bar right now. That's normal — Kalshi prices are sharp, and the board refreshes every ~20 minutes.</div>`;
-  h += `<h2 class="sec">Sets &amp; games <span>${derivs.length}</span></h2>`;
-  h += derivs.length ? `<div class="card list">${derivs.map(pickCard).join("")}</div>` : `<div class="card empty">No set or games-total prices with an edge right now.</div>`;
+  const now = Date.now() / 1000;
+  const S = B.config.strategies;
+  const picks = (B.picks || []).filter(p => p.start > now - 600);
+  const tag = p => p.tags.find(t => (S[t]?.kelly_mult || 0) > 0) || p.tags[0];
+  const takes = [];
+  picks.filter(p => p.units > 0).forEach(p => {
+    const t = tag(p);
+    takes.push({ score: p.units * p.ev, what: p.label, sub: `${esc(p.names.join(" vs "))} · ${esc(p.tourney)} · ${dayOf(p.start)} ${when(p.start)}`,
+      where: `Kalshi · ask ${cents(p.ask)}`, max: `only at ${p.take_at ?? "—"}¢ or less`, edge: `${sgn(p.ev)} EV`,
+      units: p.units, why: S[t]?.why || S[t]?.label || "", logAttr: `data-log="${esc(p.ticker)}"` });
+  });
+  (B.futures || []).forEach(t => t.players.forEach(p => {
+    if (!p.tags.length || !(p.units > 0)) return;
+    const yes = p.side === "yes", price = yes ? p.ask : 1 - p.bid;
+    takes.push({ score: p.units * ((yes ? p.ev_yes : p.ev_no) || 0), what: `${p.name} ${yes ? "to win" : "NOT to win"} ${t.tourney}`, sub: `Tournament winner market`,
+      where: `Kalshi · ${yes ? "Yes" : "No"} at ${cents(price)}`, max: `fair ${pct(yes ? p.fair : 1 - p.fair)}`, edge: `${sgn(yes ? p.ev_yes : p.ev_no)} EV`,
+      units: p.units, why: S.futures?.why || "", logAttr: `data-logfut='${esc(JSON.stringify({ t: p.ticker, n: p.name, s: p.side, b: p.bid, a: p.ask, tn: t.tourney, tour: t.tour }))}'` });
+  }));
+  const kf = B.config.kelly_frac || 0.25, maxU = B.config.max_units || 3, ts_ = tsettings();
+  (B.lines || []).forEach(ln => (ln.value || []).forEach(o => {
+    const p = ln.fair[o.player], k = (p * o.price - 1) / (o.price - 1);
+    const u = k > 0 ? Math.round(Math.min(Math.max(k * kf * (S.line_shop?.kelly_mult ?? 1) / (ts_.unit_pct / 100), 0.25), maxU) * 4) / 4 : 0;
+    if (!u) return;
+    takes.push({ score: u * o.ev, what: `${o.player} to win`, sub: `${esc(ln.names.join(" vs "))} · ${dayOf(Date.parse(ln.start) / 1000)} ${when(Date.parse(ln.start) / 1000)}`,
+      where: `${o.book} ${o.us}`, max: `fair ${pct(p)} (Pinnacle)`, edge: `${sgn(o.ev)} EV`, units: u, why: (S.line_shop?.why || "") + ` Prices checked ${B.lines_meta?.ts ? ago(B.lines_meta.ts) : "—"}; confirm the price before betting.`,
+      logAttr: `data-logbook='${esc(JSON.stringify({ n: o.player, b: o.book, o: o.price, m: ln.names.join(" vs "), t: (ln.tickers || {})[o.player] || null, u }))}'` });
+  }));
+  takes.sort((a, b) => b.score - a.score);
+  const watch = picks.filter(p => !(p.units > 0));
+  const staking = Object.entries(S).filter(([, s]) => (s.kelly_mult || 0) > 0).map(([, s]) => s.label);
+  let h = `<h2 class="sec" style="margin-top:14px">✅ Bets to take now <span>${takes.length ? takes.length + " right now" : "none right now"}</span></h2>`;
+  h += takes.length ? `<div class="card list">${takes.map(takeCard).join("")}</div>`
+    : `<div class="card empty">Nothing to take right now — that's the normal state. Bets only appear here when a price is clearly off; the board checks every ~20 minutes.</div>`;
+  h += `<div class="callout"><b>How to use this:</b> only the green <b>TAKE</b> cards above are bets. Stake the units shown (1u = $${unitVal().toFixed(0)}) and only at the price shown or better.
+    These come from the strategies with a real basis — ${staking.map(esc).join(", ")} — and none is proven on tennis yet, so stakes are small. Everything in the watchlist below is tracked on paper only: <b>don't bet it</b>; the Model record tab shows if it ever earns a stake.</div>`;
+  h += `<details class="card" style="margin-top:14px;padding:4px 12px"><summary style="padding:8px 0;font-weight:700;cursor:pointer">👀 Watchlist — paper only, don't bet (${watch.length})</summary>
+    <p class="note">Model-based picks that failed the Kalshi backtests. They're logged and graded automatically so we find out for sure; if one strategy keeps winning over 100+ picks, it gets promoted to a TAKE.</p>
+    ${watch.length ? `<div class="list">${watch.map(pickCard).join("")}</div>` : `<div class="empty">Nothing on the watchlist.</div>`}</details>`;
+  h += `<h2 class="sec">Tools <span>reference prices, not bets on their own</span></h2>`;
+  h += renderLines();
   h += renderFutures();
   const combos = (B.combos || []).filter(c => c.start > Date.now() / 1000 - 600);
   h += `<h2 class="sec">Combos <span>request a quote on Kalshi, take it at or below the price</span></h2>`;
@@ -326,6 +360,27 @@ function renderPicks() {
         <span style="flex:1"></span><button class="btn small" data-logcombo='${esc(JSON.stringify({ legs: c.legs, names: c.names, p: c.p, take: c.take_at, start: c.start }))}'>I bet this</button></div></div>`).join("")}</div>`
     : `<div class="card empty">No combos worth requesting right now.</div>`;
   h += `<p class="note" style="margin:12px 2px">Same-match combos price exactly from the model's set-by-set simulation, so "fav wins + under" is priced with the correlation a sportsbook parlay ignores. Two-match combos multiply two independent value bets; keep combos to 2 legs.</p>`;
+  return h;
+}
+
+// ------------------------------------------------------------- sportsbook line shopping
+function renderLines() {
+  const L = B.lines || [], meta = B.lines_meta || {};
+  let h = `<h2 class="sec">Sportsbook value <span>US books paying more than Pinnacle's fair line</span></h2>`;
+  if (meta.status === "no key") return h + `<div class="card empty">Waiting for the Odds API key to be added to the cloud job.</div>`;
+  const age = meta.ts ? ago(meta.ts) : "never";
+  const offers = [];
+  L.forEach(ln => (ln.value || []).forEach(o => offers.push({ ...o, ln })));
+  offers.sort((a, b) => b.ev - a.ev);
+  const t = tsettings(), kf = B.config.kelly_frac || 0.25, maxU = B.config.max_units || 3;
+  const unitsFor = (p, o) => { const k = (p * o - 1) / (o - 1); if (k <= 0) return 0; return Math.round(Math.min(Math.max(k * kf / (t.unit_pct / 100), 0.25), maxU) * 4) / 4; };
+  const note = `<p class="note" style="margin:6px 2px">Prices checked ${age} (the free Odds API plan allows a few scans a day; ${meta.remaining ?? "?"} credits left this month). Books move fast: confirm the price is still there before betting. This line-shopping approach tested +1.4% to +3.1% per bet across sports; it hasn't been proven on tennis yet.</p>`;
+  if (!offers.length) return h + `<div class="card empty">No US sportsbook price beats Pinnacle by 2%+ in the last scan${L.length ? ` (${L.length} matches checked)` : ""}.</div>` + note;
+  h += `<div class="card list">${offers.slice(0, 12).map(o => { const p = o.ln.fair[o.player], u = unitsFor(p, o.price); return `<div class="pick">
+    <div><div class="what">${esc(o.player)} <span class="note">to win</span></div><div class="sub">${esc(o.ln.names.join(" vs "))} · ${dayOf(Date.parse(o.ln.start) / 1000)} ${when(Date.parse(o.ln.start) / 1000)}</div></div>
+    <div class="right"><div class="units">${u}<small>u</small></div><div class="note">$${(u * unitVal()).toFixed(0)}</div></div>
+    <div class="row2"><span class="badge good">${esc(o.book)} ${esc(o.us)}</span><span class="badge">Pinnacle fair ${pct(p)}</span><span class="badge good">${sgn(o.ev)} EV</span>
+      <span style="flex:1"></span><button class="btn small primary" data-logbook='${esc(JSON.stringify({ n: o.player, b: o.book, o: o.price, m: o.ln.names.join(" vs "), t: (o.ln.tickers || {})[o.player] || null, u }))}'>I bet this</button></div></div>`; }).join("")}</div>` + note;
   return h;
 }
 
@@ -500,7 +555,7 @@ function betForm(pre = {}) {
     <label>Type<select id="f-type">${["Straight", "Combo", "Sets/games", "Futures", "Live"].map(x => `<option ${pre.type === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>
     <label>Where<select id="f-where">${["Kalshi", "Sportsbook", "Polymarket"].map(x => `<option ${pre.where === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>
     <label>Price ¢ (Kalshi)<input id="f-price" inputmode="decimal" value="${pre.price ? Math.round(pre.price * 100) : ""}" placeholder="e.g. 42"></label>
-    <label>…or odds<input id="f-odds" inputmode="decimal" placeholder="+150 or 2.50"></label>
+    <label>…or odds<input id="f-odds" inputmode="decimal" placeholder="+150 or 2.50" value="${pre.odds ? pre.odds : ""}"></label>
     <label>Units<input id="f-units" inputmode="decimal" value="${units}"></label>
     <label>Strategy<input id="f-strat" value="${esc(pre.strategy || "")}" placeholder="optional"></label>
   </div><div style="padding:0 12px 14px;display:flex;gap:8px;align-items:center"><button class="btn primary" id="f-save">Save</button><span class="note" id="f-note">1u = $${unitVal().toFixed(2)}</span></div>`, () => {
@@ -560,6 +615,7 @@ function renderGuide() {
     <li>Also tested and failed at real prices: early lines right after markets open (as sharp as the close), games totals and spreads (Kalshi's own prices beat the model; gaps lost 11–15%), in-play gaps vs the score model (−6 to −19%), fading big in-play swings (−19%), following them (−1%), and resting limit orders (makers broke even per match).</li>
     <li>Sets: Kalshi's set-1, set-2 and exact-set-score markets are priced almost exactly as our model derives them from the match price (gaps of 3%+ are rare and didn't pay). Backing the set-1 loser to win set 2 lost 8.5% over 2,176 matches (−11.7% when that loser was the favourite).</li>
     <li>Combos: Kalshi only offers tennis legs inside multi-sport parlays, priced by market makers; there's too little history to test, and combining legs that aren't individually +EV just compounds the fee.</li>
+    <li>Upsets (7,450 Kalshi matches, 12 situational factors: home crowd, win streaks, schedule and minutes played, coming off a retirement, surface switch, layoffs, title runs, lefties, age, ranking, late season): none predicts upsets beyond the price. The market tends to <i>over</i>-react instead: home underdogs lost 16–20%, and favourites who played 200+ minutes in the last 3 days against a fresh opponent won more than priced (+17% then +14%, 95 matches) — now a small-stake TAKE rule, graded live.</li>
     <li>Cheap longshots look overpriced, but that's mostly the spread and fee being large next to a 5–15¢ price; nobody collects it after costs.</li>
     <li>So the board's fair prices lean on the market, and every strategy is tracked on paper until its own record proves it. Ideas still open: <b>price gaps between venues</b> (Kalshi vs Polymarket, tracked live here), <b>sportsbook line shopping</b> against Pinnacle, and <b>tournament-winner / reach-a-round markets</b> priced by simulating the draw.</li>
   </ul>
@@ -597,6 +653,7 @@ document.addEventListener("click", e => {
     betForm(pre || {}); return;
   }
   if (t.dataset.logcombo) { const c = JSON.parse(t.dataset.logcombo); betForm({ label: c.legs.join(" + "), match: Array.isArray(c.names[0]) ? c.names.map(n => n.join(" v ")).join(" & ") : c.names.join(" vs "), type: "Combo", where: "Kalshi", price: c.take ? c.take / 100 : null, units: 0.5, strategy: "2-leg combo" }); return; }
+  if (t.dataset.logbook) { const f = JSON.parse(t.dataset.logbook); betForm({ label: `${f.n} to win (${f.b})`, match: f.m, type: "Straight", where: "Sportsbook", odds: f.o, units: f.u || 1, ticker: f.t, strategy: "Sportsbook beats Pinnacle" }); return; }
   if (t.dataset.logfut) { const f = JSON.parse(t.dataset.logfut); betForm({ label: `${f.n} ${f.s === "yes" ? "to win" : "not to win"} ${f.tn}`, match: f.tn, type: "Futures", where: "Kalshi", price: f.s === "yes" ? f.a : 1 - f.b, units: 0.5, ticker: f.t, side: f.s, strategy: "Tournament winner (draw sim)", tour: f.tour }); return; }
   if (t.id === "addbet") return betForm();
   if (t.id === "settings") return settingsForm();

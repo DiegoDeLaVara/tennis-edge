@@ -24,7 +24,7 @@
   "trade_fetch_min_volume": 50,
   "strategies": {
     "value": {
-      "label": "Model + market value",
+      "label": "Model + market value (paper)",
       "basis": "blend",
       "min_ev": 0.03,
       "min_price": 0.2,
@@ -38,7 +38,7 @@
         "C"
       ],
       "min_vol": 300,
-      "kelly_mult": 0.5,
+      "kelly_mult": 0.0,
       "proven": false
     },
     "model_edge": {
@@ -79,7 +79,7 @@
       "proven": false
     },
     "deriv": {
-      "label": "Sets / games value",
+      "label": "Sets / games value (paper)",
       "min_ev": 0.08,
       "min_price": 0.08,
       "max_price": 0.9,
@@ -92,7 +92,7 @@
       ],
       "min_vol": 0,
       "proven": false,
-      "kelly_mult": 0.5
+      "kelly_mult": 0.0
     },
     "combo": {
       "label": "2-leg combo",
@@ -107,7 +107,8 @@
       "min_price": 0.1,
       "max_price": 0.9,
       "proven": false,
-      "kelly_mult": 0.5
+      "kelly_mult": 0.5,
+      "why": "Kalshi's ask is below Polymarket's price after the fee: two markets disagree, take the cheaper one."
     },
     "futures": {
       "label": "Tournament winner (draw sim)",
@@ -115,12 +116,47 @@
       "min_price": 0.02,
       "max_price": 0.9,
       "proven": false,
-      "kelly_mult": 0.25
+      "kelly_mult": 0.25,
+      "why": "Draw-simulation title odds beat Kalshi's winner price; the one Kalshi market where the model was as sharp as the market (from the QF on)."
+    },
+    "line_shop": {
+      "label": "Sportsbook beats Pinnacle",
+      "proven": false,
+      "kelly_mult": 1.0,
+      "why": "A US sportsbook pays more than Pinnacle's fair line: the approach that tested +1.4% to +3.1% per bet across sports."
+    },
+    "pinnacle_gap": {
+      "label": "Kalshi cheaper than Pinnacle",
+      "min_ev": 0.02,
+      "min_price": 0.1,
+      "max_price": 0.9,
+      "max_spread": 0.04,
+      "proven": false,
+      "kelly_mult": 0.5,
+      "why": "Kalshi's ask is below Pinnacle's no-vig price (the sharpest tennis book) after the fee."
+    },
+    "tired_fav": {
+      "label": "Tired favourite vs fresh underdog",
+      "min_mins_fav": 200,
+      "max_mins_dog": 90,
+      "min_price": 0.5,
+      "max_price": 0.9,
+      "proven": false,
+      "kelly_mult": 0.25,
+      "p_edge": 0.04,
+      "why": "Favourite played 200+ min in the last 3 days, underdog under 90: the market over-marks the favourite down for fatigue (backtest +17% then +14% on 95 Kalshi matches, small sample)."
     }
   },
   "smart_refresh_hours": 24,
   "futures_series": [
     "KXATP",
     "KXWTA"
-  ]
+  ],
+  "books": {
+    "daily_credits": 4,
+    "reserve": 100,
+    "rescan_hours": 6,
+    "min_ev": 0.02,
+    "max_ev": 0.12
+  }
 }

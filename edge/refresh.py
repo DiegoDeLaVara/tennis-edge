@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from . import markov, money, smart
+from . import books, context, markov, money, smart
 from . import sources as src
 from .model import Model, logit, sig
 from .names import Index, key
@@ -268,6 +268,10 @@ def run(data, cfg, do_smart=True, verbose=True):
         ka, kb = idx.resolve(m["names"][0], tour), idx.resolve(m["names"][1], tour)
         m["keys"] = [ka, kb]
         m["players"] = [player_card(R, ka, t_today), player_card(R, kb, t_today)]
+        try:
+            m["ctx"] = context.match_context(R, ka, kb, m["tourney"], m["surface"], t_today)
+        except Exception:
+            m["ctx"] = None
         qa, qb = m["q"]
         p_mkt = market_prob(qa, qb)
         m["p_mkt"] = p_mkt
@@ -319,6 +323,16 @@ def run(data, cfg, do_smart=True, verbose=True):
                     d = 1 if res["smart"][0] > res["smart"][1] else -1
                     m["signals"].append({"k": "smart", "dir": d, "txt": f"Proven Polymarket tennis winners hold ${max(res['smart']):,.0f} on {m['names'][0 if d > 0 else 1]}"})
 
+    # ---- sportsbook lines (Pinnacle fair vs US books and Kalshi)
+    lines = []
+    try:
+        snap = books.scan(data, cfg, notes)
+        lines = books.value_bets(snap, cfg)
+        attach_lines(lines, board, idx, snap.get("ts"))
+    except Exception as e:
+        notes.append(f"sportsbook lines failed: {e}")
+        snap = {}
+
     # ---- bets
     strat = cfg["strategies"]
     for m in board:
@@ -332,6 +346,7 @@ def run(data, cfg, do_smart=True, verbose=True):
         for i, q in enumerate(m["q"]):
             pi = p if i == 0 else 1 - p
             pmi = pm if i == 0 else 1 - pm
+            p_mkt_i = None if m.get("p_mkt") is None else (m["p_mkt"] if i == 0 else 1 - m["p_mkt"])
             ask = q.get("ask")
             ev = ev_at(pi, ask)
             if ev is None:
@@ -350,10 +365,26 @@ def run(data, cfg, do_smart=True, verbose=True):
             if gap is not None:
                 tags.append("price_gap")
                 u = max(u, units(gap[0], ask, cfg) * strat["price_gap"].get("kelly_mult", 1.0))
+            pin = (m.get("book") or {}).get("fair")
+            sp = strat.get("pinnacle_gap")
+            pf = pin[i] if pin else None
+            if pin and sp and sp["min_price"] <= ask <= sp["max_price"] and (q.get("ask") or 1) - (q.get("bid") or 0) <= sp["max_spread"]:
+                if ev_at(pf, ask) >= sp["min_ev"]:
+                    tags.append("pinnacle_gap")
+                    u = max(u, units(pf, ask, cfg) * sp.get("kelly_mult", 1.0))
+            st = strat.get("tired_fav")
+            pt = None
+            if st and m.get("ctx") and m["series"] not in ("KXITFMATCH", "KXITFWMATCH") and p_mkt_i is not None and p_mkt_i >= 0.5 and st["min_price"] <= ask <= st["max_price"]:
+                me, them = ("_a", "_b") if i == 0 else ("_b", "_a")
+                if (m["ctx"]["mins3" + me] or 0) >= st["min_mins_fav"] and (m["ctx"]["mins3" + them] or 0) < st["max_mins_dog"]:
+                    tags.append("tired_fav")
+                    pt = min(p_mkt_i + st["p_edge"], 0.97)          # backtest: tired favourites win ~4 pts more than priced
+                    u = max(u, units(pt, ask, cfg) * st["kelly_mult"])
             u = round(min(max(u, cfg["min_units"]), cfg["max_units"]) * 4) / 4 if u > 0 else 0
             m["bets"].append({"ticker": q["ticker"], "label": f"{m['names'][i]} to win", "kind": "match", "p": round(pi, 4), "p_model": round(pmi, 4),
-                              "ask": ask, "ev": round(ev, 4), "ev_model": round(ev_m, 4), "take_at": max_price(pi, 0.03),
-                              "units": u, "tags": tags, "money": sig_dir, "poly": gap[0] if gap else None})
+                              "ask": ask, "ev": round(ev if pt is None else ev_at(pt, ask), 4), "ev_model": round(ev_m, 4),
+                              "take_at": max_price(pi, 0.03) if pt is None else max_price(pt, 0.01),
+                              "units": u, "tags": tags, "money": sig_dir, "poly": gap[0] if gap else None, "pin": round(pf, 4) if pf else None})
         D = m.pop("_D", None)
         for s, dm in derivs.get((m["tour"], m["id"]), []):
             pr = deriv_prob(s, dm, D, m)
@@ -387,6 +418,7 @@ def run(data, cfg, do_smart=True, verbose=True):
     log = json.loads(logf.read_text()) if logf.exists() else {"bets": {}}
     record_picks(log, board, combos)
     record_futures(log, futs)
+    record_books(log, lines, cfg)
     settle(log)
     logf.write_text(json.dumps(log))
     rec = summarize(log)
@@ -400,13 +432,61 @@ def run(data, cfg, do_smart=True, verbose=True):
            "config": {k: cfg[k] for k in ("bankroll", "unit_pct", "kelly_frac", "max_units")} | {"strategies": strat},
            "model_meta": {k: meta.get(k) for k in ("walk_forward", "market", "kalshi_backtest", "features", "futures_backtest")},
            "smart_wallets": len(sw), "matches": sorted(board, key=lambda m: m["start"]), "picks": picks, "combos": combos,
-           "futures": futs, "record": rec, "results": settled_map(data, cfg, notes)}
+           "futures": futs, "lines": lines, "lines_meta": {k: snap.get(k) for k in ("ts", "status", "remaining", "usage", "sports")}, "record": rec, "results": settled_map(data, cfg, notes)}
     (data / "board.json").write_text(json.dumps(out, separators=(",", ":"), default=lambda o: None))
     save_state(data, R, surfaces, seen, st)
     if verbose:
         print(f"matches {len(board)}, with model {sum(1 for m in board if m.get('model'))}, picks {len(picks)}, combos {len(combos)}, "
               f"new results {added}, notes {notes}")
     return out
+
+
+def attach_lines(lines, board, idx, ts):
+    """Link each sportsbook event to the Kalshi match with the same two players and store Pinnacle's fair line on it."""
+    by_pair = {}
+    for m in board:
+        if m.get("keys"):
+            by_pair[frozenset(m["keys"])] = m
+    for ln in lines:
+        tour = "wta" if "_wta_" in ln["sport"] else "atp"
+        ks = [idx.resolve(n, tour) for n in ln["players"]]
+        m = by_pair.get(frozenset(ks))
+        ln["match"] = m["id"] if m else None
+        ln["names"] = m["names"] if m else ln["players"]
+        ln["ts"] = ts
+        if not m:
+            continue
+        order = [ks.index(k) for k in m["keys"]] if set(ks) == set(m["keys"]) else [0, 1]
+        fair = [ln["fair"][ln["players"][j]] for j in order]
+        ln["tickers"] = {ln["players"][j]: m["q"][i]["ticker"] for i, j in enumerate(order)}
+        m["book"] = {"fair": fair, "best": [ln["best"].get(ln["players"][j]) for j in order], "ts": ts}
+
+
+def record_books(log, lines, cfg):
+    """Paper-log each sportsbook value price the first time it is seen; it settles from the Kalshi match result."""
+    B = log.setdefault("bets", {})
+    for ln in lines:
+        for o in ln.get("value", []):
+            tk = (ln.get("tickers") or {}).get(o["player"])
+            if not tk:
+                continue
+            k = f"book:{ln['id']}:{o['player']}:{o['book']}"
+            if k in B:
+                continue
+            p = ln["fair"][o["player"]]
+            B[k] = {"ticker": tk, "label": f"{o['player']} at {o['book']} {o['us']}", "names": ln["names"], "tourney": ln["sport"],
+                    "tour": "wta" if "_wta_" in ln["sport"] else "atp", "level": "A", "kind": "book", "tags": ["line_shop"],
+                    "first_ts": NOW, "odds": o["price"], "entry": 1 / o["price"], "p": p, "ev": o["ev"],
+                    "units": book_units(p, o["price"], cfg), "close": 1 / o["price"], "close_p": p,
+                    "start": datetime.fromisoformat(ln["start"].replace("Z", "+00:00")).timestamp(), "result": None}
+
+
+def book_units(p, odds, cfg):
+    k = (p * odds - 1) / (odds - 1)
+    if k <= 0:
+        return 0.0
+    u = k * cfg["kelly_frac"] * cfg["strategies"].get("line_shop", {}).get("kelly_mult", 1.0) / cfg["unit_pct"]
+    return round(min(max(u, cfg["min_units"]), cfg["max_units"]) * 4) / 4
 
 
 def price_gap(m, i, q, sc):
@@ -668,6 +748,11 @@ def settle_one(e, mk):
         if e.get("side") == "no":
             r = "no" if r == "yes" else "yes"
         e["result"] = r
+        if e.get("kind") == "book":                    # sportsbook bet: decimal odds, no Kalshi fee
+            e["flat_ret"] = round(e["odds"] - 1 if r == "yes" else -1, 4)
+            e["pnl_u"] = round((e["units"] or 0) * e["flat_ret"], 3)
+            e["settled_ts"] = NOW
+            return
         c = e["entry"] + fee(e["entry"])
         e["pnl_u"] = round(e["units"] * ((1 - c) / c if r == "yes" else -1), 3) if e["units"] else 0
         e["flat_ret"] = round((1 - c) / c if r == "yes" else -1, 4)
