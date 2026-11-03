@@ -45,6 +45,7 @@ def settled(series):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--series", nargs="*", default=["KXATPGTOTAL", "KXWTAGTOTAL", "KXATPGSPREAD"])
+    ap.add_argument("--max", type=int, default=0, help="most recent N markets per series")
     args = ap.parse_args()
     src.KALSHI_PACE.gap = 1 / 8.0
     K = load()
@@ -63,9 +64,11 @@ def main():
         ms = settled(s)
         n0 = len(jobs)
         for m in ms:
-            suf = m["event_ticker"].split("-", 1)[1]
+            suf = m["event_ticker"].split("-")[1]
             if suf in match and match[suf].qts:
                 jobs.append((s, m))
+        if args.max and len(jobs) - n0 > args.max:
+            jobs = jobs[:n0] + sorted(jobs[n0:], key=lambda j: -ts(j[1].get("close_time") or j[1]["expected_expiration_time"]))[:args.max]
         print(s, "settled with volume", len(ms), "linked to a priced match", len(jobs) - n0, flush=True)
     have = {}
     if CF.exists():
@@ -77,7 +80,7 @@ def main():
 
     def fetch(job):
         s, m = job
-        r = match[m["event_ticker"].split("-", 1)[1]]
+        r = match[m["event_ticker"].split("-")[1]]
         end = ts(m.get("close_time") or m["expected_expiration_time"])
         c = src.kalshi_candles(s, m["ticker"], r.qts - 2 * 86400, r.qts + 1, 60, historical=end < hist_cut)
         q = None
@@ -96,9 +99,9 @@ def main():
     for s, m in jobs:
         q = have.get(m["ticker"])
         strike = m.get("floor_strike")
-        if not q or strike is None or q[1] - q[0] > 0.10:
+        if not q or q[1] - q[0] > 0.10 or (strike is None and ("GTOTAL" in s or "GSPREAD" in s)):
             continue
-        r = match[m["event_ticker"].split("-", 1)[1]]
+        r = match[m["event_ticker"].split("-")[1]]
         e = ev.get(r.event, {})
         t0 = tot.get((r.ka, r.kb))
         total = t0[1] if t0 and abs((pd.Timestamp(t0[0]) - pd.Timestamp(r.date)).days) <= 7 else (1.25 if r.tour == "atp" else 1.12)
@@ -106,7 +109,14 @@ def main():
         sd = markov.DAY_SD[r.tour]
         pa, pb = markov.solve_serve_mix(r.px, total, bo, sd)
         D = markov.mix_dist(pa, pb, bo, sd)
-        if "GTOTAL" in s:
+        if "SETWINNER" in s or "EXACTMATCH" in s:
+            from edge.refresh import deriv_prob
+            pr = deriv_prob(s, m, D, {"names": [e.get("a", ""), e.get("b", "")]})
+            if pr is None:
+                continue
+            fair = pr[0]
+            kind = "exact score" if "EXACT" in s else "set " + m["event_ticker"].rsplit("-", 1)[-1] + " winner"
+        elif "GTOTAL" in s:
             fair = markov.prob(D, lambda sa, sb, t, d, *_: t > strike)
             kind = "total"
         else:
