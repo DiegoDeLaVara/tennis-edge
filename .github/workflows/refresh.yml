@@ -38,6 +38,8 @@ jobs:
       - run: pip install -q requests
 
       - name: Refresh
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: python -m edge.refresh --data pub
 
       - name: Publish
