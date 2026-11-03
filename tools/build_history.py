@@ -107,7 +107,15 @@ def main():
             "games_a", "games_b", "sets_a", "sets_b", "ret"]
     wr = csv.writer(out)
     wr.writerow(cols)
+    # daily rating snapshots for draw backtests (players active in the last 2 years only)
+    snap_from = date(2026, 4, 20).toordinal()
+    snaps, next_snap = {}, snap_from
     for i, m in enumerate(allrows):
+        while m["date"] >= next_snap and next_snap <= date.today().toordinal():
+            snaps[next_snap] = {k: [round(p.elo, 1), {s: round(v, 1) for s, v in p.selo.items() if p.sn[s] >= 3}, p.n,
+                                    round(p.form.at(next_snap, 45.0)[0] / (p.form.at(next_snap, 45.0)[1] + 2), 4)]
+                                for k, p in R.P.items() if p.last >= next_snap - 730 and p.n >= 5}
+            next_snap += 1
         if m["date"] >= feat_from and "W/O" not in m["score"]:
             a, b, y = (m["w"], m["l"], 1) if rnd.random() < 0.5 else (m["l"], m["w"], 0)
             f = R.features(a, b, m["tour"], m.get("surface") or "Hard", m["date"], m.get("best_of", 3), m["level"])
@@ -123,6 +131,8 @@ def main():
         if i % 200000 == 0:
             print(i, round(time.time() - t0, 1), "s")
     out.close()
+    with gzip.open(WORK / "elo_snaps.json.gz", "wt") as fh:
+        json.dump(snaps, fh, separators=(",", ":"))
     cut = (date.today() - timedelta(days=900)).toordinal()
     st = R.dump(min_last=cut)
     st["built"] = datetime.now(timezone.utc).isoformat()

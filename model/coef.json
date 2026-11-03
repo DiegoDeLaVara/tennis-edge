@@ -290,5 +290,18 @@
    }
   ],
   "note": "Held-out = the most recent 40% of matches, never used to fit the blend. Entry at the real Kalshi ask about an hour before the start, plus the taker fee."
+ },
+ "futures_backtest": {
+  "summary": "from the quarterfinals on 32 past tournaments the draw odds were slightly sharper than Kalshi's winner prices (log-loss 0.387 vs 0.393, 125 markets); from the round of 16 Kalshi was slightly sharper. Too few bets to prove profit, so stakes are a quarter of normal.",
+  "qf": {
+   "n": 125,
+   "ll_kalshi": 0.3933,
+   "ll_model": 0.3868
+  },
+  "r16": {
+   "n": 102,
+   "ll_kalshi": 0.2938,
+   "ll_model": 0.301
+  }
  }
 }

@@ -375,10 +375,18 @@ def run(data, cfg, do_smart=True, verbose=True):
     # ---- combos: same-match pairs and the best cross-match pairs
     combos = build_combos(board, cfg)
 
+    # ---- tournament winners from simulated draws
+    try:
+        futs = futures_board(R, model, idx, surfaces, board, cfg, t_today, notes)
+    except Exception as e:
+        futs = []
+        notes.append(f"futures failed: {e}")
+
     # ---- paper record
     logf = data / "log.json"
     log = json.loads(logf.read_text()) if logf.exists() else {"bets": {}}
     record_picks(log, board, combos)
+    record_futures(log, futs)
     settle(log)
     logf.write_text(json.dumps(log))
     rec = summarize(log)
@@ -390,9 +398,9 @@ def run(data, cfg, do_smart=True, verbose=True):
     meta = json.loads((ROOT / "model" / "coef.json").read_text())
     out = {"generated": NOW, "added_results": added, "notes": notes, "n_matches": len(board),
            "config": {k: cfg[k] for k in ("bankroll", "unit_pct", "kelly_frac", "max_units")} | {"strategies": strat},
-           "model_meta": {k: meta.get(k) for k in ("walk_forward", "market", "kalshi_backtest", "features")},
+           "model_meta": {k: meta.get(k) for k in ("walk_forward", "market", "kalshi_backtest", "features", "futures_backtest")},
            "smart_wallets": len(sw), "matches": sorted(board, key=lambda m: m["start"]), "picks": picks, "combos": combos,
-           "record": rec, "results": settled_map(data, cfg, notes)}
+           "futures": futs, "record": rec, "results": settled_map(data, cfg, notes)}
     (data / "board.json").write_text(json.dumps(out, separators=(",", ":"), default=lambda o: None))
     save_state(data, R, surfaces, seen, st)
     if verbose:
@@ -456,6 +464,119 @@ def deriv_prob(series, dm, D, m):
         pa = markov.prob(D, lambda *k: k[idx] == 1) / max(markov.prob(D, lambda *k: k[idx] >= 0), 1e-9)
         return (pa if w == 0 else 1 - pa), f"{m['names'][w]} wins set {n}"
     return None
+
+
+def futures_board(R, model, idx, surfaces, board, cfg, t_today, notes):
+    """Winner markets for tournaments in progress (or with a published draw): exact draw odds vs Kalshi's bid/ask.
+    Matches already listed on Kalshi use Kalshi's own (live) price; later rounds use the model, shifted for each player
+    by how far Kalshi's price for their current match differs from the model."""
+    import re
+    from . import draws, futures
+    sc = cfg["strategies"].get("futures", {"min_ev": 0.15, "min_price": 0.02, "max_price": 0.9, "kelly_mult": 0.0})
+    out = []
+    for series, tour, women in (("KXATP", "atp", False), ("KXWTA", "wta", True)):
+        ms = src.kalshi_markets(series, status="open", max_pages=3)
+        by = {}
+        for mk in ms:
+            by.setdefault(mk["event_ticker"], []).append(mk)
+        for et, L in by.items():
+            close = min(tsf(mk["close_time"]) for mk in L)
+            if close - NOW > 50 * 86400:          # long-dated futures (next year's Slams): no draw yet
+                continue
+            e = src.kalshi("/events/" + et).get("event", {})
+            mt = re.match(r"(\d{4})\s+(.+)", e.get("sub_title") or "")
+            if not mt:
+                continue
+            year, tname = int(mt.group(1)), mt.group(2).strip()
+            page = draws.find_page(year, tname, women)
+            D = draws.parse_draw(draws.wikitext(page)) if page else None
+            if not D or sum(1 for x in D.levels[0] if x and x != "BYE") < 16:
+                continue
+            surf = surfaces(tname, tour) or "Hard"
+            slam = any(x in tname.lower() for x in SLAMS)
+            lvl = "G" if slam else "M" if any(x in tname.lower() for x in ("paris", "indian wells", "miami", "madrid", "rome", "canad", "cincinnati", "shanghai", "monte")) else "A"
+            bo = 5 if (slam and tour == "atp") else 3
+            city = re.sub(r"^(ATP|WTA)\s+", "", tname).lower()
+            cache = {}
+
+            def kk(n):
+                if n not in cache:
+                    cache[n] = idx.resolve(n, tour)
+                return cache[n]
+
+            pcache = {}
+
+            def base(a, b):
+                k = (a, b)
+                if k not in pcache:
+                    ka, kb = kk(a), kk(b)
+                    f = R.features(ka, kb, tour, surf, t_today, bo, lvl) if (ka in R.P and kb in R.P) else None
+                    if f:
+                        pcache[k] = logit(model.prob(f, tour, lvl, bo)[0])
+                    else:
+                        pcache[k] = 1.5 if ka in R.P else -1.5 if kb in R.P else 0.0
+                return pcache[k]
+            delta = {}
+            for m in board:
+                if m["tour"] != tour or city not in (m["tourney"] or "").lower() or m.get("p_mkt") is None:
+                    continue
+                a, b = m["names"]
+                d = logit(m["p_mkt"]) - base(a, b)
+                delta[kk(a)] = delta.get(kk(a), 0) + d / 2
+                delta[kk(b)] = delta.get(kk(b), 0) - d / 2
+
+            def pwin(a, b):
+                return sig(base(a, b) + delta.get(kk(a), 0) - delta.get(kk(b), 0))
+            res = futures.simulate(D, pwin)
+            names = futures.round_names(len(D.levels) - 1)
+            bykey = {kk(n): n for n in res}
+            rows = []
+            for mk in L:
+                nm = bykey.get(kk(mk.get("yes_sub_title") or ""))
+                if not nm:
+                    continue
+                sim = res[nm][-1]
+                bid, ask = src.px(mk, "yes_bid"), src.px(mk, "yes_ask")
+                two_sided = bid is not None and ask is not None and bid >= 0.01 and ask - bid <= 0.15
+                # half draw odds, half Kalshi mid (the backtest found them about equally sharp from the QF on)
+                fair = sig(0.5 * logit(sim) + 0.5 * logit((bid + ask) / 2)) if two_sided else sim
+                ev_y = ev_at(fair, ask) if ask and sc["min_price"] <= ask <= sc["max_price"] else None
+                ev_n = ev_at(1 - fair, 1 - bid) if bid and bid > 0.01 else None
+                tags = ["futures"] if two_sided and ((ev_y or -1) >= sc["min_ev"] or (ev_n or -1) >= sc["min_ev"]) else []
+                side = "yes" if (ev_y or -1) >= (ev_n or -1) else "no"
+                u = 0.0
+                if tags:
+                    p_, c_ = (fair, ask) if side == "yes" else (1 - fair, 1 - bid)
+                    u = round(units(p_, c_, cfg) * sc.get("kelly_mult", 0.0) * 4) / 4
+                rows.append({"name": nm, "ticker": mk["ticker"], "bid": bid, "ask": ask, "vol": src.fnum(mk, "volume_fp"),
+                             "reach": {names[k]: round(res[nm][k], 4) for k in range(max(0, len(names) - 5), len(names))},
+                             "fair": round(fair, 4), "sim": round(sim, 4), "ev_yes": round(ev_y, 4) if ev_y is not None else None,
+                             "ev_no": round(ev_n, 4) if ev_n is not None else None, "side": side, "tags": tags, "units": u,
+                             "alive": not any(D.levels[k][j] == nm and D.won[k][j] is False and D.levels[k + 1][j // 2] not in (None, nm)
+                                              for k in range(len(D.levels) - 1) for j in range(len(D.levels[k])))})
+            rows = [r for r in rows if r["sim"] > 0.0005 or (r["bid"] or 0) > 0]
+            rows.sort(key=lambda r: -r["sim"])
+            out.append({"event": et, "tourney": tname, "tour": tour, "page": page, "surface": surf, "nudged": len(delta),
+                        "close": close, "players": rows})
+    return out
+
+
+def record_futures(log, futs):
+    B = log.setdefault("bets", {})
+    for t in futs:
+        for r in t["players"]:
+            if not r["tags"]:
+                continue
+            side = r["side"]
+            k = r["ticker"] + ("" if side == "yes" else ":no")
+            if k in B:
+                continue
+            price = r["ask"] if side == "yes" else 1 - r["bid"]
+            p = r["fair"] if side == "yes" else 1 - r["fair"]
+            B[k] = {"ticker": r["ticker"], "side": side, "label": f"{r['name']} {'wins' if side == 'yes' else 'does not win'} {t['tourney']}",
+                    "names": [r["name"]], "tourney": t["tourney"], "tour": t["tour"], "level": "F", "kind": "futures", "tags": ["futures"],
+                    "first_ts": NOW, "entry": price, "p": p, "ev": r["ev_yes"] if side == "yes" else r["ev_no"], "units": r["units"],
+                    "close": price, "close_p": p, "start": t["close"], "result": None}
 
 
 def build_combos(board, cfg):
@@ -524,26 +645,35 @@ def record_picks(log, board, combos):
 
 def settle(log):
     B = log.get("bets", {})
-    open_ = [k for k, e in B.items() if e["result"] is None and NOW > e["start"] - 3600]
-    for i in range(0, len(open_), 50):
-        chunk = open_[i:i + 50]
+    open_ = [k for k, e in B.items() if e["result"] is None and (NOW > e["start"] - 3600 or e.get("kind") == "futures")]
+    by_ticker = {}
+    for k in open_:
+        by_ticker.setdefault(B[k].get("ticker", k), []).append(k)
+    tickers = list(by_ticker)
+    for i in range(0, len(tickers), 50):
+        chunk = tickers[i:i + 50]
         d = src.kalshi("/markets", {"tickers": ",".join(chunk), "limit": 100})
         for mk in d.get("markets", []):
-            e = B.get(mk["ticker"])
-            if not e:
-                continue
-            r = mk.get("result")
-            if r in ("yes", "no"):
-                e["result"] = r
-                c = e["entry"] + fee(e["entry"])
-                e["pnl_u"] = round(e["units"] * ((1 - c) / c if r == "yes" else -1), 3) if e["units"] else 0
-                e["flat_ret"] = round((1 - c) / c if r == "yes" else -1, 4)
-                e["settled_ts"] = NOW
-            elif mk.get("status") in ("settled", "finalized") and r in ("", None, "void"):
-                e["result"] = "void"
+            for k in by_ticker.get(mk["ticker"], []):
+                settle_one(B[k], mk)
     # keep the file bounded: drop settled entries older than a year
     for k in [k for k, e in B.items() if e.get("settled_ts") and NOW - e["settled_ts"] > 365 * 86400]:
         del B[k]
+
+
+def settle_one(e, mk):
+    """Grade one logged bet from its market; `side` "no" bets win when the market resolves no."""
+    r = mk.get("result")
+    if r in ("yes", "no"):
+        if e.get("side") == "no":
+            r = "no" if r == "yes" else "yes"
+        e["result"] = r
+        c = e["entry"] + fee(e["entry"])
+        e["pnl_u"] = round(e["units"] * ((1 - c) / c if r == "yes" else -1), 3) if e["units"] else 0
+        e["flat_ret"] = round((1 - c) / c if r == "yes" else -1, 4)
+        e["settled_ts"] = NOW
+    elif mk.get("status") in ("settled", "finalized") and r in ("", None, "void"):
+        e["result"] = "void"
 
 
 def summarize(log):
@@ -579,7 +709,7 @@ def settled_map(data, cfg, notes):
     except ValueError:
         old = {}
     min_close = int(NOW - 2 * 86400) if old else int(NOW - 21 * 86400)
-    for s in cfg["match_series"] + cfg["deriv_series"]:
+    for s in cfg["match_series"] + cfg["deriv_series"] + cfg.get("futures_series", []):
         try:
             for mk in src.kalshi_markets(s, status="settled", max_pages=10, min_close_ts=min_close):
                 if mk.get("result") in ("yes", "no"):

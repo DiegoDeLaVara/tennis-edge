@@ -314,6 +314,7 @@ function renderPicks() {
   h += straights.length ? `<div class="card list">${straights.map(pickCard).join("")}</div>` : `<div class="card empty">No match bets clear the bar right now. That's normal — Kalshi prices are sharp, and the board refreshes every ~20 minutes.</div>`;
   h += `<h2 class="sec">Sets &amp; games <span>${derivs.length}</span></h2>`;
   h += derivs.length ? `<div class="card list">${derivs.map(pickCard).join("")}</div>` : `<div class="card empty">No set or games-total prices with an edge right now.</div>`;
+  h += renderFutures();
   const combos = (B.combos || []).filter(c => c.start > Date.now() / 1000 - 600);
   h += `<h2 class="sec">Combos <span>request a quote on Kalshi, take it at or below the price</span></h2>`;
   h += combos.length ? `<div class="card list">${combos.map(c => `<div class="pick">
@@ -325,6 +326,26 @@ function renderPicks() {
         <span style="flex:1"></span><button class="btn small" data-logcombo='${esc(JSON.stringify({ legs: c.legs, names: c.names, p: c.p, take: c.take_at, start: c.start }))}'>I bet this</button></div></div>`).join("")}</div>`
     : `<div class="card empty">No combos worth requesting right now.</div>`;
   h += `<p class="note" style="margin:12px 2px">Same-match combos price exactly from the model's set-by-set simulation, so "fav wins + under" is priced with the correlation a sportsbook parlay ignores. Two-match combos multiply two independent value bets; keep combos to 2 legs.</p>`;
+  return h;
+}
+
+// ------------------------------------------------------------- tournament winners (draw simulation)
+function renderFutures() {
+  const F = B.futures || [];
+  if (!F.length) return "";
+  const fb = (B.model_meta && B.model_meta.futures_backtest) || null;
+  let h = `<h2 class="sec">Tournament winners <span>exact draw odds vs Kalshi</span></h2>
+    <div class="callout" style="margin-top:0">Every remaining match path in the draw is priced: matches already on Kalshi use Kalshi's own live price, later rounds use the model shifted by what Kalshi says about each player now. "Win" is the pure draw simulation; "Value" uses a 50/50 mix of that and Kalshi's mid (when there is a real book) and must beat the ask (or, for a "No", the bid) after the fee.${fb ? ` Backtest: ${esc(fb.summary)}` : " Tracked on paper until the backtest and live record back it."}</div>`;
+  for (const t of F) {
+    const rows = t.players.filter(p => p.alive !== false).slice(0, 12);
+    const keys = rows.length ? Object.keys(rows[0].reach).slice(-4) : [];
+    h += `<div class="card" style="margin-top:10px;padding:8px 10px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b>${esc(t.tourney)}</b><span class="note">${esc(t.surface)} · ${t.nudged ? t.nudged + " players priced off Kalshi" : "model only"}</span></div>
+      <div class="tw"><table><tr><th>Player</th>${keys.slice(0, -1).map(k => `<th class="n">${k}</th>`).join("")}<th class="n">Win</th><th class="n">Kalshi</th><th class="n">Value</th><th></th></tr>
+      ${rows.map(p => { const ev = p.side === "yes" ? p.ev_yes : p.ev_no; return `<tr><td>${esc(p.name)}</td>${keys.slice(0, -1).map(k => `<td class="n">${pct(p.reach[k])}</td>`).join("")}
+        <td class="n"><b>${pct(p.sim ?? p.fair, 1)}</b></td><td class="n">${cents(p.bid)}/${cents(p.ask)}</td>
+        <td class="n ${ev != null && ev > 0 ? "pos" : ""}">${ev != null && ev > 0 ? (p.side === "yes" ? "Yes " : "No ") + sgn(ev, 0) : "—"}</td>
+        <td>${p.tags.length ? `<button class="btn small" data-logfut='${esc(JSON.stringify({ t: p.ticker, n: p.name, s: p.side, b: p.bid, a: p.ask, tn: t.tourney, tour: t.tour }))}'>Log</button>` : ""}</td></tr>`; }).join("")}</table></div></div>`;
+  }
   return h;
 }
 
@@ -476,7 +497,7 @@ function betForm(pre = {}) {
   openDialog(pre.label ? "Log this bet" : "Add a bet", `<div class="form-grid">
     <label style="grid-column:1/-1">Bet<input id="f-label" value="${esc(pre.label || "")}" placeholder="e.g. Sinner to win"></label>
     <label style="grid-column:1/-1">Match<input id="f-match" value="${esc(pre.match || "")}" placeholder="Sinner vs Alcaraz"></label>
-    <label>Type<select id="f-type">${["Straight", "Combo", "Sets/games", "Live"].map(x => `<option ${pre.type === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>
+    <label>Type<select id="f-type">${["Straight", "Combo", "Sets/games", "Futures", "Live"].map(x => `<option ${pre.type === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>
     <label>Where<select id="f-where">${["Kalshi", "Sportsbook", "Polymarket"].map(x => `<option ${pre.where === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>
     <label>Price ¢ (Kalshi)<input id="f-price" inputmode="decimal" value="${pre.price ? Math.round(pre.price * 100) : ""}" placeholder="e.g. 42"></label>
     <label>…or odds<input id="f-odds" inputmode="decimal" placeholder="+150 or 2.50"></label>
@@ -492,7 +513,7 @@ function betForm(pre = {}) {
       if (!odds || !(odds > 1) || !(u > 0)) { $("#f-note").textContent = "Enter a price or odds, and units."; return; }
       const bs = bets();
       bs.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ts: Date.now(), label: $("#f-label").value || "Bet", match: $("#f-match").value,
-        type: $("#f-type").value, where: $("#f-where").value, price, odds, units: u, strategy: $("#f-strat").value, ticker: pre.ticker || null, side: "yes", tour: pre.tour || null, status: "open" });
+        type: $("#f-type").value, where: $("#f-where").value, price, odds, units: u, strategy: $("#f-strat").value, ticker: pre.ticker || null, side: pre.side || "yes", tour: pre.tour || null, status: "open" });
       saveBets(bs); $("#dlg").close(); render();
     };
   });
@@ -574,6 +595,7 @@ document.addEventListener("click", e => {
     betForm(pre || {}); return;
   }
   if (t.dataset.logcombo) { const c = JSON.parse(t.dataset.logcombo); betForm({ label: c.legs.join(" + "), match: Array.isArray(c.names[0]) ? c.names.map(n => n.join(" v ")).join(" & ") : c.names.join(" vs "), type: "Combo", where: "Kalshi", price: c.take ? c.take / 100 : null, units: 0.5, strategy: "2-leg combo" }); return; }
+  if (t.dataset.logfut) { const f = JSON.parse(t.dataset.logfut); betForm({ label: `${f.n} ${f.s === "yes" ? "to win" : "not to win"} ${f.tn}`, match: f.tn, type: "Futures", where: "Kalshi", price: f.s === "yes" ? f.a : 1 - f.b, units: 0.5, ticker: f.t, side: f.s, strategy: "Tournament winner (draw sim)", tour: f.tour }); return; }
   if (t.id === "addbet") return betForm();
   if (t.id === "settings") return settingsForm();
   if (t.id === "dlg-x") return $("#dlg").close();

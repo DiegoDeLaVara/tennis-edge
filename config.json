@@ -108,7 +108,19 @@
       "max_price": 0.9,
       "proven": false,
       "kelly_mult": 0.5
+    },
+    "futures": {
+      "label": "Tournament winner (draw sim)",
+      "min_ev": 0.15,
+      "min_price": 0.02,
+      "max_price": 0.9,
+      "proven": false,
+      "kelly_mult": 0.25
     }
   },
-  "smart_refresh_hours": 24
+  "smart_refresh_hours": 24,
+  "futures_series": [
+    "KXATP",
+    "KXWTA"
+  ]
 }
