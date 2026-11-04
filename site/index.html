@@ -308,8 +308,9 @@ function riskBox(r) {
   if (!r || !(r.stay.length + r.warn.length + r.good.length + (r.avoid || []).length)) return "";
   const li = (arr, ic) => arr.map(t => `<div class="note" style="margin:3px 0">${ic} ${esc(t)}</div>`).join("");
   return `<div class="card" style="padding:8px 12px;margin:8px 0;border-left:4px solid var(--${r.level === "stay" ? "bad" : r.level === "warn" ? "warn" : "good"})">
-    <b>${r.level === "stay" ? "🚫 Stay away from this match" : r.level === "warn" ? "⚠ Upset risk" : r.level === "good" ? "🛡 Favourite steadier than priced" : "Risk check"}</b>
-    ${li(r.stay, "🚫")}${li(r.warn, "⚠")}${li(r.good, "🛡")}${li(r.avoid || [], "✋")}</div>`;
+    <b>${r.level === "stay" ? "🚫 Stay away from this match" : r.level === "warn" ? "⚠ Upset risk" : r.level === "good" ? "🛡 Favourite steadier than priced" : "Signals"}</b>
+    ${r.summary ? `<div style="margin:3px 0"><b style="font-size:13px">${esc(r.summary)}</b></div>` : ""}
+    ${li(r.stay, "🚫")}${li(r.warn, "⚠ against the favourite:")}${li(r.good, "🛡 for the favourite:")}${li(r.avoid || [], "✋")}</div>`;
 }
 const matchOf = id => (B.matches || []).find(x => x.id === id) || {};
 function histPnl(h) {

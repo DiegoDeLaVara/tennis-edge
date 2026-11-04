@@ -819,28 +819,47 @@ def risk_flags(m):
     for s, who in ((sf, fav), (sd, dog)):
         if g("retired_last", s):
             out["stay"].append(f"{who} retired injured in their last match, so fitness is unknown. Matches right after a retirement went against the price 6-7 pts more often than normal (about 140 Kalshi matches, small sample).")
-    if pf < 0.58:
-        out["warn"].append(f"Coin flip: the favourite is only {pf * 100:.0f}%. Either result is normal here.")
+    # Each directional signal carries the size it showed in testing (pts the favourite won above (+) or below (-)
+    # its price), so mixed signals resolve into one net read instead of contradicting each other.
+    net = 0.0
     if (g("m7", sf) or 0) >= 4:
         out["warn"].append(f"{fav} has played {g('m7', sf)} matches in 7 days. Busy favourites ran about 1.4 pts below their price in both halves.")
+        net -= 1.4
     if "ITF" in m.get("series", "") and (g("age", sf) or 99) <= 18:
-        out["avoid"].append(f"Don't back {dog}: against a teenage ITF favourite ({fav}, {g('age', sf):.0f}). "
+        out["avoid"].append(f"Don't back {dog}: they face a teenage ITF favourite ({fav}, {g('age', sf):.0f}). "
                             "Backing those underdogs lost 42% and 25% on 6,900 Kalshi ITF matches.")
+        net += 4
     if (g("days", sd) or 0) >= 31:
         out["avoid"].append(f"Don't back {dog}: back after {g('days', sd)} days off. Underdogs returning from a month or more off lost 14-37% "
                             "when backed (Kalshi and Pinnacle); the market over-rates them.")
+        net += 3
     if (g("age", sf) or 0) >= 32:
         out["good"].append(f"Veteran favourite ({g('age', sf):.0f}). Markets under-rate them: they won ~4 pts more than priced in both halves (+3.7% / +3.4% on Kalshi).")
+        net += 4
     if (g("age", sd) or 99) <= 20:
-        out["good"].append(f"Teen underdog ({g('age', sd):.0f}). Hype tends to over-price young underdogs (favourite won +0.7 / +6.8 pts above price).")
+        out["good"].append(f"Young underdog ({g('age', sd):.0f}). Hype tends to over-price young underdogs (favourite won +0.7 / +6.8 pts above price).")
+        net += 2
     fm = md.get("form") or [None, None]
     if fm[0] is not None and fm[1 - fi] - fm[fi] >= 0.15:
         out["good"].append(f"{dog} is in hotter form, and markets over-rate that: the favourite won ~2 pts more than Pinnacle priced.")
+        net += 2
     if m.get("bo") == 5:
         out["good"].append("Best of 5: favourites won 1.7-2.2 pts more than priced.")
+        net += 2
     if pf >= 0.8:
         out["good"].append("Heavy favourite: at 80%+ favourites won 1-2 pts more than priced.")
-    out["level"] = "stay" if out["stay"] else ("warn" if out["warn"] and not out["good"] else ("good" if out["good"] and not out["warn"] else "normal"))
+        net += 1.5
+    out["net"] = round(net, 1)
+    if out["stay"]:
+        out["level"], out["summary"] = "stay", "Stay away: the price is least reliable here."
+    elif net <= -1:
+        out["level"], out["summary"] = "warn", f"On balance the signals point against {fav}: about {net:.1f} pts below the price."
+    elif net >= 1:
+        out["level"], out["summary"] = "good", f"On balance the signals favour {fav}: about +{net:.1f} pts above the price."
+    else:
+        out["level"], out["summary"] = "normal", "The signals cancel out: go with the price." if (out["warn"] or out["good"] or out["avoid"]) else ""
+    if pf < 0.58:
+        out["summary"] = (out["summary"] + " " if out["summary"] else "") + f"Close match ({pf * 100:.0f}%): either result is normal."
     out["fav"] = fav
     return out
 
@@ -849,7 +868,7 @@ def verdict(m):
     v = _verdict(m)
     av = (m.get("risk") or {}).get("avoid") or []
     if v and av and v["k"] not in ("stay",):
-        v["txt"] += " " + av[0].split(":")[0] + " (returning from a layoff; those underdogs lose bettors 14-37%)."
+        v["txt"] += " " + av[0].split(". ")[0] + "."
     return v
 
 
