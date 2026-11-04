@@ -410,7 +410,8 @@ def run(data, cfg, do_smart=True, verbose=True):
             sl = strat.get("lock")
             rk = (m.get("risk") or {}).get("level")
             if (sl and p_mkt_i is not None and p_mkt_i >= sl["min_p"] and ask <= sl["max_price"] and "ITF" not in m["series"]
-                    and abs(pmi - p_mkt_i) < sl["max_disagree"] and rk not in ("stay", "warn")):
+                    and abs(pmi - p_mkt_i) < sl["max_disagree"] and rk not in ("stay", "warn")
+                    and (m["model"].get("dis") or 0) < sl.get("max_dis", 9)):
                 tags.append("lock")
                 pl = min(p_mkt_i + sl["p_edge"], 0.99)
                 if pt is None or pl > pt:
@@ -470,6 +471,12 @@ def run(data, cfg, do_smart=True, verbose=True):
     except Exception as e:  # noqa
         ledger = None
         notes.append(f"ledger: {e}")
+    for m in board:
+        try:
+            m["verdict"] = verdict(m)
+        except Exception as e:  # noqa
+            m["verdict"] = None
+            notes.append(f"verdict {m.get('id')}: {e}")
     picks = sorted([dict(b, match=m["id"], names=m["names"], tourney=m["tourney"], start=m["start"], tour=m["tour"], level=m["level"])
                     for m in board for b in m.get("bets", []) if b["tags"]], key=lambda b: -b["ev"])
     # staked picks that lost their stake since they were flagged (price moved, or the strategy went to paper)
@@ -813,6 +820,34 @@ def risk_flags(m):
     out["level"] = "stay" if out["stay"] else ("warn" if out["warn"] and not out["good"] else ("good" if out["good"] and not out["warn"] else "normal"))
     out["fav"] = fav
     return out
+
+
+def verdict(m):
+    """One plain call per match (tools/locks, tools/close_matches, tools/close_books, tools/upset_risk):
+    lock / should win / lean / toss-up / upset risk / stay away. Uses the final (market-blended) probability."""
+    md, r = m.get("model") or {}, m.get("risk") or {}
+    p = md.get("p", m.get("p_mkt"))
+    if p is None:
+        return None
+    fi = 0 if p >= 0.5 else 1
+    pf = p if fi == 0 else 1 - p
+    who, opp = m["names"][fi], m["names"][1 - fi]
+    pm = md.get("p_model")
+    pm_f = None if pm is None else (pm if fi == 0 else 1 - pm)
+    if r.get("level") == "stay":
+        return {"k": "stay", "who": who, "p": round(pf, 3), "txt": f"Stay away: unpredictable ({r['stay'][0].split('.')[0]})."}
+    if (pf >= 0.85 and pm_f is not None and abs(pm_f - pf) < 0.10 and r.get("level") != "warn" and "ITF" not in m.get("series", "")
+            and (md.get("dis") or 0) < 0.6):
+        return {"k": "lock", "who": who, "p": round(pf, 3), "txt": f"{who} wins. Lock tier: won 94-95% historically (about 1 loss in 18)."}
+    if r.get("level") == "warn" and pf >= 0.58:
+        return {"k": "risk", "who": who, "p": round(pf, 3), "txt": f"{who} favoured ({pf:.0%}) but upset risk: {r['warn'][0]}"}
+    if pf >= 0.70:
+        return {"k": "win", "who": who, "p": round(pf, 3), "txt": f"{who} should win ({pf:.0%}). Favourites at this price win about that often; not a lock."}
+    if pf >= 0.58:
+        return {"k": "lean", "who": who, "p": round(pf, 3), "txt": f"Lean {who} ({pf:.0%}): {opp} wins about {1 - pf:.0%} of these."}
+    return {"k": "toss", "who": who, "p": round(pf, 3),
+            "txt": f"Toss-up ({pf:.0%} {who}). On 5,500 Pinnacle and 1,700 Kalshi close matches no signal (model, form, rest, money, ranking, "
+                   "surface, history) picked winners better than the price. Only bet it if a TAKE card shows a better price somewhere."}
 
 
 def pick_history(log, hours=48):

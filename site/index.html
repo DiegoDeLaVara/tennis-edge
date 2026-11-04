@@ -284,6 +284,18 @@ function passes(m) {
 }
 
 // ------------------------------------------------------------- picks tab
+const VK = { lock: ["🔒", "good", "LOCK"], win: ["✅", "good", "WINS"], lean: ["👍", "", "LEAN"], toss: ["🎲", "", "TOSS-UP"], risk: ["⚠", "warn", "UPSET RISK"], stay: ["🚫", "bad", "STAY AWAY"] };
+function verdictChip(v) {
+  if (!v) return "";
+  const [ic, cl, word] = VK[v.k] || ["", "", ""];
+  const nm = v.k === "toss" || v.k === "stay" ? "" : " " + esc(v.who.split(" ").slice(-1)[0]);
+  return `<span class="badge ${cl}" title="${esc(v.txt)}">${ic} ${word}${nm}</span>`;
+}
+function verdictBox(v) {
+  if (!v) return "";
+  const [ic, cl] = VK[v.k] || ["", ""];
+  return `<div class="card" style="padding:8px 12px;margin:8px 0;border-left:4px solid var(--${cl || "line"})"><b>${ic} Verdict</b><div class="note" style="margin-top:3px">${esc(v.txt)}</div></div>`;
+}
 function riskBadge(r) {
   if (!r) return "";
   if (r.level === "stay") return `<span class="badge bad">🚫 Stay away</span>`;
@@ -380,13 +392,13 @@ function renderPicks() {
   const locks = (B.matches || []).filter(m => m.status === "pre" && m.p_mkt != null && m.model && !String(m.series).includes("ITF") && m.start < now + 36 * 3600)
     .map(m => { const fi = m.p_mkt >= 0.5 ? 0 : 1, pf = fi ? 1 - m.p_mkt : m.p_mkt, pm = fi ? 1 - m.model.p_model : m.model.p_model;
       return { m, fi, pf, pm, ask: m.q?.[fi]?.ask, bet: (m.bets || []).find(b => (b.tags || []).includes("lock")) }; })
-    .filter(x => x.pf >= 0.85 && Math.abs(x.pm - x.pf) < 0.10 && !["stay", "warn"].includes(x.m.risk?.level))
+    .filter(x => x.pf >= 0.85 && Math.abs(x.pm - x.pf) < 0.10 && !["stay", "warn"].includes(x.m.risk?.level) && (x.m.model.dis ?? 0) < 0.6)
     .sort((a, b) => b.pf - a.pf);
   if (locks.length) h += `<h2 class="sec">🔒 Locks <span>yes/no picks · ${locks.length} in the next 36 h</span></h2><div class="card list">${locks.map(x => {
       const top = x.pf >= 0.9 && x.pm >= 0.9;
       return `<button class="mrow" data-goto="${x.m.id}" style="grid-template-columns:1fr"><div>
         <div class="what"><span class="takechip" style="background:var(--good)">YES</span> ${esc(x.m.names[x.fi])} beats ${esc(x.m.names[1 - x.fi])}</div>
-        <div class="note">${esc(x.m.tourney)} · ${dayOf(x.m.start)} ${when(x.m.start)} · market ${pct(x.pf)}, our model ${pct(x.pm)} · ${top ? "picks like this won 95–96% (about 1 loss in 25)" : "picks like this won ~93% (about 1 loss in 15)"}</div>
+        <div class="note">${esc(x.m.tourney)} · ${dayOf(x.m.start)} ${when(x.m.start)} · market ${pct(x.pf)}, our model ${pct(x.pm)} · ${top ? "picks like this won 95–96% (about 1 loss in 25)" : "picks like this won 94–95% (about 1 loss in 18)"} · model confidence ${x.m.model.dis < 0.3 ? "high" : "medium"}</div>
         <div class="note" style="margin-top:2px">${x.bet && x.bet.units ? `<b class="pos">Bet ${x.bet.units}u on Kalshi at ${x.bet.take_at ?? "—"}¢ or less</b> (now ${cents(x.ask)})` : x.ask > 0.95 ? "Too expensive to bet on its own at " + cents(x.ask) + ": one loss wipes out about 20 wins." : "Not a bet right now: the price has no edge after the fee."}</div></div></button>`; }).join("")}</div>
     <p class="note" style="margin:6px 2px">Near-certain, not certain. On 8,000 Kalshi matches this filter won 93–94% of the time (95–96% at 90%+) and made a small profit (+1.4% / +2.0%) at the real price. That's because big favourites are slightly under-priced. Djokovic at 90% lost today, so keep stakes small and never chain them into a big parlay.</p>`;
   h += `<h2 class="sec">✅ Bets to take now <span>${takes.length ? takes.length + " right now" : "none right now"}</span></h2>`;
@@ -552,7 +564,7 @@ function matchRow(m) {
     <div class="who">
       ${[0, 1].map(i => `<div class="${fav === i ? "fav" : ""}"><span class="nm">${esc(m.names[i])}</span><span class="pp" style="color:var(--${i ? "b" : "a"})">${p == null ? "" : pct(i ? 1 - p : p)}</span></div>`).join("")}
       ${p != null ? `<div class="bar2"><i style="width:${p * 100}%"></i><i style="width:${(1 - p) * 100}%"></i></div>${pm != null ? `<div class="mk"><i style="left:calc(${pm * 100}% - 1px)" title="market"></i></div>` : ""}` : ""}
-      <div class="mtags">${dot}<span class="badge">${esc(m.tourney)}${m.round ? " · " + esc(m.round) : ""}</span>${status}${riskBadge(m.risk)}${sigBadges({ ...m, signals: (m.signals || []).slice(0, 2) }, null)}${(m.signals || []).length > 2 ? `<span class="badge sharp">+${m.signals.length - 2}</span>` : ""}${m.model ? "" : `<span class="badge">no model</span>`}</div>
+      <div class="mtags">${dot}<span class="badge">${esc(m.tourney)}${m.round ? " · " + esc(m.round) : ""}</span>${status}${m.status === "pre" ? verdictChip(m.verdict) : riskBadge(m.risk)}${sigBadges({ ...m, signals: (m.signals || []).slice(0, 2) }, null)}${(m.signals || []).length > 2 ? `<span class="badge sharp">+${m.signals.length - 2}</span>` : ""}${m.model ? "" : `<span class="badge">no model</span>`}</div>
     </div>
     <div class="edgecol">${best && best.ev > 0 ? `<b class="pos">${sgn(best.ev)}</b><span>${esc(best.label.replace(" to win", ""))}</span>` : `<b style="color:var(--mute)">${pm == null ? "—" : cents(pm)}</b><span>market</span>`}</div>
   </button>${S.open.has(m.id) ? matchDetail(m) : ""}`;
@@ -567,13 +579,13 @@ function matchDetail(m) {
       ${md ? `<div><span>Hold % (proj.)</span><b class="num">${pct(sm.hold[i])}</b></div><div><span>Mins last 10 days</span><b class="num">${md.load[i]}</b></div>` : ""}</div>
       <h3>Last ${P.form.length}</h3><div class="form">${P.form.map(f => `<i class="${f.w ? "W" : "L"}" title="${esc((f.w ? "W " : "L ") + f.opp + " " + f.s + " (" + f.d + ")")}">${f.w ? "W" : "L"}</i>`).join("")}</div>
       <div class="note" style="margin-top:4px">${P.form.slice(0, 3).map(f => `${f.w ? "beat" : "lost to"} ${esc(f.opp)} ${esc(f.s)}`).join("; ")}</div></div>`; };
-  out.push(riskBox(m.risk) + `<div class="two">${pc(0)}${pc(1)}</div>`);
+  out.push(verdictBox(m.verdict) + riskBox(m.risk) + `<div class="two">${pc(0)}${pc(1)}</div>`);
   if (md) {
     out.push(`<div><h3>Why the model says ${pct(md.p)} for ${esc(m.names[0])}</h3><div class="kv">
       <div><span>Elo (surface-blended)</span><b class="num">${pct(md.p_elo)}</b></div>
       <div><span>Serve/return model</span><b class="num">${md.p_stats == null ? "thin data" : pct(md.p_stats)}</b></div>
       <div><span>Full model</span><b class="num">${pct(md.p_model)}</b></div>
-      ${md.dis != null ? `<div><span>Model confidence</span><b class="num">${md.dis < 0.3 ? "high" : md.dis < 0.6 ? "medium" : "low: sub-models disagree"}</b></div>` : ""}
+      ${md.dis != null ? `<div><span>Model confidence</span><b class="num" title="How much our overall Elo, surface Elo and serve/return ratings agree. It's about our model, not who wins. Low = they disagree, so the model is pulled toward 50/50; Locks need high or medium.">${md.dis < 0.3 ? "high" : md.dis < 0.6 ? "medium" : "low (sub-ratings disagree)"}</b></div>` : ""}
       ${md.p_mrate != null ? `<div><span>Market rating (past prices)</span><b class="num">${pct(md.p_mrate)}</b></div><div><span>Model + market rating</span><b class="num">${pct(md.p_model_mr)}</b></div>` : ""}
       <div><span>Kalshi market</span><b class="num">${pct(m.p_mkt)}</b></div>
       <div><span>Final (model + market)</span><b class="num">${pct(md.p)}</b></div>
@@ -848,6 +860,16 @@ function renderGuide() {
       That's real, but too small to beat a bookmaker's margin on its own.</li>
     <li><b>📒 Prediction ledger</b> (Model record tab, from 4 Nov 2026): every rated match logs Kalshi's opening and closing prices next to our numbers. It shows whether we're as sharp as the close, and whether the price moves toward our number before the start.</li>
     <li><b>Uncertainty-aware ratings</b> (tools/uncertainty, tools/uncertainty_disagree: 551,000 walk-forward predictions). Pulling predictions toward 50/50 for newcomers or players back from layoffs didn't help, because the model already handles those. What did work: when our own sub-models disagree (overall Elo vs surface Elo vs serve/return), the model was 2–3 pts overconfident, so it now shrinks those predictions. Log-loss improved from 0.5727 to 0.5723 on unseen 2021–26 matches, and from 0.6115 to 0.6097 on Kalshi matches. Next to the market it changes nothing (Kalshi already prices those matches right). It sharpens the model where it works alone: tournament odds, unpriced matches and the ledger. Match details show "Model confidence".</li>
+    <li><b>Verdicts</b> on every match, using the final market-blended chance:
+      <ul style="margin:4px 0;padding-left:16px">
+        <li>🔒 <b>Lock</b>: 85%+, the model agrees, no flags, confidence not low.</li>
+        <li>✅ <b>Should win</b>: 70%+.</li>
+        <li>👍 <b>Lean</b>: 58–70%.</li>
+        <li>🎲 <b>Toss-up</b>: under 58%.</li>
+        <li>⚠ <b>Upset risk</b> and 🚫 <b>Stay away</b>: from the risk flags.</li>
+      </ul>
+      <b>Close matches</b> (tools/close_matches, tools/close_books): on 1,700 Kalshi and 5,500 Pinnacle matches with the favourite at 50–58%, no signal picked winners better than the price in both halves. That covers our model, serve/return stats, form, rest, minutes played, money flow, big tickets, steam, line moves, ranking, age, streaks, home crowd, head-to-head, reputation and surface. All of them combined did worse than the market. The price is well calibrated there (favourites won 54–55% at 54%). In-form players actually won a bit less than 50% of close matches. The only thing that made money on close matches was a better price (line shopping).
+      <b>Model confidence</b> is how much our three sub-ratings agree, not who wins. Locks with low confidence won only 90–93% (about break-even), against 94–95% (+3.7% / +4.8%) with high or medium confidence, so Locks now need high or medium confidence.</li>
     <li><b>🔒 Locks</b> (tools/locks): a market favourite at 85%+, our model within 10 pts, no risk flags, not ITF. These won 93.2% and 93.7% in the two halves (priced at 90.8%) and returned +1.4% and +2.0% at the real ask. At 90%+ they won 95–96%. Shown as YES picks, with small stakes when the price is 95¢ or less.</li>
     <li><b>Total games.</b> Anchored to Pinnacle's price, the engine was within 0.3 games per match on average. Best-of-3 matches ran ~0.3 games short, while grass and best-of-5 ran longer (+0.65 on grass). These offsets are now built into the totals. Kalshi's totals still beat our fair price, so games over/unders are bet only via the Books tab: US books against Pinnacle's own totals and games spreads, tennis first.</li>
   </ul>

@@ -173,7 +173,8 @@
       "p_edge": 0.02,
       "proven": false,
       "kelly_mult": 0.15,
-      "why": "Big favourites the market prices at 85%+, our model agrees within 10 pts, and no risk flags (no recent retirement, not 4+ matches in 7 days, not back from a long layoff). On 8,000 Kalshi matches they won 93.2% then 93.7% (priced 90.8%) and returned +1.4% then +2.0% at the real ask after the fee; at 90%+ they won 95-96%. Not certain: expect about 1 loss in 15. Skipped above 95c, where one loss wipes out ~20 wins."
+      "why": "Big favourites the market prices at 85%+, our model agrees within 10 pts, and no risk flags (no recent retirement, not 4+ matches in 7 days, not back from a long layoff). On 8,000 Kalshi matches they won 93.2% then 93.7% (priced 90.8%) and returned +1.4% then +2.0% at the real ask after the fee; at 90%+ they won 95-96%. Not certain: expect about 1 loss in 15. Skipped above 95c, where one loss wipes out ~20 wins. Also needs model confidence that isn't low: low-confidence locks won only 90-93% (break-even), confident ones 94-95% (+3.7% / +4.8%).",
+      "max_dis": 0.6
     }
   },
   "smart_refresh_hours": 24,
