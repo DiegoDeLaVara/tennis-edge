@@ -397,7 +397,7 @@ def run(data, cfg, do_smart=True, verbose=True):
                     u = max(u, units(pt, ask, cfg) * st["kelly_mult"])
             sv = strat.get("veteran_fav")
             stay = bool((m.get("risk") or {}).get("stay"))
-            if sv and m.get("ctx") and p_mkt_i is not None and p_mkt_i >= 0.5 and sv["min_price"] <= ask <= sv["max_price"]:
+            if sv and m.get("ctx") and "ITF" not in m["series"] and p_mkt_i is not None and p_mkt_i >= 0.5 and sv["min_price"] <= ask <= sv["max_price"]:
                 if (m["ctx"].get("age" + ("_a" if i == 0 else "_b")) or 0) >= sv["min_age"]:
                     tags.append("veteran_fav")
                     if not stay:

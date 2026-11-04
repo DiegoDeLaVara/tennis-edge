@@ -136,6 +136,11 @@ def from_snapshots(data_dir):
         sports.append(f.stem)
         ts = j["ts"] if ts is None else min(ts, j["ts"])
         for e in j.get("events", []):
+            try:
+                if datetime.fromisoformat(e["commence_time"].replace("Z", "+00:00")).timestamp() < time.time() + 300:
+                    continue                                # started (or about to): no longer bettable pre-match
+            except (KeyError, ValueError):
+                continue
             events.append({"sport": f.stem, "id": e["id"], "start": e["commence_time"], "home": e["home_team"], "away": e["away_team"],
                            "books": {b["key"]: {o["name"]: o["price"] for m in b["markets"] if m["key"] == "h2h" for o in m["outcomes"]}
                                      for b in e.get("bookmakers", [])}})

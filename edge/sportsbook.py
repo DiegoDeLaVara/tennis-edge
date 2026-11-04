@@ -258,7 +258,11 @@ def log_bets(c_db, bets, c):
 def scan(force_budget=None):
     c = cfg()
     d = db()
-    budget = force_budget if force_budget is not None else c["daily_credits"] - spent_today(d, close=False)
+    # pace: by hour h of the UTC day, allow (h + rescan_hours) / 24 of the daily credits, so prices get rechecked
+    # through the day instead of the whole budget going in one burst right after midnight
+    hrs = time.gmtime().tm_hour + time.gmtime().tm_min / 60
+    allow = c["daily_credits"] * min(1.0, (hrs + c["rescan_hours"]) / 24)
+    budget = force_budget if force_budget is not None else int(allow) - spent_today(d, close=False)
     left = credits_left(d)
     print(f"credits: ~{left} left, daily budget remaining {budget}, reserve {c['reserve']}")
     sports = upcoming_sports(c["horizon_hours"])

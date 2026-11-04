@@ -352,7 +352,8 @@ function renderPicks() {
   }));
   const kf = B.config.kelly_frac || 0.25, maxU = B.config.max_units || 3, ts_ = tsettings();
   const seenLS = {};
-  (B.lines || []).forEach(ln => (ln.value || []).forEach(o => {
+  const linesFresh = B.lines_meta?.ts && now - B.lines_meta.ts < 3 * 3600;
+  (linesFresh ? (B.lines || []) : []).filter(ln => Date.parse(ln.start) / 1000 > now + 300).forEach(ln => (ln.value || []).forEach(o => {
     const key = ln.names.join("|") + "|" + o.player;
     if (seenLS[key]) { if (!seenLS[key].where.includes(o.book)) seenLS[key].where = seenLS[key].where.replace(/ ([+-]\d+)$/, `, ${o.book} $1`); return; }
     const p = ln.fair[o.player], k = (p * o.price - 1) / (o.price - 1);
@@ -441,7 +442,8 @@ function renderLines() {
   if (meta.status === "no key") return h + `<div class="card empty">Waiting for the Odds API key to be added to the cloud job.</div>`;
   const age = meta.ts ? ago(meta.ts) : "never";
   const offers = [];
-  L.forEach(ln => (ln.value || []).forEach(o => offers.push({ ...o, ln })));
+  L.filter(ln => Date.parse(ln.start) / 1000 > Date.now() / 1000 + 300).forEach(ln => (ln.value || []).forEach(o => offers.push({ ...o, ln })));
+  if (meta.ts && Date.now() / 1000 - meta.ts > 3 * 3600) h += `<div class="callout">⚠ These sportsbook prices were checked ${age}. They're too old to bet as-is, so they aren't TAKE cards. The scanner rechecks as its daily Odds API budget allows.</div>`;
   offers.sort((a, b) => b.ev - a.ev);
   const t = tsettings(), kf = B.config.kelly_frac || 0.25, maxU = B.config.max_units || 3;
   const unitsFor = (p, o) => { const k = (p * o - 1) / (o - 1); if (k <= 0) return 0; return Math.round(Math.min(Math.max(k * kf / (t.unit_pct / 100), 0.25), maxU) * 4) / 4; };
@@ -488,7 +490,10 @@ function bookCombos(open) {
 function renderBooks() {
   if (!SB) return `<div class="card empty" style="margin-top:14px">The sportsbook board hasn't been generated yet.</div>`;
   const r = SB.record, c = SB.clv_all || {}, uv = unitVal();
+  const sbOld = SB.last_scan && Date.now() / 1000 - SB.last_scan > 3 * 3600;
+  SB.open = (SB.open || []).filter(b => b.start > Date.now() / 1000 + 300);
   let h = `<h2 class="sec" style="margin-top:14px">✅ Sportsbook bets to take <span>${SB.open.length || "none"} open</span></h2>`;
+  if (sbOld) h += `<div class="callout">⚠ Prices last checked ${ago(SB.last_scan)}. Books move fast: only bet if the book still shows the listed price or better. The free Odds API plan allows a few scans a day, now spread across the day.</div>`;
   if (!SB.has_key) h += `<div class="callout">Waiting for the Odds API key to be added to the cloud job (one command on your PC; see our chat).</div>`;
   h += SB.open.length ? `<div class="card list">${SB.open.map(b => `<div class="pick take">
       <div><div class="what"><span class="takechip">TAKE</span>${esc(betText(b))}</div><div class="sub">${esc(sportName(b.sport))} · ${esc(b.game)} · ${dayOf(b.start)} ${when(b.start)}</div></div>
