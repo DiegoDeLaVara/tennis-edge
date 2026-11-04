@@ -291,8 +291,9 @@ function verdictChip(v) {
   const nm = v.k === "toss" || v.k === "stay" ? "" : " " + esc(v.who.split(" ").slice(-1)[0]);
   return `<span class="badge ${cl}" title="${esc(v.txt)}">${ic} ${word}${nm}</span>`;
 }
-function verdictBox(v) {
+function verdictBox(v, live) {
   if (!v) return "";
+  if (live) return `<div class="card" style="padding:8px 12px;margin:8px 0;border-left:4px solid var(--line)"><b>Pre-match verdict</b><div class="note" style="margin-top:3px">${esc(v.txt)}</div></div>`;
   const [ic, cl] = VK[v.k] || ["", ""];
   return `<div class="card" style="padding:8px 12px;margin:8px 0;border-left:4px solid var(--${cl || "line"})"><b>${ic} Verdict</b><div class="note" style="margin-top:3px">${esc(v.txt)}</div></div>`;
 }
@@ -566,7 +567,7 @@ function matchRow(m) {
       ${p != null ? `<div class="bar2"><i style="width:${p * 100}%"></i><i style="width:${(1 - p) * 100}%"></i></div>${pm != null ? `<div class="mk"><i style="left:calc(${pm * 100}% - 1px)" title="market"></i></div>` : ""}` : ""}
       <div class="mtags">${dot}<span class="badge">${esc(m.tourney)}${m.round ? " · " + esc(m.round) : ""}</span>${status}${m.status === "pre" ? verdictChip(m.verdict) : riskBadge(m.risk)}${sigBadges({ ...m, signals: (m.signals || []).slice(0, 2) }, null)}${(m.signals || []).length > 2 ? `<span class="badge sharp">+${m.signals.length - 2}</span>` : ""}${m.model ? "" : `<span class="badge">no model</span>`}</div>
     </div>
-    <div class="edgecol">${best && best.ev > 0 ? `<b class="pos">${sgn(best.ev)}</b><span>${esc(best.label.replace(" to win", ""))}</span>` : `<b style="color:var(--mute)">${pm == null ? "—" : cents(pm)}</b><span>market</span>`}</div>
+    <div class="edgecol">${best && best.ev > 0 ? `<b class="pos">${sgn(best.ev)}</b><span>${esc(best.label.replace(" to win", ""))}</span>` : (m.p_live != null ? `<b style="color:var(--mute)">${cents(m.p_live)}</b><span>live · was ${cents(pm)}</span>` : `<b style="color:var(--mute)">${pm == null ? "—" : cents(pm)}</b><span>market</span>`)}</div>
   </button>${S.open.has(m.id) ? matchDetail(m) : ""}`;
 }
 function matchDetail(m) {
@@ -579,7 +580,7 @@ function matchDetail(m) {
       ${md ? `<div><span>Hold % (proj.)</span><b class="num">${pct(sm.hold[i])}</b></div><div><span>Mins last 10 days</span><b class="num">${md.load[i]}</b></div>` : ""}</div>
       <h3>Last ${P.form.length}</h3><div class="form">${P.form.map(f => `<i class="${f.w ? "W" : "L"}" title="${esc((f.w ? "W " : "L ") + f.opp + " " + f.s + " (" + f.d + ")")}">${f.w ? "W" : "L"}</i>`).join("")}</div>
       <div class="note" style="margin-top:4px">${P.form.slice(0, 3).map(f => `${f.w ? "beat" : "lost to"} ${esc(f.opp)} ${esc(f.s)}`).join("; ")}</div></div>`; };
-  out.push(verdictBox(m.verdict) + riskBox(m.risk) + `<div class="two">${pc(0)}${pc(1)}</div>`);
+  out.push(verdictBox(m.verdict, m.status !== "pre") + riskBox(m.risk) + `<div class="two">${pc(0)}${pc(1)}</div>`);
   if (md) {
     out.push(`<div><h3>Why the model says ${pct(md.p)} for ${esc(m.names[0])}</h3><div class="kv">
       <div><span>Elo (surface-blended)</span><b class="num">${pct(md.p_elo)}</b></div>
@@ -587,7 +588,8 @@ function matchDetail(m) {
       <div><span>Full model</span><b class="num">${pct(md.p_model)}</b></div>
       ${md.dis != null ? `<div><span>Model confidence</span><b class="num" title="How much our overall Elo, surface Elo and serve/return ratings agree. It's about our model, not who wins. Low = they disagree, so the model is pulled toward 50/50; Locks need high or medium.">${md.dis < 0.3 ? "high" : md.dis < 0.6 ? "medium" : "low (sub-ratings disagree)"}</b></div>` : ""}
       ${md.p_mrate != null ? `<div><span>Market rating (past prices)</span><b class="num">${pct(md.p_mrate)}</b></div><div><span>Model + market rating</span><b class="num">${pct(md.p_model_mr)}</b></div>` : ""}
-      <div><span>Kalshi market</span><b class="num">${pct(m.p_mkt)}</b></div>
+      <div><span>Kalshi ${m.p_live != null ? "pre-match" : "market"}</span><b class="num">${pct(m.p_mkt)}</b></div>
+      ${m.p_live != null ? `<div><span>Kalshi live (in play)</span><b class="num">${pct(m.p_live)}</b></div>` : ""}
       <div><span>Final (model + market)</span><b class="num">${pct(md.p)}</b></div>
       <div><span>Head to head</span><b class="num">${md.h2h[0]}–${md.h2h[1]}</b></div></div>
       <p class="note">Final blends the model with the market because the market knows things ratings can't (injuries, motivation). An edge only exists where they still disagree after that.</p></div>`);

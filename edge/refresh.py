@@ -192,6 +192,10 @@ def run(data, cfg, do_smart=True, verbose=True):
     added = update_results(R, surfaces, seen, cfg, notes)
     t_today = date.today().toordinal()
     MRT = MR.load(data)
+    try:                                   # last pre-match Kalshi price per event, so live matches keep their pre-match read
+        PRE = json.loads((data / "prematch.json").read_text())
+    except (OSError, ValueError):
+        PRE = {}
     model = Model()
     idx = Index(R.P.keys())
 
@@ -287,6 +291,12 @@ def run(data, cfg, do_smart=True, verbose=True):
         elif NOW > m["start"] + 4 * 3600:
             status = "live"
         m["status"] = status
+        if status == "pre" and p_mkt is not None:
+            PRE[m["event"]] = [round(p_mkt, 4), NOW]
+        elif status == "live" and m["event"] in PRE:
+            m["p_live"] = p_mkt                       # in-play price, shown separately
+            p_mkt = PRE[m["event"]][0]                # verdict, blend and risk use the pre-match price
+            m["p_mkt"] = p_mkt
         m["flow"] = fl
         m["signals"] = [{"k": k, "dir": d, "txt": t} for k, d, t in money.signals(fl)] if fl else []
         f = R.features(ka, kb, tour, m["surface"], t_today, m["bo"], m["level"]) if (ka in R.P and kb in R.P) else None
@@ -497,6 +507,10 @@ def run(data, cfg, do_smart=True, verbose=True):
            "futures": futs, "lines": lines, "dropped": dropped, "lines_meta": {k: snap.get(k) for k in ("ts", "status", "remaining", "usage", "sports")}, "record": rec, "history": pick_history(log), "results": results, "ledger": ledger}
     (data / "board.json").write_text(json.dumps(out, separators=(",", ":"), default=lambda o: None))
     save_state(data, R, surfaces, seen, st)
+    try:
+        (data / "prematch.json").write_text(json.dumps({k: v for k, v in PRE.items() if NOW - v[1] < 3 * 86400}))
+    except OSError as e:
+        notes.append(f"prematch save: {e}")
     # market ratings: remember each match's last pre-match Kalshi mid, learn from it once the match has started
     try:
         for m in board:
@@ -673,10 +687,11 @@ def futures_board(R, model, idx, surfaces, board, cfg, t_today, notes, mr=None):
                 return pcache[k]
             delta = {}
             for m in board:
-                if m["tour"] != tour or city not in (m["tourney"] or "").lower() or m.get("p_mkt") is None:
+                pl = m.get("p_live") if m.get("p_live") is not None else m.get("p_mkt")
+                if m["tour"] != tour or city not in (m["tourney"] or "").lower() or pl is None:
                     continue
                 a, b = m["names"]
-                d = logit(m["p_mkt"]) - base(a, b)
+                d = logit(pl) - base(a, b)
                 delta[kk(a)] = delta.get(kk(a), 0) + d / 2
                 delta[kk(b)] = delta.get(kk(b), 0) - d / 2
 
