@@ -60,7 +60,19 @@ class Model:
         ps = p_stats(f, best_of)
         x = design(f, ps, tour, level, best_of)
         z = self.b + sum(w * v for w, v in zip(self.w, x))
+        un = self.meta.get("uncertainty")
+        if un:                                   # our sub-models disagree -> we know less -> closer to 50/50
+            z /= math.sqrt(1 + un["a"] * self.disagreement(f, ps) ** 2)
         return sig(z), ps
+
+    def disagreement(self, f, ps):
+        """How much overall Elo, surface Elo and the serve/return model disagree (logit units). tools/uncertainty_disagree:
+        in the top 20% the raw model was 2-3 pts overconfident; shrinking fixed it (2021-26 log-loss 0.57273 -> 0.57231,
+        Kalshi 0.6115 -> 0.6097). Counting matches/layoffs instead did not help (already in the model)."""
+        d = abs(logit(f["p_elo"]) - logit(f["p_elo_all"]))
+        if f["stat_w"] >= 400:
+            d += abs(logit(f["p_elo"]) - logit(ps))
+        return d
 
     def blend(self, p_model, p_market):
         if p_market is None or not self.mkt:

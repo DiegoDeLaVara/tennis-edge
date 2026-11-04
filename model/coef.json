@@ -303,5 +303,10 @@
    "ll_kalshi": 0.2938,
    "ll_model": 0.301
   }
+ },
+ "uncertainty": {
+  "kind": "disagree",
+  "a": 0.2,
+  "note": "logit / sqrt(1 + a * d^2), d = |Elo - overall Elo| + |Elo - serve/return| in logits (tools/uncertainty_disagree)"
  }
 }

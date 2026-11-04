@@ -299,7 +299,7 @@ def run(data, cfg, do_smart=True, verbose=True):
             D = markov.mix_dist(pa, pb, m["bo"], sd)
             summ = markov.summary_dist(D, pa, pb, m["bo"])
             _mx = MRT.logit(ka, kb, t_today)
-            m["model"] = {"p_mrate": round(sig(_mx), 4) if _mx is not None else None,
+            m["model"] = {"dis": round(model.disagreement(f, p_st), 3), "p_mrate": round(sig(_mx), 4) if _mx is not None else None,
                           "p_model_mr": round(sig(MRT.blend(logit(p_model), ka, kb, t_today)), 4) if _mx is not None else None,
                           "p_elo": round(f["p_elo"], 4), "p_stats": round(p_st, 4) if f["stat_w"] >= 400 else None, "p_model": round(p_model, 4),
                           "p": round(p_final, 4), "pa": pa, "pb": pb, "stat_w": round(f["stat_w"]), "h2h": [R.h2h.get((ka, kb), 0), R.h2h.get((kb, ka), 0)],

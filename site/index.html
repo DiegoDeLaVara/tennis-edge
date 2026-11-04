@@ -568,6 +568,7 @@ function matchDetail(m) {
       <div><span>Elo (surface-blended)</span><b class="num">${pct(md.p_elo)}</b></div>
       <div><span>Serve/return model</span><b class="num">${md.p_stats == null ? "thin data" : pct(md.p_stats)}</b></div>
       <div><span>Full model</span><b class="num">${pct(md.p_model)}</b></div>
+      ${md.dis != null ? `<div><span>Model confidence</span><b class="num">${md.dis < 0.3 ? "high" : md.dis < 0.6 ? "medium" : "low: sub-models disagree"}</b></div>` : ""}
       ${md.p_mrate != null ? `<div><span>Market rating (past prices)</span><b class="num">${pct(md.p_mrate)}</b></div><div><span>Model + market rating</span><b class="num">${pct(md.p_model_mr)}</b></div>` : ""}
       <div><span>Kalshi market</span><b class="num">${pct(m.p_mkt)}</b></div>
       <div><span>Final (model + market)</span><b class="num">${pct(md.p)}</b></div>
@@ -841,6 +842,7 @@ function renderGuide() {
       </ul>
       That's real, but too small to beat a bookmaker's margin on its own.</li>
     <li><b>📒 Prediction ledger</b> (Model record tab, from 4 Nov 2026): every rated match logs Kalshi's opening and closing prices next to our numbers. It shows whether we're as sharp as the close, and whether the price moves toward our number before the start.</li>
+    <li><b>Uncertainty-aware ratings</b> (tools/uncertainty, tools/uncertainty_disagree: 551,000 walk-forward predictions). Pulling predictions toward 50/50 for newcomers or players back from layoffs didn't help, because the model already handles those. What did work: when our own sub-models disagree (overall Elo vs surface Elo vs serve/return), the model was 2–3 pts overconfident, so it now shrinks those predictions. Log-loss improved from 0.5727 to 0.5723 on unseen 2021–26 matches, and from 0.6115 to 0.6097 on Kalshi matches. Next to the market it changes nothing (Kalshi already prices those matches right). It sharpens the model where it works alone: tournament odds, unpriced matches and the ledger. Match details show "Model confidence".</li>
     <li><b>🔒 Locks</b> (tools/locks): a market favourite at 85%+, our model within 10 pts, no risk flags, not ITF. These won 93.2% and 93.7% in the two halves (priced at 90.8%) and returned +1.4% and +2.0% at the real ask. At 90%+ they won 95–96%. Shown as YES picks, with small stakes when the price is 95¢ or less.</li>
     <li><b>Total games.</b> Anchored to Pinnacle's price, the engine was within 0.3 games per match on average. Best-of-3 matches ran ~0.3 games short, while grass and best-of-5 ran longer (+0.65 on grass). These offsets are now built into the totals. Kalshi's totals still beat our fair price, so games over/unders are bet only via the Books tab: US books against Pinnacle's own totals and games spreads, tennis first.</li>
   </ul>
