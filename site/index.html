@@ -555,6 +555,7 @@ function matchDetail(m) {
       <div><span>Elo (surface-blended)</span><b class="num">${pct(md.p_elo)}</b></div>
       <div><span>Serve/return model</span><b class="num">${md.p_stats == null ? "thin data" : pct(md.p_stats)}</b></div>
       <div><span>Full model</span><b class="num">${pct(md.p_model)}</b></div>
+      ${md.p_mrate != null ? `<div><span>Market rating (past prices)</span><b class="num">${pct(md.p_mrate)}</b></div><div><span>Model + market rating</span><b class="num">${pct(md.p_model_mr)}</b></div>` : ""}
       <div><span>Kalshi market</span><b class="num">${pct(m.p_mkt)}</b></div>
       <div><span>Final (model + market)</span><b class="num">${pct(md.p)}</b></div>
       <div><span>Head to head</span><b class="num">${md.h2h[0]}–${md.h2h[1]}</b></div></div>
@@ -785,6 +786,21 @@ function renderGuide() {
         <li><b>Stay away:</b> when our ratings and the market disagree by 20+ pts, the price was least reliable (the favourite beat its price by 6 pts in one half and missed it by 8 in the other). Also stay away right after a player retired injured.</li>
         <li><b>Upset alerts:</b> favourites who played 4+ matches in 7 days ran about 1.4 pts under their price in both halves, and favourites back from 45+ days off have more uncertain results. These are minor effects, so treat them as reasons to skip, not to bet the underdog.</li>
       </ul></li>
+    <li><b>Using past matches and past upsets</b> (tools/rules_lab, 27,300 Pinnacle-priced matches, each idea fitted on 2010–17 and checked on 2018–24). None of these beat the closing price in both halves:
+      <ul style="margin:4px 0;padding-left:16px">
+        <li>players who beat or missed their odds before (no carry-over);</li>
+        <li>a player's record at the same tournament;</li>
+        <li>the match after an upset win or upset loss (it flipped sign between the halves);</li>
+        <li>last match's scoreline;</li>
+        <li>qualifiers;</li>
+        <li>ranking vs rating;</li>
+        <li>surface specialists;</li>
+        <li><b>effort by event tier</b>: favourites who had "coasted" at 250s, 500s or Masters didn't keep doing it, and backing their underdogs lost 8.5% and 9.7%;</li>
+        <li>the week before a Slam;</li>
+        <li>the first event after a deep Slam run.</li>
+      </ul>
+      The market prices motivation better than any record of it. Favourites at Slams did beat their price, by 1.6 pts.</li>
+    <li><b>Market ratings (new).</b> Each player's strength is now also learned from their past pre-match prices: Pinnacle 2010–24, then every Kalshi match. That predicts matches the market hasn't priced yet better than results alone. Log-loss went from 0.608 to 0.602 on 2018–24, and from 0.630 to 0.625 on 5,263 Kalshi matches. It is now used to price later rounds in the tournament-winner simulation, and it shows in each match's details.</li>
     <li><b>Total games.</b> Anchored to Pinnacle's price, the engine was within 0.3 games per match on average. Best-of-3 matches ran ~0.3 games short, while grass and best-of-5 ran longer (+0.65 on grass). These offsets are now built into the totals. Kalshi's totals still beat our fair price, so games over/unders are bet only via the Books tab: US books against Pinnacle's own totals and games spreads, tennis first.</li>
   </ul>
   <p><b>Units.</b> Stakes are quarter-Kelly in units (1u = 1% of bankroll by default), capped at ${B.config.max_units}u.</p>

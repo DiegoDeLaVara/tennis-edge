@@ -15,6 +15,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from . import books, context, markov, money, smart, sportsbook
+from .mrating import MR
 from . import sources as src
 from .model import Model, logit, sig
 from .names import Index, key
@@ -190,6 +191,7 @@ def run(data, cfg, do_smart=True, verbose=True):
     R, surfaces, seen, st = load_state(data)
     added = update_results(R, surfaces, seen, cfg, notes)
     t_today = date.today().toordinal()
+    MRT = MR.load(data)
     model = Model()
     idx = Index(R.P.keys())
 
@@ -296,7 +298,10 @@ def run(data, cfg, do_smart=True, verbose=True):
             pa, pb = markov.solve_serve_mix(p_final, total, m["bo"], sd)
             D = markov.mix_dist(pa, pb, m["bo"], sd)
             summ = markov.summary_dist(D, pa, pb, m["bo"])
-            m["model"] = {"p_elo": round(f["p_elo"], 4), "p_stats": round(p_st, 4) if f["stat_w"] >= 400 else None, "p_model": round(p_model, 4),
+            _mx = MRT.logit(ka, kb, t_today)
+            m["model"] = {"p_mrate": round(sig(_mx), 4) if _mx is not None else None,
+                          "p_model_mr": round(sig(MRT.blend(logit(p_model), ka, kb, t_today)), 4) if _mx is not None else None,
+                          "p_elo": round(f["p_elo"], 4), "p_stats": round(p_st, 4) if f["stat_w"] >= 400 else None, "p_model": round(p_model, 4),
                           "p": round(p_final, 4), "pa": pa, "pb": pb, "stat_w": round(f["stat_w"]), "h2h": [R.h2h.get((ka, kb), 0), R.h2h.get((kb, ka), 0)],
                           "load": [round(f["load_a"]), round(f["load_b"])], "form": [round(f["form_a"], 3), round(f["form_b"], 3)]}
             m["sum"] = {"sets": summ["sets"], "straight": [round(summ["straight_a"], 4), round(summ["straight_b"], 4)],
@@ -435,7 +440,7 @@ def run(data, cfg, do_smart=True, verbose=True):
 
     # ---- tournament winners from simulated draws
     try:
-        futs = futures_board(R, model, idx, surfaces, board, cfg, t_today, notes)
+        futs = futures_board(R, model, idx, surfaces, board, cfg, t_today, notes, MRT)
     except Exception as e:
         futs = []
         notes.append(f"futures failed: {e}")
@@ -470,6 +475,19 @@ def run(data, cfg, do_smart=True, verbose=True):
            "futures": futs, "lines": lines, "dropped": dropped, "lines_meta": {k: snap.get(k) for k in ("ts", "status", "remaining", "usage", "sports")}, "record": rec, "history": pick_history(log), "results": settled_map(data, cfg, notes)}
     (data / "board.json").write_text(json.dumps(out, separators=(",", ":"), default=lambda o: None))
     save_state(data, R, surfaces, seen, st)
+    # market ratings: remember each match's last pre-match Kalshi mid, learn from it once the match has started
+    try:
+        for m in board:
+            k = m.get("keys") or [None, None]
+            if m["status"] == "pre" and m.get("p_mkt") is not None and k[0] and k[1]:
+                MRT.pending[m["event"]] = [k[0], k[1], round(m["p_mkt"], 4), m["start"]]
+        for ev, (ka, kb, pm, st_) in list(MRT.pending.items()):
+            if st_ < NOW - 900:
+                MRT.update(ka, kb, pm, date.fromtimestamp(st_).toordinal())
+                del MRT.pending[ev]
+        MRT.save(data / "market_ratings.json.gz")
+    except Exception as e:  # noqa
+        notes.append(f"market ratings: {e}")
     if verbose:
         print(f"matches {len(board)}, with model {sum(1 for m in board if m.get('model'))}, picks {len(picks)}, combos {len(combos)}, "
               f"new results {added}, notes {notes}")
@@ -581,7 +599,7 @@ def deriv_prob(series, dm, D, m):
     return None
 
 
-def futures_board(R, model, idx, surfaces, board, cfg, t_today, notes):
+def futures_board(R, model, idx, surfaces, board, cfg, t_today, notes, mr=None):
     """Winner markets for tournaments in progress (or with a published draw): exact draw odds vs Kalshi's bid/ask.
     Matches already listed on Kalshi use Kalshi's own (live) price; later rounds use the model, shifted for each player
     by how far Kalshi's price for their current match differs from the model."""
@@ -627,7 +645,7 @@ def futures_board(R, model, idx, surfaces, board, cfg, t_today, notes):
                     ka, kb = kk(a), kk(b)
                     f = R.features(ka, kb, tour, surf, t_today, bo, lvl) if (ka in R.P and kb in R.P) else None
                     if f:
-                        pcache[k] = logit(model.prob(f, tour, lvl, bo)[0])
+                        pcache[k] = (mr.blend if mr else (lambda x, *_: x))(logit(model.prob(f, tour, lvl, bo)[0]), ka, kb, t_today)
                     else:
                         pcache[k] = 1.5 if ka in R.P else -1.5 if kb in R.P else 0.0
                 return pcache[k]
