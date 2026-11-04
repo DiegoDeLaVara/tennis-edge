@@ -1,0 +1,7 @@
+{
+ "_note": "Serve-rate shift so expected total games match 2018-24 results (tools/book_followup --games-only). Kept only gaps beyond ~2 standard errors (n=500 per group, SE ~0.25 games bo3, ~0.36 bo5): grass plays long, best-of-5 clay plays short; ATP hard bo3 half-shifted; the rest were within noise and set to 0.",
+ "atp|3|Grass": 0.03,
+ "atp|5|Grass": 0.03,
+ "atp|5|Clay": -0.03,
+ "atp|3|Hard": -0.015
+}

@@ -397,7 +397,32 @@ function renderLines() {
 const SPORT = { americanfootball_nfl: "NFL", americanfootball_ncaaf: "College football", basketball_nba: "NBA", basketball_ncaab: "College basketball",
   icehockey_nhl: "NHL", baseball_mlb: "MLB", basketball_wnba: "WNBA", mma_mixed_martial_arts: "MMA", boxing_boxing: "Boxing" };
 const sportName = s => SPORT[s] || s.replace("soccer_", "Soccer: ").replace("tennis_", "Tennis: ").split("_").join(" ");
-const betText = b => b.market === "spreads" ? `${b.outcome} ${b.point > 0 ? "+" : ""}${b.point}` : b.market === "totals" ? `${b.outcome} ${b.point}` : `${b.outcome} to win`;
+const betText = b => { const o = String(b.outcome).split("|")[0], g = String(b.sport || "").startsWith("tennis") ? " games" : "";
+  return b.market === "spreads" ? `${o} ${b.point > 0 ? "+" : ""}${b.point}${g}` : b.market === "totals" ? `${o} ${b.point}${g}` : `${o} to win`; };
+function bookCombos(open) {
+  // Parlays only of +EV legs, all at the same book and from different games: each leg's edge multiplies.
+  // 15-year test: parlays of plain favourites lost 4-8% at Bet365, while 2-3 leg parlays of line-shopping legs made +9% to +15% (wide error bars).
+  const byBook = {};
+  open.filter(b => b.start > Date.now() / 1000 + 600 && b.price <= 3.5 && !b.flag).forEach(b => (byBook[b.book] = byBook[b.book] || []).push(b));
+  const out = [];
+  for (const [book, L] of Object.entries(byBook)) {
+    for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {
+      if (L[i].game === L[j].game) continue;
+      out.push([book, [L[i], L[j]]]);
+      for (let k = j + 1; k < L.length; k++) if (L[k].game !== L[i].game && L[k].game !== L[j].game) out.push([book, [L[i], L[j], L[k]]]);
+    }
+  }
+  if (!out.length) return "";
+  const rows = out.map(([book, legs]) => { const odds = legs.reduce((a, b) => a * b.price, 1), p = legs.reduce((a, b) => a * b.fair, 1); return { book, legs, odds, p, ev: p * odds - 1 }; })
+    .sort((a, b) => b.ev - a.ev).slice(0, 4);
+  const us = d => d >= 2 ? `+${Math.round((d - 1) * 100)}` : `${Math.round(-100 / (d - 1))}`;
+  return `<h2 class="sec">🔗 Combos from these bets <span>same book, +EV legs only</span></h2><div class="card list">${rows.map(r => `<div class="pick">
+      <div><div class="what">${r.legs.length}-leg parlay at ${esc(r.book)} · ${esc(us(r.odds))}</div><div class="sub">${r.legs.map(b => esc(betText(b))).join(" + ")}</div></div>
+      <div class="right"><div class="units">0.5<small>u</small></div></div>
+      <div class="row2"><span class="badge good">${sgn(r.ev)} EV</span><span class="badge">hits ${pct(r.p)}</span><span style="flex:1"></span>
+      <button class="btn small" data-logbook='${esc(JSON.stringify({ l: `Parlay: ${r.legs.map(b => betText(b)).join(" + ")} (${r.book})`, b: r.book, o: Math.round(r.odds * 1000) / 1000, m: r.legs.map(b => b.game).join(" | "), t: null, u: 0.5, ty: "Combo", s: "+EV parlay (books)" }))}'>I bet this</button></div></div>`).join("")}</div>
+    <p class="note" style="margin:6px 2px">Every leg must still be at its listed price. Combos multiply the edge and the swings. Over 15 years, parlays of plain favourites lost 4–8%, while parlays of +EV legs made +9% (2 legs) to +15% (3 legs), but with wide error bars. So keep them at 0.5u.</p>`;
+}
 function renderBooks() {
   if (!SB) return `<div class="card empty" style="margin-top:14px">The sportsbook board hasn't been generated yet.</div>`;
   const r = SB.record, c = SB.clv_all || {}, uv = unitVal();
@@ -407,9 +432,10 @@ function renderBooks() {
       <div><div class="what"><span class="takechip">TAKE</span>${esc(betText(b))}</div><div class="sub">${esc(sportName(b.sport))} · ${esc(b.game)} · ${dayOf(b.start)} ${when(b.start)}</div></div>
       <div class="right"><div class="units">${b.units}<small>u</small></div><div class="note">$${(b.units * uv).toFixed(0)}</div></div>
       <div class="row2"><span class="badge good">${esc(b.book)} ${esc(b.us)}</span><span class="badge warn">only at ${esc(b.min_us)} or better</span><span class="badge good">${sgn(b.ev)} EV</span><span class="badge">fair ${pct(b.fair)}</span>
-        <span style="flex:1"></span><button class="btn small primary" data-logbook='${esc(JSON.stringify({ n: betText(b), b: b.book, o: b.price, m: b.game, t: null, u: b.units }))}'>I bet this</button></div>
+        <span style="flex:1"></span><button class="btn small primary" data-logbook='${esc(JSON.stringify({ l: `${betText(b)} (${b.book})`, b: b.book, o: b.price, m: b.game, t: null, u: b.units }))}'>I bet this</button></div>
       ${b.flag ? `<div class="row2" style="margin-top:0"><span class="badge bad">${esc(b.flag)}</span></div>` : ""}</div>`).join("")}</div>`
     : `<div class="card empty">No sportsbook price beats Pinnacle's fair line right now. They appear for short windows when a book lags Pinnacle.</div>`;
+  h += bookCombos(SB.open);
   h += `<div class="callout">US sportsbook prices that pay more than <b>Pinnacle's no-vig line</b> (the sharpest book), all sports. This is the approach that tested +1.4% to +3.1% per bet. Bet the units shown at the listed book, only if the price is still there. Bets without a Pinnacle line are no longer taken (they had −4% closing-line value).</div>`;
   h += `<h2 class="sec">Record <span>cloud scanner, since it went live</span></h2><div class="stats">
     <div class="stat"><small>Record</small><b>${r.w}-${r.l}</b></div>
@@ -557,6 +583,37 @@ function trackerStats(bs) {
   const risk = done.reduce((s, b) => s + b.units, 0), u = done.reduce((s, b) => s + pnl(b), 0);
   return { n: done.length, w: done.filter(b => b.status === "won").length, risk, u, roi: risk ? u / risk : 0, open: bs.filter(b => b.status === "open").length };
 }
+function ladderCfg() { return store.get("te_ladder", { on: false, base: 1, restake: 25, bank: 5 }); }
+function ladderState(done) {
+  // Walk settled bets in order: a win adds its profit to the run, a loss ends the run, N wins in a row banks it.
+  const L = ladderCfg(); let run = 0, k = 0, runs = 0;
+  done.filter(b => b.status === "won" || b.status === "lost").forEach(b => {
+    if (b.status === "won") { run += pnl(b); k++; if (k >= L.bank) { run = 0; k = 0; runs++; } }
+    else { run = 0; k = 0; }
+  });
+  return { L, run, k, runs, next: Math.round((L.base + L.restake / 100 * Math.max(0, run)) * 100) / 100 };
+}
+function ladderCard(done) {
+  const s = ladderState(done), L = s.L;
+  if (!L.on) return `<div class="card" style="margin-top:10px;padding:10px 12px"><b>🪜 Ladder</b> <span class="note">off</span> · restake part of a winning run's profit on the next bet.
+    <button class="btn small" id="ladder" style="margin-left:6px">Set up</button></div>`;
+  return `<div class="card" style="margin-top:10px;padding:10px 12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+    <div><b>🪜 Ladder</b> · win ${s.k} of ${L.bank} · run profit <b class="${s.run >= 0 ? "pos" : "neg"}">${s.run >= 0 ? "+" : ""}${s.run.toFixed(2)}u</b> · runs banked ${s.runs}</div>
+    <div>Next stake <b style="font-size:18px">${s.next}u</b> <span class="note">($${(s.next * unitVal()).toFixed(2)})</span> <button class="btn small" id="ladder">Settings</button></div></div>
+    <p class="note" style="margin:6px 0 0">Next stake = ${L.base}u + ${L.restake}% of this run's profit. A loss resets to ${L.base}u; ${L.bank} straight wins banks the run. Only ladder bets with an edge (Books tab, TAKE picks). In 15 years of prices, a ladder never turned a losing bet type into a winner. It just lost faster.</p></div>`;
+}
+function ladderForm() {
+  const L = ladderCfg();
+  openDialog("Ladder", `<div class="form-grid">
+    <label>On<select id="l-on"><option value="1" ${L.on ? "selected" : ""}>On</option><option value="0" ${L.on ? "" : "selected"}>Off</option></select></label>
+    <label>Base stake (units)<input id="l-base" inputmode="decimal" value="${L.base}"></label>
+    <label>Restake % of run profit<input id="l-re" inputmode="decimal" value="${L.restake}"></label>
+    <label>Bank the run after N wins<input id="l-bank" inputmode="numeric" value="${L.bank}"></label></div>
+    <p class="note" style="padding:0 12px">Tested on 2,753 line-shopping bets (2018-24). Flat 1u made +209u with a worst drawdown of 19u. Restaking 25% made +249u (40u drawdown). Letting it ride and banking after 5 wins made +427u but drew down 171u. Letting it ride without ever banking lost 1,301u. Recommended: restake 25%, bank after 5 wins.</p>
+    <div style="padding:0 12px 14px"><button class="btn primary" id="l-save">Save</button></div>`, () => {
+    $("#l-save").onclick = () => { store.set("te_ladder", { on: $("#l-on").value === "1", base: parseFloat($("#l-base").value) || 1, restake: Math.min(100, Math.max(0, parseFloat($("#l-re").value) || 0)), bank: Math.max(1, parseInt($("#l-bank").value) || 5) }); $("#dlg").close(); render(); };
+  });
+}
 function renderTracker() {
   autoSettle();
   const bs = bets().sort((a, b) => b.ts - a.ts), st = trackerStats(bs), t = tsettings(), uv = unitVal();
@@ -576,6 +633,7 @@ function renderTracker() {
     <div class="stat"><small>Open</small><b>${st.open}</b></div>
   </div>
   <div class="card" style="margin-top:10px;padding:8px 10px">${chart}</div>
+  ${ladderCard(done)}
   <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn primary" id="addbet">+ Add a bet</button><button class="btn" id="settings">Bankroll &amp; units</button><button class="btn" id="export">Back up</button><button class="btn" id="import">Restore</button></div>
   <p class="note">1 unit = ${t.unit_pct}% of $${(+t.bankroll).toLocaleString()} = <b>$${uv.toFixed(2)}</b>. Kalshi bets logged from a pick settle themselves when the market settles.</p>`;
   const open = bs.filter(b => b.status === "open"), settled = bs.filter(b => b.status !== "open");
@@ -662,6 +720,18 @@ function renderGuide() {
     <li>Cheap longshots look overpriced, but that's mostly the spread and fee being large next to a 5–15¢ price; nobody collects it after costs.</li>
     <li>So the board's fair prices lean on the market, and every strategy is tracked on paper until its own record proves it. Ideas still open: <b>price gaps between venues</b> (Kalshi vs Polymarket, tracked live here), <b>sportsbook line shopping</b> against Pinnacle, and <b>tournament-winner / reach-a-round markets</b> priced by simulating the draw.</li>
   </ul>
+  <p><b>15 years of sportsbook prices</b> (27,300 ATP 2010–24 and WTA 2020–24 matches with Pinnacle's closing odds and the best price across books, from tennis-data.co.uk; rules picked on 2010–17 and checked on 2018–24):</p>
+  <ul style="margin:0 0 10px;padding-left:18px">
+    <li><b>Pinnacle beats every model.</b> Pinnacle's closing line had a log-loss of 0.576, against 0.596 for our model. Fitted together, the model's weight is slightly <i>negative</i>. So on sportsbooks the fair price is Pinnacle's, which is what the Books tab uses.</li>
+    <li><b>Line shopping works</b>, in both halves: when the best book price beat Pinnacle's no-vig fair odds by 2%+, it returned +3% to +8% at odds of 1.0–3.0. Above 3.0 the result was mixed, and longshots above 5.0 lost even at the best price. So tennis sportsbook bets are now capped at 3.0 odds. Odds come from a historical database, so some "best prices" may have been brief, and real results will be a bit lower.</li>
+    <li><b>Ladders</b> (restake part of a winning run's profit). They don't change the edge per dollar staked; they just stake more. On favourites at Pinnacle (−1.1%), every ladder lost more than flat betting. "Let it ride" with no bank point lost 1,466u on 5,587 bets. On +EV line-shopping bets (2,753 bets, flat +209u, worst drawdown 19u), restaking 25% made +249u (40u drawdown), and letting it ride while banking after 5 wins made +427u (171u drawdown). Never-banking let-it-ride lost 1,301u even there. Kalshi favourites (3,386 bets, −2.9%) lost under every ladder. Use the ladder in My bets only on bets with an edge.</li>
+    <li><b>Combos.</b> Parlays of the day's biggest favourites lost 4–8% at Bet365 (the margin compounds). Parlays of +EV line-shopping legs made +9% (2 legs) and +15% (3 legs), with wide error bars. The Books tab now builds these from its open bets, at one book.</li>
+    <li><b>Form.</b> Markets <i>over</i>-rate a hot underdog. When the underdog's recent form beat the favourite's, the favourite won 1–2 points more than Pinnacle priced. Backing that favourite returned +1.7% / +2.6% at the best price in the two halves, about 0% at Pinnacle, and break-even on Kalshi after the fee. It is tracked as a paper strategy. Backing hot underdogs lost 12.8% at Pinnacle.</li>
+    <li><b>Tired favourite</b> (10-day minutes): +1.4% / +3.7% at Pinnacle and +3.3% / +6.1% at the best price. That supports the live 3-day rule, although the 10-day version lost on Kalshi's smaller sample.</li>
+    <li><b>Favourites vs longshots:</b> at Pinnacle, odds under 1.25 lost only 0.3%, while odds above 5.0 lost 22%. Big underdogs are the worst bet in tennis.</li>
+    <li><b>Challengers aren't upset city.</b> Over 2015–26, rating favourites won 64.6% at Challengers, 64.8% at ATP/WTA 250–500 and 65.4% at Masters, against 70.8% at Slams and 70.7% at ITFs. Masters events had the most upsets relative to ratings (−3.4 pts). On Kalshi Challengers, backing underdogs lost 9% and big underdogs 22%: people overpay for upsets there.</li>
+    <li><b>Total games.</b> Anchored to Pinnacle's price, the engine was within 0.3 games per match on average. Best-of-3 matches ran ~0.3 games short, while grass and best-of-5 ran longer (+0.65 on grass). These offsets are now built into the totals. Kalshi's totals still beat our fair price, so games over/unders are bet only via the Books tab: US books against Pinnacle's own totals and games spreads, tennis first.</li>
+  </ul>
   <p><b>Units.</b> Stakes are quarter-Kelly in units (1u = 1% of bankroll by default), capped at ${B.config.max_units}u.</p>
   <p><b>Strategies being tracked:</b> ${Object.values(s).map(x => esc(x.label)).join(" · ")}. Every pick is logged before the match and graded automatically on the Model record tab. Trust the strategies that keep positive CLV and ROI over hundreds of bets; drop the ones that don't.</p>
   <p class="note">Not financial advice. Betting loses money for most people; bet only what you can afford to lose. Data: Jeff Sackmann's archive (CC BY-NC-SA), TennisMyLife, ESPN, Kalshi and Polymarket public APIs.</p></div>
@@ -696,10 +766,11 @@ document.addEventListener("click", e => {
     betForm(pre || {}); return;
   }
   if (t.dataset.logcombo) { const c = JSON.parse(t.dataset.logcombo); betForm({ label: c.legs.join(" + "), match: Array.isArray(c.names[0]) ? c.names.map(n => n.join(" v ")).join(" & ") : c.names.join(" vs "), type: "Combo", where: "Kalshi", price: c.take ? c.take / 100 : null, units: 0.5, strategy: "2-leg combo" }); return; }
-  if (t.dataset.logbook) { const f = JSON.parse(t.dataset.logbook); betForm({ label: `${f.n} to win (${f.b})`, match: f.m, type: "Straight", where: "Sportsbook", odds: f.o, units: f.u || 1, ticker: f.t, strategy: "Sportsbook beats Pinnacle" }); return; }
+  if (t.dataset.logbook) { const f = JSON.parse(t.dataset.logbook); betForm({ label: f.l || `${f.n} to win (${f.b})`, match: f.m, type: f.ty || "Straight", where: "Sportsbook", odds: f.o, units: f.u || 1, ticker: f.t, strategy: f.s || "Sportsbook beats Pinnacle" }); return; }
   if (t.dataset.logfut) { const f = JSON.parse(t.dataset.logfut); betForm({ label: `${f.n} ${f.s === "yes" ? "to win" : "not to win"} ${f.tn}`, match: f.tn, type: "Futures", where: "Kalshi", price: f.s === "yes" ? f.a : 1 - f.b, units: 0.5, ticker: f.t, side: f.s, strategy: "Tournament winner (draw sim)", tour: f.tour }); return; }
   if (t.id === "addbet") return betForm();
   if (t.id === "settings") return settingsForm();
+  if (t.id === "ladder") return ladderForm();
   if (t.id === "dlg-x") return $("#dlg").close();
   if (t.id === "export") { const blob = new Blob([JSON.stringify({ bets: bets(), settings: tsettings() })], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "tennis-edge-bets.json"; a.click(); return; }
   if (t.id === "import") { const i = document.createElement("input"); i.type = "file"; i.accept = "application/json"; i.onchange = async () => { try { const d = JSON.parse(await i.files[0].text()); if (Array.isArray(d.bets)) { saveBets(d.bets); if (d.settings) store.set("te_settings", d.settings); render(); } } catch { alert("That file isn't a Tennis Edge backup."); } }; i.click(); return; }

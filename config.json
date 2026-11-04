@@ -144,7 +144,16 @@
       "proven": false,
       "kelly_mult": 0.25,
       "p_edge": 0.04,
-      "why": "Favourite played 200+ min in the last 3 days, underdog under 90: the market over-marks the favourite down for fatigue (backtest +17% then +14% on 95 Kalshi matches, small sample)."
+      "why": "Favourite played 200+ min in the last 3 days, underdog under 90: the market over-marks the favourite down for fatigue (backtest +17% then +14% on 95 Kalshi matches, small sample). Re-checked on 15 years of bookmaker odds (10-day minutes version): +1.4% / +3.7% at Pinnacle and +3.3% / +6.1% at the best price, 2010-17 / 2018-24."
+    },
+    "hot_dog_fade": {
+      "label": "Fade the hot underdog (paper)",
+      "min_gap": 0.1,
+      "min_price": 0.5,
+      "max_price": 0.9,
+      "proven": false,
+      "kelly_mult": 0,
+      "why": "Back the favourite when the underdog is in hotter form (results beyond rating, 45 days, gap >= 0.10). On 27k matches with Pinnacle closing odds (2010-24) the favourite won 1-2 pts more than priced when the dog was hotter: +1.7% / +2.6% at the best book price in both halves, about 0% at Pinnacle; on Kalshi +0.7% / -0.1% after the fee. Paper until the live record shows it beats the fee."
     }
   },
   "smart_refresh_hours": 24,
@@ -165,6 +174,9 @@
     "horizon_hours": 30,
     "max_units": 3.0,
     "max_odds": 6.0,
-    "require_pinnacle": true
+    "require_pinnacle": true,
+    "tennis_first": true,
+    "tennis_markets": "h2h,totals,spreads",
+    "tennis_max_odds": 3.0
   }
 }

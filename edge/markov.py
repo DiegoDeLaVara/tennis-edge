@@ -162,6 +162,22 @@ _GH = [(-2.651961356835233, 0.000971781245099519), (-1.673551628767471, 0.054515
        (2.651961356835233, 0.000971781245099519)]
 _GHW = sum(w for _, w in _GH)
 DAY_SD = {"atp": 0.073, "wta": 0.073}     # fitted on 2025-26 results: matches 3-set rate and total games
+_ADJ = None
+
+
+def games_shift(tour, best_of, surface):
+    """Shift to the combined serve-win rate so expected total games match reality (tools/book_followup --games,
+    fitted on 2018-24 matches anchored to Pinnacle's price; e.g. grass plays longer, best-of-3 a bit shorter)."""
+    global _ADJ
+    if _ADJ is None:
+        import json
+        from pathlib import Path
+        f = Path(__file__).resolve().parents[1] / "model" / "games_adj.json"
+        try:
+            _ADJ = json.loads(f.read_text())
+        except (OSError, ValueError):
+            _ADJ = {}
+    return _ADJ.get(f"{tour}|{int(best_of)}|{surface}", 0.0)
 
 
 def _nodes(pa, pb, sd):

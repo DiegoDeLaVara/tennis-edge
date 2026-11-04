@@ -133,6 +133,8 @@ PRIORITY = ["americanfootball_nfl", "basketball_nba", "icehockey_nhl", "american
 
 
 def rank(sport):
+    if sport.startswith("tennis") and cfg().get("tennis_first"):
+        return -1                                  # this is a tennis board: tennis gets the budget first
     for i, k in enumerate(PRIORITY):
         if sport == k or (k.startswith("tennis_") and sport.startswith(k)):
             return i
@@ -140,6 +142,8 @@ def rank(sport):
 
 
 def markets_for(sport):
+    if sport.startswith("tennis"):
+        return cfg().get("tennis_markets", "h2h")      # games totals and games spreads too: Pinnacle prices both
     if sport in US_MAIN:
         return "h2h,spreads,totals"
     if sport.startswith("soccer"):
@@ -213,7 +217,7 @@ def find_bets(event, sport, c):
         # longshots above 6.0, where the holdout CLV shrank to +1.5% and results lost 7%
         if src == "consensus" and c.get("require_pinnacle", True):
             continue
-        if price > c["max_odds"] or ev < (c["min_ev_consensus"] if src == "consensus" else c["min_ev"]):
+        if price > (c.get("tennis_max_odds", c["max_odds"]) if sport.startswith("tennis") else c["max_odds"]) or ev < (c["min_ev_consensus"] if src == "consensus" else c["min_ev"]):
             continue
         kelly = ev / (price - 1)
         units = max(0.5, min(c["max_units"], round(0.25 * kelly / c["unit_pct"] * 2) / 2))
@@ -420,6 +424,28 @@ def espn_games(sport, start_ts):
     return out
 
 
+TENNIS = []        # recent tennis results from refresh (w_name, l_name, date ordinal, score)
+
+
+def tennis_games(sport, start_ts):
+    """Tennis has no ESPN team scoreboard here: grade from the results the refresh pulled in (TennisMyLife, ESPN,
+    Kalshi). Returned in the same home/away shape, scored as sets won, plus total games when the score is known."""
+    day = dt.datetime.fromtimestamp(start_ts, dt.timezone.utc).date().toordinal()
+    out = []
+    for m in TENNIS:
+        if not -14 <= m["date"] - day <= 3:        # some sources date a match by its tournament's first day
+            continue
+        gw, gl = 0, 0
+        for a, b in re.findall(r"(\d+)-(\d+)", re.sub(r"\(\d+\)", "", m.get("score") or "")):
+            a, b = int(a), int(b)
+            gw += a; gl += b
+        ret = bool(re.search(r"RET|W/O|DEF|ABD", m.get("score") or "", re.I))
+        games = (gw, gl) if gw + gl and not ret else None
+        out.append({"home": (m["w_name"], 1.0), "away": (m["l_name"], 0.0), "games": games})
+        out.append({"home": (m["l_name"], 0.0), "away": (m["w_name"], 1.0), "games": games[::-1] if games else None})
+    return out
+
+
 def settle():
     d = db()
     rows = d.execute("select id,sport,game,start,market,point,outcome,price from bets where result is null and start < ?",
@@ -430,19 +456,25 @@ def settle():
         away, home = game.split(" @ ")
         k = (sport, int(start // 86400))
         if k not in cache:
-            cache[k] = espn_games(sport, start)
+            cache[k] = tennis_games(sport, start) if sport.startswith("tennis") else espn_games(sport, start)
         g = next((t for t in cache[k] if same_team(t["away"][0], away) and same_team(t["home"][0], home)), None)
         if not g:
             if time.time() - start > 4 * 86400:
                 d.execute("update bets set result='void' where id=?", (id_,))
             continue
         hs, as_ = g["home"][1], g["away"][1]
+        if sport.startswith("tennis") and mk in ("totals", "spreads"):
+            if not g.get("games"):                         # retirement or no score: books void these
+                if time.time() - start > 4 * 86400:
+                    d.execute("update bets set result='void' where id=?", (id_,))
+                continue
+            hs, as_ = g["games"]                           # games won by the "home" / "away" player
         if mk == "h2h":
             winner = "Draw" if hs == as_ else (home if hs > as_ else away)
             res = "win" if (out == "Draw" and winner == "Draw") or (out != "Draw" and winner != "Draw" and same_team(out, winner)) else "loss"
         elif mk == "totals":
             tot = hs + as_
-            res = "push" if tot == pt else ("win" if (tot > pt) == (out == "Over") else "loss")
+            res = "push" if tot == pt else ("win" if (tot > pt) == (out.split("|")[0] == "Over") else "loss")
         elif mk == "spreads":
             margin = (hs - as_) if same_team(out, home) else (as_ - hs)
             adj = margin + pt
@@ -505,9 +537,10 @@ def build_json():
     return out
 
 
-def run(data_dir, notes):
+def run(data_dir, notes, tennis_rows=None):
     """One cloud cycle: scan within budget, re-price bets about to start, settle finished ones, write the page data."""
     use_dir(data_dir)
+    TENNIS[:] = tennis_rows or []
     if env_key():
         for step in (scan, close_check, settle):
             try:

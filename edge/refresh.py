@@ -98,6 +98,9 @@ def is_seen(seen, m):
     return any((a, b, d) in seen for d in range(m["date"] - 7, m["date"] + 8))
 
 
+RECENT_ROWS = []
+
+
 def update_results(R, surfaces, seen, cfg, log):
     """Add results we have not seen: TennisMyLife, ESPN (last 4 days), Kalshi settlements (last 4 days)."""
     since = date.today().toordinal() - 4
@@ -124,6 +127,7 @@ def update_results(R, surfaces, seen, cfg, log):
         except Exception as e:
             log.append(f"kalshi results {s} failed: {e}")
     rows.sort(key=lambda m: m["sort"])
+    RECENT_ROWS[:] = rows                       # also used to grade tennis sportsbook bets
     added = 0
     for m in rows:
         if is_seen(seen, m):
@@ -287,7 +291,7 @@ def run(data, cfg, do_smart=True, verbose=True):
         if f and R.P[ka].n >= 3 and R.P[kb].n >= 3:
             p_model, p_st = model.prob(f, tour, m["level"], m["bo"])
             p_final = model.blend(p_model, p_mkt)
-            total = f["pa"] + f["pb"]
+            total = f["pa"] + f["pb"] + markov.games_shift(tour, m["bo"], m["surface"])
             sd = markov.DAY_SD[tour]
             pa, pb = markov.solve_serve_mix(p_final, total, m["bo"], sd)
             D = markov.mix_dist(pa, pb, m["bo"], sd)
@@ -326,7 +330,7 @@ def run(data, cfg, do_smart=True, verbose=True):
     # ---- sportsbook lines (Pinnacle fair vs US books and Kalshi)
     lines = []
     try:
-        sportsbook.run(data, notes)                 # all-sports line shopping (shares the Odds API budget)
+        sportsbook.run(data, notes, RECENT_ROWS)               # all-sports line shopping (shares the Odds API budget)
         snap = books.from_snapshots(data)
         lines = books.value_bets(snap, cfg)
         attach_lines(lines, board, idx, snap.get("ts"))
@@ -381,6 +385,11 @@ def run(data, cfg, do_smart=True, verbose=True):
                     tags.append("tired_fav")
                     pt = min(p_mkt_i + st["p_edge"], 0.97)          # backtest: tired favourites win ~4 pts more than priced
                     u = max(u, units(pt, ask, cfg) * st["kelly_mult"])
+            sh = strat.get("hot_dog_fade")
+            fm = (m["model"].get("form") or [None, None])
+            if sh and fm[0] is not None and p_mkt_i is not None and p_mkt_i >= 0.5 and sh["min_price"] <= ask <= sh["max_price"]:
+                if fm[1 - i] - fm[i] >= sh["min_gap"]:        # the underdog is the hotter player: markets over-rate that
+                    tags.append("hot_dog_fade")
             u = round(min(max(u, cfg["min_units"]), cfg["max_units"]) * 4) / 4 if u > 0 else 0
             m["bets"].append({"ticker": q["ticker"], "label": f"{m['names'][i]} to win", "kind": "match", "p": round(pi, 4), "p_model": round(pmi, 4),
                               "ask": ask, "ev": round(ev if pt is None else ev_at(pt, ask), 4), "ev_model": round(ev_m, 4),
