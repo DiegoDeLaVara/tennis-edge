@@ -375,6 +375,19 @@ function renderPicks() {
     <div class="note" style="margin-top:4px">✅ <b>${takes.length}</b> tennis bet${takes.length === 1 ? "" : "s"} below · 📚 <b>${sbOpen.length}</b> on the Books tab · total ${tU.toFixed(1)}u ($${(tU * unitVal()).toFixed(0)}) if you take them all<br>
     🚫 <b>${stayL.length}</b> matches to stay away from · ⚠ <b>${warnL.length}</b> upset alerts · 🛡 <b>${goodL.length}</b> favourites steadier than priced (next 36 h)</div>
     <div class="note" style="margin-top:4px">Rules that make money long-term: bet only TAKE cards, only at the listed price or better, at the units shown. Skip stay-away matches. Never chase a loss with a bigger stake.</div></div>`;
+  // 🔒 Locks: yes/no picks. Market 85%+, our model within 10 pts, no risk flags, not ITF (tools/locks: won 93-96%)
+  const locks = (B.matches || []).filter(m => m.status === "pre" && m.p_mkt != null && m.model && !String(m.series).includes("ITF") && m.start < now + 36 * 3600)
+    .map(m => { const fi = m.p_mkt >= 0.5 ? 0 : 1, pf = fi ? 1 - m.p_mkt : m.p_mkt, pm = fi ? 1 - m.model.p_model : m.model.p_model;
+      return { m, fi, pf, pm, ask: m.q?.[fi]?.ask, bet: (m.bets || []).find(b => (b.tags || []).includes("lock")) }; })
+    .filter(x => x.pf >= 0.85 && Math.abs(x.pm - x.pf) < 0.10 && !["stay", "warn"].includes(x.m.risk?.level))
+    .sort((a, b) => b.pf - a.pf);
+  if (locks.length) h += `<h2 class="sec">🔒 Locks <span>yes/no picks · ${locks.length} in the next 36 h</span></h2><div class="card list">${locks.map(x => {
+      const top = x.pf >= 0.9 && x.pm >= 0.9;
+      return `<button class="mrow" data-goto="${x.m.id}" style="grid-template-columns:1fr"><div>
+        <div class="what"><span class="takechip" style="background:var(--good)">YES</span> ${esc(x.m.names[x.fi])} beats ${esc(x.m.names[1 - x.fi])}</div>
+        <div class="note">${esc(x.m.tourney)} · ${dayOf(x.m.start)} ${when(x.m.start)} · market ${pct(x.pf)}, our model ${pct(x.pm)} · ${top ? "picks like this won 95–96% (about 1 loss in 25)" : "picks like this won ~93% (about 1 loss in 15)"}</div>
+        <div class="note" style="margin-top:2px">${x.bet && x.bet.units ? `<b class="pos">Bet ${x.bet.units}u on Kalshi at ${x.bet.take_at ?? "—"}¢ or less</b> (now ${cents(x.ask)})` : x.ask > 0.95 ? "Too expensive to bet on its own at " + cents(x.ask) + ": one loss wipes out about 20 wins." : "Not a bet right now: the price has no edge after the fee."}</div></div></button>`; }).join("")}</div>
+    <p class="note" style="margin:6px 2px">Near-certain, not certain. On 8,000 Kalshi matches this filter won 93–94% of the time (95–96% at 90%+) and made a small profit (+1.4% / +2.0%) at the real price. That's because big favourites are slightly under-priced. Djokovic at 90% lost today, so keep stakes small and never chain them into a big parlay.</p>`;
   h += `<h2 class="sec">✅ Bets to take now <span>${takes.length ? takes.length + " right now" : "none right now"}</span></h2>`;
   h += takes.length ? `<div class="card list">${takes.map(takeCard).join("")}</div>`
     : `<div class="card empty">Nothing to take right now — that's the normal state. Bets only appear here when a price is clearly off; the board checks every ~20 minutes.</div>`;
@@ -801,6 +814,8 @@ function renderGuide() {
       </ul>
       The market prices motivation better than any record of it. Favourites at Slams did beat their price, by 1.6 pts.</li>
     <li><b>Market ratings (new).</b> Each player's strength is now also learned from their past pre-match prices: Pinnacle 2010–24, then every Kalshi match. That predicts matches the market hasn't priced yet better than results alone. Log-loss went from 0.608 to 0.602 on 2018–24, and from 0.630 to 0.625 on 5,263 Kalshi matches. It is now used to price later rounds in the tournament-winner simulation, and it shows in each match's details.</li>
+    <li><b>Underdog days aren't real</b> (tools/day_effects). On Pinnacle prices, upsets per day were spread exactly as if every match were independent. On Kalshi, an upset-heavy morning didn't predict the afternoon (correlation −0.01). Backing underdogs after upset-heavy days lost 6–10%, and after favourite-heavy days 9–17%. Post-mortem of 4 Nov 2026 (tools/postmortem): 59 upsets against 62.8 expected across 250 matches, a normal day. Paris had 8 upsets, and our model agreed with the market on every one.</li>
+    <li><b>🔒 Locks</b> (tools/locks): a market favourite at 85%+, our model within 10 pts, no risk flags, not ITF. These won 93.2% and 93.7% in the two halves (priced at 90.8%) and returned +1.4% and +2.0% at the real ask. At 90%+ they won 95–96%. Shown as YES picks, with small stakes when the price is 95¢ or less.</li>
     <li><b>Total games.</b> Anchored to Pinnacle's price, the engine was within 0.3 games per match on average. Best-of-3 matches ran ~0.3 games short, while grass and best-of-5 ran longer (+0.65 on grass). These offsets are now built into the totals. Kalshi's totals still beat our fair price, so games over/unders are bet only via the Books tab: US books against Pinnacle's own totals and games spreads, tennis first.</li>
   </ul>
   <p><b>Units.</b> Stakes are quarter-Kelly in units (1u = 1% of bankroll by default), capped at ${B.config.max_units}u.</p>

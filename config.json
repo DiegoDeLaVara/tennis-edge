@@ -164,6 +164,16 @@
       "kelly_mult": 0.25,
       "p_edge": 0.03,
       "why": "Favourites aged 32+ won about 4 pts more than Kalshi priced, in both halves of 8,000 matches: +3.7% then +3.4% ROI at the real ask after the fee (about 330 bets each). Small stakes until the live record confirms it; skipped when the match is flagged stay-away."
+    },
+    "lock": {
+      "label": "Lock (85%+ favourite, model agrees, no flags)",
+      "min_p": 0.85,
+      "max_price": 0.95,
+      "max_disagree": 0.1,
+      "p_edge": 0.02,
+      "proven": false,
+      "kelly_mult": 0.15,
+      "why": "Big favourites the market prices at 85%+, our model agrees within 10 pts, and no risk flags (no recent retirement, not 4+ matches in 7 days, not back from a long layoff). On 8,000 Kalshi matches they won 93.2% then 93.7% (priced 90.8%) and returned +1.4% then +2.0% at the real ask after the fee; at 90%+ they won 95-96%. Not certain: expect about 1 loss in 15. Skipped above 95c, where one loss wipes out ~20 wins."
     }
   },
   "smart_refresh_hours": 24,

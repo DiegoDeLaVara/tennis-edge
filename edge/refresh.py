@@ -407,6 +407,15 @@ def run(data, cfg, do_smart=True, verbose=True):
                         u = max(u, units(pv, ask, cfg) * sv["kelly_mult"])
             if stay and "tired_fav" in tags:
                 u = 0 if set(tags) <= {"tired_fav", "veteran_fav", "hot_dog_fade", "value", "model_edge", "value_sharp"} else u
+            sl = strat.get("lock")
+            rk = (m.get("risk") or {}).get("level")
+            if (sl and p_mkt_i is not None and p_mkt_i >= sl["min_p"] and ask <= sl["max_price"] and "ITF" not in m["series"]
+                    and abs(pmi - p_mkt_i) < sl["max_disagree"] and rk not in ("stay", "warn")):
+                tags.append("lock")
+                pl = min(p_mkt_i + sl["p_edge"], 0.99)
+                if pt is None or pl > pt:
+                    pt = pl
+                u = max(u, units(pl, ask, cfg) * sl["kelly_mult"])
             sh = strat.get("hot_dog_fade")
             fm = (m["model"].get("form") or [None, None])
             if sh and fm[0] is not None and p_mkt_i is not None and p_mkt_i >= 0.5 and sh["min_price"] <= ask <= sh["max_price"]:
