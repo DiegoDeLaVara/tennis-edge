@@ -427,6 +427,10 @@ def run(data, cfg, do_smart=True, verbose=True):
                 if pt is None or pl > pt:
                     pt = pl
                 u = max(u, units(pl, ask, cfg) * sl["kelly_mult"])
+            sg = strat.get("itf_big_gap")
+            if (sg and "ITF" in m["series"] and p_mkt_i is not None and p_mkt_i < 0.5 and pmi - p_mkt_i >= sg["min_gap"]
+                    and sg["min_price"] <= ask <= sg["max_price"]):
+                tags.append("itf_big_gap")              # paper: model rates this ITF underdog 30+ pts above the market
             sh = strat.get("hot_dog_fade")
             fm = (m["model"].get("form") or [None, None])
             if sh and fm[0] is not None and p_mkt_i is not None and p_mkt_i >= 0.5 and sh["min_price"] <= ask <= sh["max_price"]:
@@ -819,6 +823,9 @@ def risk_flags(m):
         out["warn"].append(f"Coin flip: the favourite is only {pf * 100:.0f}%. Either result is normal here.")
     if (g("m7", sf) or 0) >= 4:
         out["warn"].append(f"{fav} has played {g('m7', sf)} matches in 7 days. Busy favourites ran about 1.4 pts below their price in both halves.")
+    if "ITF" in m.get("series", "") and (g("age", sf) or 99) <= 18:
+        out["avoid"].append(f"Don't back {dog}: against a teenage ITF favourite ({fav}, {g('age', sf):.0f}). "
+                            "Backing those underdogs lost 42% and 25% on 6,900 Kalshi ITF matches.")
     if (g("days", sd) or 0) >= 31:
         out["avoid"].append(f"Don't back {dog}: back after {g('days', sd)} days off. Underdogs returning from a month or more off lost 14-37% "
                             "when backed (Kalshi and Pinnacle); the market over-rates them.")

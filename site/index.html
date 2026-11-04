@@ -877,7 +877,13 @@ function renderGuide() {
         <li><b>Underdogs coming back from a month or more off are over-rated.</b> Backing them lost 17–37% at Pinnacle and 14–30% on Kalshi (normal is 3–8%). The board now says "Don't back X" on those matches.</li>
         <li><b>Favourites returning from a layoff weren't an upset risk.</b> At Pinnacle they beat their price by 4–6 pts (rust gets over-priced); on Kalshi it was mixed, so it isn't a bet. The old "favourite hasn't played in 45+ days" warning was removed.</li>
       </ul></li>
-    <li><b>ITF</b> (tools/itf_study, first 1,600 Kalshi ITF matches): the ITF market is far sharper than our ratings (log-loss 0.556 vs 0.612); fitted together our model gets ~zero weight. Market favourites our model rated much lower (like Slama vs Tanasie) won about as often as priced. Re-checking on a larger download.</li>
+    <li><b>ITF</b> (tools/itf_study, 6,900 Kalshi ITF matches, Aug–Nov 2026). The market is sharper than our ratings (log-loss 0.533 vs 0.585); fitted together our model gets 13% weight.
+      <ul style="margin:4px 0;padding-left:16px">
+        <li><b>Close matches where our model picks the underdog</b> (the Tanasie case: about 60/40 before the start, our ratings preferred her, she won): +2% in one half, −12% in the other. That's not a rule.</li>
+        <li><b>Model 30+ pts below the market on the favourite:</b> the favourite won ~71% against 76–77% priced in both halves, and backing the underdog returned +15% and +14%, but with wide error bars. It's now a paper strategy.</li>
+        <li><b>Teen favourites (18 or under):</b> backing their underdogs lost 42% and 25%. The board now says "Don't back".</li>
+      </ul></li>
+    <li><b>Live matches</b> keep their pre-match price and verdict; the in-play price is shown separately (it used to replace the pre-match read once a match started).</li>
     <li><b>🔒 Locks</b> (tools/locks): a market favourite at 85%+, our model within 10 pts, no risk flags, not ITF. These won 93.2% and 93.7% in the two halves (priced at 90.8%) and returned +1.4% and +2.0% at the real ask. At 90%+ they won 95–96%. Shown as YES picks, with small stakes when the price is 95¢ or less.</li>
     <li><b>Total games.</b> Anchored to Pinnacle's price, the engine was within 0.3 games per match on average. Best-of-3 matches ran ~0.3 games short, while grass and best-of-5 ran longer (+0.65 on grass). These offsets are now built into the totals. Kalshi's totals still beat our fair price, so games over/unders are bet only via the Books tab: US books against Pinnacle's own totals and games spreads, tennis first.</li>
   </ul>

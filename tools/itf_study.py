@@ -128,6 +128,14 @@ def main():
     line("our model has the market favourite as the UNDERDOG: back dog", D, D.pm_f < 0.5, "d")
     line("model 10+ pts ABOVE market on the fav: back fav", D, (D.pm_f - D.pf) >= 0.10, "f")
 
+    print("\n== 2b. Close matches (favourite 50-62%): does following our model's pick work? (the Tanasie case)")
+    close = D.pf <= 0.62
+    line("close, our model picks the underdog: back dog", D, close & (D.pm_f < 0.5), "d")
+    line("close, our model picks the underdog by 10+ pts: back dog", D, close & (D.pm_f < 0.45), "d")
+    line("close, our model picks the underdog by 20+ pts: back dog", D, close & (D.pm_f < 0.35), "d")
+    line("close, our model agrees with the favourite: back fav", D, close & (D.pm_f >= 0.5), "f")
+    line("close, Elo alone picks the underdog: back dog", D, close & (np.where(D.px >= 0.5, D.pe, 1 - D.pe) < 0.5), "d")
+
     print("\n== 3. Newcomers / risers the market likes")
     line("fav has < 40 rated matches, dog 100+: back dog", D, (D.n_f < 40) & (D.n_d >= 100), "d")
     line("fav has < 40 rated matches, dog 100+: back fav", D, (D.n_f < 40) & (D.n_d >= 100), "f")
