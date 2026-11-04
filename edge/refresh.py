@@ -782,7 +782,7 @@ def risk_flags(m):
     """Upset-risk read-out for one match (tools/upset_risk + tools/fav_rules, ~8k Kalshi and 27k Pinnacle-priced
     matches, each signal checked in both halves). 'stay' = stay away, 'warn' = upset risk up, 'good' = steadier
     than the price says. Returns {level, stay, warn, good}."""
-    out = {"stay": [], "warn": [], "good": []}
+    out = {"stay": [], "warn": [], "good": [], "avoid": []}
     q, md, cx = m.get("p_mkt"), m.get("model") or {}, m.get("ctx") or {}
     if q is None:
         return None
@@ -804,8 +804,9 @@ def risk_flags(m):
         out["warn"].append(f"Coin flip: the favourite is only {pf * 100:.0f}%. Either result is normal here.")
     if (g("m7", sf) or 0) >= 4:
         out["warn"].append(f"{fav} has played {g('m7', sf)} matches in 7 days. Busy favourites ran about 1.4 pts below their price in both halves.")
-    if (g("days", sf) or 0) >= 45:
-        out["warn"].append(f"{fav} hasn't played for {g('days', sf)} days. Rust is mostly priced in, but results are less certain.")
+    if (g("days", sd) or 0) >= 31:
+        out["avoid"].append(f"Don't back {dog}: back after {g('days', sd)} days off. Underdogs returning from a month or more off lost 14-37% "
+                            "when backed (Kalshi and Pinnacle); the market over-rates them.")
     if (g("age", sf) or 0) >= 32:
         out["good"].append(f"Veteran favourite ({g('age', sf):.0f}). Markets under-rate them: they won ~4 pts more than priced in both halves (+3.7% / +3.4% on Kalshi).")
     if (g("age", sd) or 99) <= 20:
@@ -823,6 +824,14 @@ def risk_flags(m):
 
 
 def verdict(m):
+    v = _verdict(m)
+    av = (m.get("risk") or {}).get("avoid") or []
+    if v and av and v["k"] not in ("stay",):
+        v["txt"] += " " + av[0].split(":")[0] + " (returning from a layoff; those underdogs lose bettors 14-37%)."
+    return v
+
+
+def _verdict(m):
     """One plain call per match (tools/locks, tools/close_matches, tools/close_books, tools/upset_risk):
     lock / should win / lean / toss-up / upset risk / stay away. Uses the final (market-blended) probability."""
     md, r = m.get("model") or {}, m.get("risk") or {}

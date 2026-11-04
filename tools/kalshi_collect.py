@@ -53,13 +53,13 @@ def trades(ticker, historical_, max_ts):
     return out
 
 
-def start_from_candles(c):
+def start_from_candles(c, lo=2500.0, lo2=1500.0):
     """Start of the first hour where volume surges (in-play began); None if never."""
     v = [(x["end_period_ts"] - 3600, x["volume"]) for x in c]
     for i in range(len(v) - 1):
         prior = sorted(x for _, x in v[max(0, i - 24):i] if x > 0)
         med = prior[len(prior) // 2] if prior else 0.0
-        if v[i][1] >= max(2500.0, 8 * med) and v[i + 1][1] >= max(1500.0, 3 * med):
+        if v[i][1] >= max(lo, 8 * med) and v[i + 1][1] >= max(lo2, 3 * med):
             return v[i][0]
     return None
 
@@ -74,18 +74,22 @@ def quote_before(c, start):
     return None
 
 
+NO_TRADES = False
+
+
 def one(series, et, ms, hist_cut):
     a, b = sorted(ms, key=lambda m: m["ticker"])
     end = ts(a.get("close_time") or a["expected_expiration_time"])
     opened = ts(a["open_time"])
     is_hist = end < hist_cut               # settled before Kalshi's cutoff: data lives under /historical
     c = src.kalshi_candles(series, a["ticker"], opened - 3600, end + 3600, 60, historical=is_hist)
-    start = start_from_candles(c)
+    itf = "ITF" in series                  # ITF books are far thinner: smaller surge, earlier fallback
+    start = start_from_candles(c, 250.0, 150.0) if itf else start_from_candles(c)
     if start is None:                      # thin market: treat the last 2 hours before close as in-play
-        start = end - 2 * 3600
+        start = end - (2.5 if itf else 2) * 3600
     q = quote_before(c, start)
-    ta = trades(a["ticker"], is_hist, start)
-    tb = trades(b["ticker"], is_hist, start)
+    ta = [] if NO_TRADES else trades(a["ticker"], is_hist, start)
+    tb = [] if NO_TRADES else trades(b["ticker"], is_hist, start)
     tname, rnd = src.parse_rules(a)
     fl = flow_features(ta, tb, start)
     return {"event": et, "series": series, "end": end, "open": opened, "start": start, "a": a["yes_sub_title"], "b": b["yes_sub_title"],
@@ -98,7 +102,10 @@ def main():
     ap.add_argument("--workers", type=int, default=10)
     ap.add_argument("--series", nargs="*", default=None, help="limit to these series")
     ap.add_argument("--max", type=int, default=0, help="at most this many new events per series (most recent first)")
+    ap.add_argument("--no-trades", action="store_true", help="skip the trade tapes (prices only; ~3x faster)")
     args = ap.parse_args()
+    global NO_TRADES
+    NO_TRADES = args.no_trades
     src.KALSHI_PACE.gap = 1 / 6.0
     since_ts = datetime.fromisoformat(args.since).replace(tzinfo=timezone.utc).timestamp()
     cut = src.kalshi("/historical/cutoff")

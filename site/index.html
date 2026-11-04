@@ -304,11 +304,11 @@ function riskBadge(r) {
   return "";
 }
 function riskBox(r) {
-  if (!r || !(r.stay.length + r.warn.length + r.good.length)) return "";
+  if (!r || !(r.stay.length + r.warn.length + r.good.length + (r.avoid || []).length)) return "";
   const li = (arr, ic) => arr.map(t => `<div class="note" style="margin:3px 0">${ic} ${esc(t)}</div>`).join("");
   return `<div class="card" style="padding:8px 12px;margin:8px 0;border-left:4px solid var(--${r.level === "stay" ? "bad" : r.level === "warn" ? "warn" : "good"})">
     <b>${r.level === "stay" ? "🚫 Stay away from this match" : r.level === "warn" ? "⚠ Upset risk" : r.level === "good" ? "🛡 Favourite steadier than priced" : "Risk check"}</b>
-    ${li(r.stay, "🚫")}${li(r.warn, "⚠")}${li(r.good, "🛡")}</div>`;
+    ${li(r.stay, "🚫")}${li(r.warn, "⚠")}${li(r.good, "🛡")}${li(r.avoid || [], "✋")}</div>`;
 }
 const matchOf = id => (B.matches || []).find(x => x.id === id) || {};
 function histPnl(h) {
@@ -870,6 +870,12 @@ function renderGuide() {
       </ul>
       <b>Close matches</b> (tools/close_matches, tools/close_books): on 1,700 Kalshi and 5,500 Pinnacle matches with the favourite at 50–58%, no signal picked winners better than the price in both halves. That covers our model, serve/return stats, form, rest, minutes played, money flow, big tickets, steam, line moves, ranking, age, streaks, home crowd, head-to-head, reputation and surface. All of them combined did worse than the market. The price is well calibrated there (favourites won 54–55% at 54%). In-form players actually won a bit less than 50% of close matches. The only thing that made money on close matches was a better price (line shopping).
       <b>Model confidence</b> is how much our three sub-ratings agree, not who wins. Locks with low confidence won only 90–93% (about break-even), against 94–95% (+3.7% / +4.8%) with high or medium confidence, so Locks now need high or medium confidence.</li>
+    <li><b>Layoffs</b> (tools/layoff_study: Kalshi tour+Challenger, Kalshi ITF, Pinnacle 2016–24).
+      <ul style="margin:4px 0;padding-left:16px">
+        <li><b>Underdogs coming back from a month or more off are over-rated.</b> Backing them lost 17–37% at Pinnacle and 14–30% on Kalshi (normal is 3–8%). The board now says "Don't back X" on those matches.</li>
+        <li><b>Favourites returning from a layoff weren't an upset risk.</b> At Pinnacle they beat their price by 4–6 pts (rust gets over-priced); on Kalshi it was mixed, so it isn't a bet. The old "favourite hasn't played in 45+ days" warning was removed.</li>
+      </ul></li>
+    <li><b>ITF</b> (tools/itf_study, first 1,600 Kalshi ITF matches): the ITF market is far sharper than our ratings (log-loss 0.556 vs 0.612); fitted together our model gets ~zero weight. Market favourites our model rated much lower (like Slama vs Tanasie) won about as often as priced. Re-checking on a larger download.</li>
     <li><b>🔒 Locks</b> (tools/locks): a market favourite at 85%+, our model within 10 pts, no risk flags, not ITF. These won 93.2% and 93.7% in the two halves (priced at 90.8%) and returned +1.4% and +2.0% at the real ask. At 90%+ they won 95–96%. Shown as YES picks, with small stakes when the price is 95¢ or less.</li>
     <li><b>Total games.</b> Anchored to Pinnacle's price, the engine was within 0.3 games per match on average. Best-of-3 matches ran ~0.3 games short, while grass and best-of-5 ran longer (+0.65 on grass). These offsets are now built into the totals. Kalshi's totals still beat our fair price, so games over/unders are bet only via the Books tab: US books against Pinnacle's own totals and games spreads, tennis first.</li>
   </ul>
