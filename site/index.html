@@ -746,10 +746,29 @@ function settingsForm() {
 }
 
 // ------------------------------------------------------------- model record tab
+function renderLedger() {
+  // The honest scorecard: our numbers vs Kalshi's opening and closing prices on every match we rate.
+  const L = B.ledger;
+  let h = `<h2 class="sec" style="margin-top:14px">📒 Prediction ledger <span>are we getting closer to predicting the future?</span></h2>`;
+  if (!L || !L.all) return h + `<div class="card empty">Started 4 Nov 2026. Every rated match is logged with Kalshi's opening and closing prices and our numbers; the scorecard appears as matches settle (${L?.pending ?? 0} waiting).</div>`;
+  const cell = (g, k, ref) => g && g["ll_" + k] != null ? `<td class="n ${g["ll_" + k] <= g["ll_" + ref] ? "pos" : ""}">${g["ll_" + k].toFixed(3)}</td>` : `<td class="n">—</td>`;
+  const row = (name, g) => g ? `<tr><td>${esc(name)}</td><td class="n">${g.n}</td>${cell(g, "open", "close")}${cell(g, "model", "close")}${cell(g, "final", "close")}<td class="n"><b>${g.ll_close.toFixed(3)}</b></td>
+    <td class="n">${g.lead_n ? `${pct(g.lead_toward, 0)} / ${pct(g.lead_away, 0)}` : "—"}</td></tr>` : "";
+  const a = L.all;
+  const gapMr = a.ll_mr != null ? `With market ratings our model scored ${a.ll_mr.toFixed(3)} against the close's ${a.ll_close_mr.toFixed(3)} on the same ${a.n_mr} matches.` : "";
+  h += `<div class="card tw" style="padding:6px 8px"><table><tr><th></th><th class="n">Matches</th><th class="n">Kalshi open</th><th class="n">Our model</th><th class="n">Model + market</th><th class="n">Kalshi close</th><th class="n">Price moved toward / away from us</th></tr>
+    ${row("All", a)}${row("Last 7 days", L.last7)}${Object.entries(L.by_level || {}).map(([k, g]) => row(k, g)).join("")}</table></div>
+    <p class="note" style="margin:6px 2px">Log-loss: lower is better, 0.693 is a coin flip. <b>Kalshi close</b> is the bar to beat. "Toward / away" covers matches where our model disagreed with the opening price by 3+ pts: how often the price then moved our way before the start (and by ${a.lead_move ?? "—"} pts on average).
+    If "toward" stays well above "away", our model knows things before the market does: that's what predicting the future looks like. ${gapMr}</p>`;
+  if ((L.weeks || []).length > 1) h += `<div class="card" style="padding:6px 10px;margin-top:8px"><b style="font-size:13px">Weekly gap to the close</b> <span class="note">(our model minus close; closer to 0 = better)</span>
+    <div class="note">${L.weeks.map(w => `${w.ago}w ago: ${(w.ll_model - w.ll_close >= 0 ? "+" : "")}${(w.ll_model - w.ll_close).toFixed(3)} (${w.n})`).join(" · ")}</div></div>`;
+  return h;
+}
 function renderRecord() {
   const r = B.record || {}, by = r.by_strategy || {}, mm = B.model_meta || {};
   const rows = Object.entries(by).sort((a, b) => b[1].n - a[1].n);
-  let h = `<h2 class="sec">Paper record <span>every pick, logged automatically before the match</span></h2>`;
+  let h = renderLedger();
+  h += `<h2 class="sec">Paper record <span>every pick, logged automatically before the match</span></h2>`;
   h += rows.length ? `<div class="card tw" style="padding:6px 8px"><table><tr><th>Strategy</th><th class="n">Bets</th><th class="n">Won</th><th class="n">ROI flat</th><th class="n">Units</th><th class="n">CLV</th></tr>
     ${rows.map(([k, s]) => `<tr><td>${esc(k === "all" ? "All picks" : B.config.strategies[k]?.label || k)}</td><td class="n">${s.n}</td><td class="n">${pct(s.w / s.n)}</td><td class="n ${s.roi_flat >= 0 ? "pos" : "neg"}">${sgn(s.roi_flat)}</td><td class="n ${s.pnl_u >= 0 ? "pos" : "neg"}">${s.pnl_u >= 0 ? "+" : ""}${s.pnl_u}</td><td class="n ${s.clv_c >= 0 ? "pos" : "neg"}">${s.clv_c >= 0 ? "+" : ""}${s.clv_c}¢</td></tr>`).join("")}</table></div>`
     : `<div class="card empty">The record starts with today's picks; results appear as matches settle.</div>`;

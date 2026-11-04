@@ -464,6 +464,12 @@ def run(data, cfg, do_smart=True, verbose=True):
     logf.write_text(json.dumps(log))
     rec = summarize(log)
 
+    results = settled_map(data, cfg, notes)
+    try:
+        ledger = update_ledger(data, board, results)
+    except Exception as e:  # noqa
+        ledger = None
+        notes.append(f"ledger: {e}")
     picks = sorted([dict(b, match=m["id"], names=m["names"], tourney=m["tourney"], start=m["start"], tour=m["tour"], level=m["level"])
                     for m in board for b in m.get("bets", []) if b["tags"]], key=lambda b: -b["ev"])
     # staked picks that lost their stake since they were flagged (price moved, or the strategy went to paper)
@@ -481,7 +487,7 @@ def run(data, cfg, do_smart=True, verbose=True):
            "config": {k: cfg[k] for k in ("bankroll", "unit_pct", "kelly_frac", "max_units")} | {"strategies": strat},
            "model_meta": {k: meta.get(k) for k in ("walk_forward", "market", "kalshi_backtest", "features", "futures_backtest")},
            "smart_wallets": len(sw), "matches": sorted(board, key=lambda m: m["start"]), "picks": picks, "combos": combos,
-           "futures": futs, "lines": lines, "dropped": dropped, "lines_meta": {k: snap.get(k) for k in ("ts", "status", "remaining", "usage", "sports")}, "record": rec, "history": pick_history(log), "results": settled_map(data, cfg, notes)}
+           "futures": futs, "lines": lines, "dropped": dropped, "lines_meta": {k: snap.get(k) for k in ("ts", "status", "remaining", "usage", "sports")}, "record": rec, "history": pick_history(log), "results": results, "ledger": ledger}
     (data / "board.json").write_text(json.dumps(out, separators=(",", ":"), default=lambda o: None))
     save_state(data, R, surfaces, seen, st)
     # market ratings: remember each match's last pre-match Kalshi mid, learn from it once the match has started
@@ -818,6 +824,71 @@ def pick_history(log, hours=48):
         out.append({k: e.get(k) for k in ("label", "names", "tourney", "tags", "kind", "units", "entry", "close", "odds", "start", "result", "ev", "first_ts")})
     out.sort(key=lambda x: -x["start"])
     return out[:40]
+
+
+def _ll(y, p):
+    p = min(max(p, 1e-4), 1 - 1e-4)
+    return -math.log(p if y else 1 - p)
+
+
+def update_ledger(data, board, results):
+    """Prediction ledger: for every match we rate, keep Kalshi's first (open) and last pre-match (close) price next to
+    our own numbers at those times, then grade it when the market settles. The summary is the honest scorecard:
+    are we as sharp as the close, and does the price move toward our number before the start?"""
+    f = data / "ledger.json"
+    try:
+        L = json.loads(f.read_text())
+    except (OSError, ValueError):
+        L = {}
+    for m in board:
+        md = m.get("model") or {}
+        if m["status"] != "pre" or m.get("p_mkt") is None or md.get("p_model") is None:
+            continue
+        e = L.get(m["event"])
+        if e is None:
+            e = L[m["event"]] = {"names": m["names"], "series": m["series"], "tourney": m["tourney"], "tk": m["q"][0]["ticker"],
+                                 "t0": round(NOW), "open": round(m["p_mkt"], 4), "model_open": md["p_model"],
+                                 "mr_open": md.get("p_model_mr"), "y": None}
+        e.update({"start": m["start"], "close": round(m["p_mkt"], 4), "model": md["p_model"], "mr": md.get("p_model_mr"), "final": md["p"]})
+    for e in L.values():
+        if e["y"] is None and results.get(e["tk"]) in ("yes", "no"):
+            e["y"] = 1 if results[e["tk"]] == "yes" else 0
+    for k in [k for k, e in L.items() if NOW - e.get("start", NOW) > 120 * 86400]:
+        del L[k]
+    f.write_text(json.dumps(L, separators=(",", ":")))
+
+    def grp(es):
+        es = [e for e in es if e["y"] is not None]
+        if not es:
+            return None
+        o = {"n": len(es)}
+        for k in ("open", "close", "model_open", "model", "final"):
+            o["ll_" + k] = round(sum(_ll(e["y"], e[k]) for e in es) / len(es), 4)
+        mr = [e for e in es if e.get("mr") is not None]
+        if mr:
+            o["n_mr"] = len(mr)
+            o["ll_mr"] = round(sum(_ll(e["y"], e["mr"]) for e in mr) / len(mr), 4)
+            o["ll_close_mr"] = round(sum(_ll(e["y"], e["close"]) for e in mr) / len(mr), 4)
+        lead = [e for e in es if abs(e["model_open"] - e["open"]) >= 0.03]
+        if lead:
+            tw = [(e["close"] - e["open"]) * (1 if e["model_open"] > e["open"] else -1) for e in lead]
+            o["lead_n"] = len(lead)
+            o["lead_toward"] = round(sum(1 for x in tw if x > 0.005) / len(lead), 3)
+            o["lead_away"] = round(sum(1 for x in tw if x < -0.005) / len(lead), 3)
+            o["lead_move"] = round(100 * sum(tw) / len(lead), 2)
+        return o
+
+    def kind(s):
+        return "ITF" if "ITF" in s else "Challenger" if "CHALLENGER" in s else "Tour"
+    vals = list(L.values())
+    out = {"all": grp(vals), "last7": grp([e for e in vals if NOW - e.get("start", 0) <= 7 * 86400]),
+           "by_level": {k: grp([e for e in vals if kind(e["series"]) == k]) for k in ("Tour", "Challenger", "ITF")},
+           "weeks": [], "pending": sum(1 for e in vals if e["y"] is None)}
+    for w in range(8, 0, -1):
+        g = grp([e for e in vals if (w - 1) * 7 * 86400 < NOW - e.get("start", 0) <= w * 7 * 86400])
+        if g:
+            out["weeks"].append({"ago": w, **g})
+    return out
 
 
 def record_picks(log, board, combos):
