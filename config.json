@@ -148,12 +148,22 @@
     },
     "hot_dog_fade": {
       "label": "Fade the hot underdog (paper)",
-      "min_gap": 0.1,
+      "min_gap": 0.15,
       "min_price": 0.5,
       "max_price": 0.9,
       "proven": false,
       "kelly_mult": 0,
       "why": "Back the favourite when the underdog is in hotter form (results beyond rating, 45 days, gap >= 0.10). On 27k matches with Pinnacle closing odds (2010-24) the favourite won 1-2 pts more than priced when the dog was hotter: +1.7% / +2.6% at the best book price in both halves, about 0% at Pinnacle; on Kalshi +0.7% / -0.1% after the fee. Paper until the live record shows it beats the fee."
+    },
+    "veteran_fav": {
+      "label": "Veteran favourite (32+)",
+      "min_age": 32,
+      "min_price": 0.5,
+      "max_price": 0.93,
+      "proven": false,
+      "kelly_mult": 0.25,
+      "p_edge": 0.03,
+      "why": "Favourites aged 32+ won about 4 pts more than Kalshi priced, in both halves of 8,000 matches: +3.7% then +3.4% ROI at the real ask after the fee (about 330 bets each). Small stakes until the live record confirms it; skipped when the match is flagged stay-away."
     }
   },
   "smart_refresh_hours": 24,

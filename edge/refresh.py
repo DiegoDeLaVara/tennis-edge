@@ -342,6 +342,11 @@ def run(data, cfg, do_smart=True, verbose=True):
     strat = cfg["strategies"]
     for m in board:
         m["bets"] = []
+        try:
+            m["risk"] = risk_flags(m)
+        except Exception as e:  # noqa
+            m["risk"] = None
+            notes.append(f"risk {m.get('id')}: {e}")
         if m["status"] != "pre" or not m.get("model"):
             continue
         p = m["model"]["p"]
@@ -385,6 +390,18 @@ def run(data, cfg, do_smart=True, verbose=True):
                     tags.append("tired_fav")
                     pt = min(p_mkt_i + st["p_edge"], 0.97)          # backtest: tired favourites win ~4 pts more than priced
                     u = max(u, units(pt, ask, cfg) * st["kelly_mult"])
+            sv = strat.get("veteran_fav")
+            stay = bool((m.get("risk") or {}).get("stay"))
+            if sv and m.get("ctx") and p_mkt_i is not None and p_mkt_i >= 0.5 and sv["min_price"] <= ask <= sv["max_price"]:
+                if (m["ctx"].get("age" + ("_a" if i == 0 else "_b")) or 0) >= sv["min_age"]:
+                    tags.append("veteran_fav")
+                    if not stay:
+                        pv = min(p_mkt_i + sv["p_edge"], 0.97)
+                        if pt is None or pv > pt:
+                            pt = pv
+                        u = max(u, units(pv, ask, cfg) * sv["kelly_mult"])
+            if stay and "tired_fav" in tags:
+                u = 0 if set(tags) <= {"tired_fav", "veteran_fav", "hot_dog_fade", "value", "model_edge", "value_sharp"} else u
             sh = strat.get("hot_dog_fade")
             fm = (m["model"].get("form") or [None, None])
             if sh and fm[0] is not None and p_mkt_i is not None and p_mkt_i >= 0.5 and sh["min_price"] <= ask <= sh["max_price"]:
@@ -450,7 +467,7 @@ def run(data, cfg, do_smart=True, verbose=True):
            "config": {k: cfg[k] for k in ("bankroll", "unit_pct", "kelly_frac", "max_units")} | {"strategies": strat},
            "model_meta": {k: meta.get(k) for k in ("walk_forward", "market", "kalshi_backtest", "features", "futures_backtest")},
            "smart_wallets": len(sw), "matches": sorted(board, key=lambda m: m["start"]), "picks": picks, "combos": combos,
-           "futures": futs, "lines": lines, "dropped": dropped, "lines_meta": {k: snap.get(k) for k in ("ts", "status", "remaining", "usage", "sports")}, "record": rec, "results": settled_map(data, cfg, notes)}
+           "futures": futs, "lines": lines, "dropped": dropped, "lines_meta": {k: snap.get(k) for k in ("ts", "status", "remaining", "usage", "sports")}, "record": rec, "history": pick_history(log), "results": settled_map(data, cfg, notes)}
     (data / "board.json").write_text(json.dumps(out, separators=(",", ":"), default=lambda o: None))
     save_state(data, R, surfaces, seen, st)
     if verbose:
@@ -721,6 +738,61 @@ def build_combos(board, cfg):
 
 
 # ------------------------------------------------------------------ paper record
+def risk_flags(m):
+    """Upset-risk read-out for one match (tools/upset_risk + tools/fav_rules, ~8k Kalshi and 27k Pinnacle-priced
+    matches, each signal checked in both halves). 'stay' = stay away, 'warn' = upset risk up, 'good' = steadier
+    than the price says. Returns {level, stay, warn, good}."""
+    out = {"stay": [], "warn": [], "good": []}
+    q, md, cx = m.get("p_mkt"), m.get("model") or {}, m.get("ctx") or {}
+    if q is None:
+        return None
+    fi = 0 if q >= 0.5 else 1                       # favourite by the market
+    pf = q if fi == 0 else 1 - q
+    fav, dog = m["names"][fi], m["names"][1 - fi]
+    sf, sd = ("_a", "_b") if fi == 0 else ("_b", "_a")
+    g = lambda k, s: cx.get(k + s)
+    if md.get("p_model") is not None:
+        pm_f = md["p_model"] if fi == 0 else 1 - md["p_model"]
+        if abs(pm_f - pf) >= 0.20 and "ITF" not in m.get("series", ""):     # ITF: our ratings are too thin to read anything into it
+            out["stay"].append(f"Our ratings and the market disagree by {abs(pm_f - pf) * 100:.0f} pts. That usually means news the numbers can't see "
+                               "(injury, illness, motivation). In 500 Kalshi matches with a gap this big, the price was least reliable: "
+                               "the favourite won 6 pts more than priced in one half of the data and 8 pts less in the other.")
+    for s, who in ((sf, fav), (sd, dog)):
+        if g("retired_last", s):
+            out["stay"].append(f"{who} retired injured in their last match, so fitness is unknown. Matches right after a retirement went against the price 6-7 pts more often than normal (about 140 Kalshi matches, small sample).")
+    if pf < 0.58:
+        out["warn"].append(f"Coin flip: the favourite is only {pf * 100:.0f}%. Either result is normal here.")
+    if (g("m7", sf) or 0) >= 4:
+        out["warn"].append(f"{fav} has played {g('m7', sf)} matches in 7 days. Busy favourites ran about 1.4 pts below their price in both halves.")
+    if (g("days", sf) or 0) >= 45:
+        out["warn"].append(f"{fav} hasn't played for {g('days', sf)} days. Rust is mostly priced in, but results are less certain.")
+    if (g("age", sf) or 0) >= 32:
+        out["good"].append(f"Veteran favourite ({g('age', sf):.0f}). Markets under-rate them: they won ~4 pts more than priced in both halves (+3.7% / +3.4% on Kalshi).")
+    if (g("age", sd) or 99) <= 20:
+        out["good"].append(f"Teen underdog ({g('age', sd):.0f}). Hype tends to over-price young underdogs (favourite won +0.7 / +6.8 pts above price).")
+    fm = md.get("form") or [None, None]
+    if fm[0] is not None and fm[1 - fi] - fm[fi] >= 0.15:
+        out["good"].append(f"{dog} is in hotter form, and markets over-rate that: the favourite won ~2 pts more than Pinnacle priced.")
+    if m.get("bo") == 5:
+        out["good"].append("Best of 5: favourites won 1.7-2.2 pts more than priced.")
+    if pf >= 0.8:
+        out["good"].append("Heavy favourite: at 80%+ favourites won 1-2 pts more than priced.")
+    out["level"] = "stay" if out["stay"] else ("warn" if out["warn"] and not out["good"] else ("good" if out["good"] and not out["warn"] else "normal"))
+    out["fav"] = fav
+    return out
+
+
+def pick_history(log, hours=48):
+    """Staked picks from the last two days, so the page can still show them after the match starts."""
+    out = []
+    for e in log.get("bets", {}).values():
+        if not e.get("units") or e.get("kind") == "futures" or e["start"] < NOW - hours * 3600:
+            continue
+        out.append({k: e.get(k) for k in ("label", "names", "tourney", "tags", "kind", "units", "entry", "close", "odds", "start", "result", "ev", "first_ts")})
+    out.sort(key=lambda x: -x["start"])
+    return out[:40]
+
+
 def record_picks(log, board, combos):
     B = log.setdefault("bets", {})
     for m in board:

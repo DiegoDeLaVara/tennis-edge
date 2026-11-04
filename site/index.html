@@ -284,6 +284,27 @@ function passes(m) {
 }
 
 // ------------------------------------------------------------- picks tab
+function riskBadge(r) {
+  if (!r) return "";
+  if (r.level === "stay") return `<span class="badge bad">🚫 Stay away</span>`;
+  if (r.level === "warn") return `<span class="badge warn">⚠ Upset risk</span>`;
+  if (r.level === "good") return `<span class="badge good">🛡 Steadier than priced</span>`;
+  return "";
+}
+function riskBox(r) {
+  if (!r || !(r.stay.length + r.warn.length + r.good.length)) return "";
+  const li = (arr, ic) => arr.map(t => `<div class="note" style="margin:3px 0">${ic} ${esc(t)}</div>`).join("");
+  return `<div class="card" style="padding:8px 12px;margin:8px 0;border-left:4px solid var(--${r.level === "stay" ? "bad" : r.level === "warn" ? "warn" : "good"})">
+    <b>${r.level === "stay" ? "🚫 Stay away from this match" : r.level === "warn" ? "⚠ Upset risk" : r.level === "good" ? "🛡 Favourite steadier than priced" : "Risk check"}</b>
+    ${li(r.stay, "🚫")}${li(r.warn, "⚠")}${li(r.good, "🛡")}</div>`;
+}
+const matchOf = id => (B.matches || []).find(x => x.id === id) || {};
+function histPnl(h) {
+  if (h.result !== "yes" && h.result !== "no") return null;
+  if (h.kind === "book") return h.result === "yes" ? h.units * (h.odds - 1) : -h.units;
+  const c = h.entry + fee(h.entry);
+  return h.result === "yes" ? h.units * (1 - c) / c : -h.units;
+}
 function pickCard(p, i) {
   const m = B.matches.find(x => x.id === p.match) || {};
   const side = p.ticker === m.q?.[0]?.ticker ? 0 : p.ticker === m.q?.[1]?.ticker ? 1 : null;
@@ -296,7 +317,7 @@ function pickCard(p, i) {
     <div class="row2">
       ${p.poly != null ? `<span class="badge good">Polymarket ${cents(p.poly)}</span>` : ""}${p.pin != null ? `<span class="badge good">Pinnacle ${pct(p.pin)}</span>` : ""}<span class="badge good">Fair ${pct(p.p)}</span>${p.p_model != null && Math.abs(p.p_model - p.p) >= 0.01 ? `<span class="badge">Ratings alone ${pct(p.p_model)}</span>` : ""}<span class="badge">Ask ${cents(p.ask)}</span>
       <span class="badge good">${sgn(p.ev)} EV</span><span class="badge warn">Take ≤ ${p.take_at ?? "—"}¢</span>
-      ${tagNames.map(t => `<span class="badge">${esc(t)}</span>`).join("")}
+      ${tagNames.map(t => `<span class="badge">${esc(t)}</span>`).join("")}${riskBadge(m.risk)}
       ${m.signals ? sigBadges(m, side) : ""}
       <span style="flex:1"></span><button class="btn small primary" data-log="${esc(p.ticker)}">I bet this</button>
     </div></div>`;
@@ -306,7 +327,8 @@ function takeCard(x) {
   return `<div class="pick take">
     <div><div class="what"><span class="takechip">TAKE</span>${esc(x.what)}</div><div class="sub">${x.sub}</div></div>
     <div class="right"><div class="units">${x.units}<small>u</small></div><div class="note">$${(x.units * unitVal()).toFixed(0)}</div></div>
-    <div class="row2"><span class="badge good">${esc(x.where)}</span><span class="badge warn">${esc(x.max)}</span><span class="badge good">${esc(x.edge)}</span></div>
+    <div class="row2"><span class="badge good">${esc(x.where)}</span><span class="badge warn">${esc(x.max)}</span><span class="badge good">${esc(x.edge)}</span>${riskBadge(x.risk)}</div>
+    ${x.risk && x.risk.level === "stay" ? `<div class="row2" style="margin-top:0"><span class="note" style="color:var(--bad)">${esc(x.risk.stay[0])}</span></div>` : ""}
     <div class="row2" style="margin-top:0"><span class="note" style="flex:1">${esc(x.why)}</span><button class="btn small primary" ${x.logAttr}>I bet this</button></div></div>`;
 }
 function renderPicks() {
@@ -319,7 +341,7 @@ function renderPicks() {
     const t = tag(p);
     takes.push({ score: p.units * p.ev, what: p.label, sub: `${esc(p.names.join(" vs "))} · ${esc(p.tourney)} · ${dayOf(p.start)} ${when(p.start)}`,
       where: `Kalshi · ask ${cents(p.ask)}`, max: `only at ${p.take_at ?? "—"}¢ or less`, edge: `${sgn(p.ev)} EV`,
-      units: p.units, why: S[t]?.why || S[t]?.label || "", logAttr: `data-log="${esc(p.ticker)}"` });
+      units: p.units, why: S[t]?.why || S[t]?.label || "", logAttr: `data-log="${esc(p.ticker)}"`, risk: matchOf(p.match).risk });
   });
   (B.futures || []).forEach(t => t.players.forEach(p => {
     if (!p.tags.length || !(p.units > 0)) return;
@@ -329,18 +351,31 @@ function renderPicks() {
       units: p.units, why: S.futures?.why || "", logAttr: `data-logfut='${esc(JSON.stringify({ t: p.ticker, n: p.name, s: p.side, b: p.bid, a: p.ask, tn: t.tourney, tour: t.tour }))}'` });
   }));
   const kf = B.config.kelly_frac || 0.25, maxU = B.config.max_units || 3, ts_ = tsettings();
+  const seenLS = {};
   (B.lines || []).forEach(ln => (ln.value || []).forEach(o => {
+    const key = ln.names.join("|") + "|" + o.player;
+    if (seenLS[key]) { if (!seenLS[key].where.includes(o.book)) seenLS[key].where = seenLS[key].where.replace(/ ([+-]\d+)$/, `, ${o.book} $1`); return; }
     const p = ln.fair[o.player], k = (p * o.price - 1) / (o.price - 1);
     const u = k > 0 ? Math.round(Math.min(Math.max(k * kf * (S.line_shop?.kelly_mult ?? 1) / (ts_.unit_pct / 100), 0.25), maxU) * 4) / 4 : 0;
     if (!u) return;
     takes.push({ score: u * o.ev, what: `${o.player} to win`, sub: `${esc(ln.names.join(" vs "))} · ${dayOf(Date.parse(ln.start) / 1000)} ${when(Date.parse(ln.start) / 1000)}`,
       where: `${o.book} ${o.us}`, max: `fair ${pct(p)} (Pinnacle)`, edge: `${sgn(o.ev)} EV`, units: u, why: (S.line_shop?.why || "") + ` Prices checked ${B.lines_meta?.ts ? ago(B.lines_meta.ts) : "—"}; confirm the price before betting.`,
       logAttr: `data-logbook='${esc(JSON.stringify({ n: o.player, b: o.book, o: o.price, m: ln.names.join(" vs "), t: (ln.tickers || {})[o.player] || null, u }))}'` });
+    seenLS[key] = takes[takes.length - 1];
   }));
   takes.sort((a, b) => b.score - a.score);
   const watch = picks.filter(p => !(p.units > 0));
   const staking = Object.entries(S).filter(([, s]) => (s.kelly_mult || 0) > 0).map(([, s]) => s.label);
-  let h = `<h2 class="sec" style="margin-top:14px">✅ Bets to take now <span>${takes.length ? takes.length + " right now" : "none right now"}</span></h2>`;
+  const soon = (B.matches || []).filter(m => m.status === "pre" && m.risk && m.start < now + 36 * 3600);
+  const stayL = soon.filter(m => m.risk.level === "stay"), warnL = soon.filter(m => m.risk.warn.some(t => !t.startsWith("Coin flip")) && m.risk.level !== "stay"),
+        goodL = soon.filter(m => m.risk.level === "good");
+  const sbOpen = (SB && SB.open) ? SB.open.filter(b => b.start > now) : [];
+  const tU = takes.reduce((a, x) => a + x.units, 0) + sbOpen.reduce((a, b) => a + b.units, 0);
+  let h = `<div class="card" style="margin-top:14px;padding:10px 12px"><b>📋 Today's playbook</b>
+    <div class="note" style="margin-top:4px">✅ <b>${takes.length}</b> tennis bet${takes.length === 1 ? "" : "s"} below · 📚 <b>${sbOpen.length}</b> on the Books tab · total ${tU.toFixed(1)}u ($${(tU * unitVal()).toFixed(0)}) if you take them all<br>
+    🚫 <b>${stayL.length}</b> matches to stay away from · ⚠ <b>${warnL.length}</b> upset alerts · 🛡 <b>${goodL.length}</b> favourites steadier than priced (next 36 h)</div>
+    <div class="note" style="margin-top:4px">Rules that make money long-term: bet only TAKE cards, only at the listed price or better, at the units shown. Skip stay-away matches. Never chase a loss with a bigger stake.</div></div>`;
+  h += `<h2 class="sec">✅ Bets to take now <span>${takes.length ? takes.length + " right now" : "none right now"}</span></h2>`;
   h += takes.length ? `<div class="card list">${takes.map(takeCard).join("")}</div>`
     : `<div class="card empty">Nothing to take right now — that's the normal state. Bets only appear here when a price is clearly off; the board checks every ~20 minutes.</div>`;
   const dropped = (B.dropped || []).filter(d => d.start > now);
@@ -350,6 +385,20 @@ function renderPicks() {
       <div class="row2"><span class="badge">was ${d.units}u at ${cents(d.entry)}</span><span class="badge bad">now ${d.now == null ? "off the board" : cents(d.now)}</span>
         <span class="note">${d.now != null && d.now > d.entry + 0.005 ? `The price went up, so the edge is gone. If you already bet it at ${cents(d.entry)}, keep it: you got the better number.`
           : d.now == null ? "No longer listed before the match." : "Same price, but it no longer meets the rule (the strategy was tightened or the fair price moved). Don't add to it."}</span></div></div>`).join("")}</div>`;
+  const hist = (B.history || []).filter(x => x.start < now || x.result);       // upcoming ones are in the TAKE list
+  if (hist.length) {
+    const done = hist.filter(x => histPnl(x) != null), tot = done.reduce((a, x) => a + histPnl(x), 0);
+    h += `<h2 class="sec">🕘 Earlier picks <span>last 48 h · ${done.length ? `${done.filter(x => x.result === "yes").length}-${done.filter(x => x.result === "no").length}, ${tot >= 0 ? "+" : ""}${tot.toFixed(2)}u` : "none settled yet"}</span></h2>
+      <div class="card list">${hist.map(x => { const v = histPnl(x), st = x.result === "yes" ? "WON" : x.result === "no" ? "LOST" : x.result === "void" ? "void" : x.start < now ? "in play" : "upcoming";
+        return `<div class="bet"><div><div class="what">${esc(x.label)}</div><div class="sub">${esc((x.names || []).join(" vs "))} · ${dayOf(x.start)} ${when(x.start)} · ${x.units}u at ${x.kind === "book" ? x.odds?.toFixed(2) : cents(x.entry)} · ${esc((x.tags || []).map(t => S[t]?.label || t).join(", "))}</div></div>
+        <div class="res ${v > 0 ? "pos" : v < 0 ? "neg" : ""}">${st}${v != null ? `<div class="note">${v >= 0 ? "+" : ""}${v.toFixed(2)}u</div>` : ""}</div></div>`; }).join("")}</div>
+      <p class="note" style="margin:6px 2px">Every pick that carried a stake, kept after its match starts so you can see how it went. Paper-only picks are graded on the Model record tab.</p>`;
+  }
+  const mini = (L, f) => `<div class="card list">${L.slice(0, 12).map(m => `<button class="mrow" data-goto="${m.id}" style="grid-template-columns:1fr"><div><b>${esc(m.names.join(" vs "))}</b> <span class="note">${dayOf(m.start)} ${when(m.start)} · ${esc(m.tourney)}</span><div class="note">${esc(f(m))}</div></div></button>`).join("")}</div>`;
+  if (stayL.length) h += `<h2 class="sec">🚫 Stay away <span>${stayL.length} · unpredictable, don't bet either side</span></h2>` + mini(stayL, m => m.risk.stay[0]);
+  if (warnL.length) h += `<details class="card" style="margin-top:12px;padding:4px 12px"><summary style="padding:8px 0;font-weight:700;cursor:pointer">⚠ Upset alerts (${warnL.length}): be careful backing these favourites</summary>${mini(warnL, m => m.risk.warn.filter(t => !t.startsWith("Coin flip")).join(" "))}</details>`;
+  if (goodL.length) h += `<details class="card" style="margin-top:12px;padding:4px 12px"><summary style="padding:8px 0;font-weight:700;cursor:pointer">🛡 Steadier favourites (${goodL.length}): not bets by themselves</summary>
+    <p class="note">Situations where favourites won more often than their price said, in both halves of the data. They become bets only when a TAKE card appears (e.g. veteran favourite).</p>${mini(goodL, m => m.risk.fav + ": " + m.risk.good[0])}</details>`;
   h += `<div class="callout"><b>How to use this:</b> only the green <b>TAKE</b> cards above are bets. Stake the units shown (1u = $${unitVal().toFixed(0)}) and only at the price shown or better.
     These come from the strategies with a real basis — ${staking.map(esc).join(", ")} — and none is proven on tennis yet, so stakes are small. Everything in the watchlist below is tracked on paper only: <b>don't bet it</b>; the Model record tab shows if it ever earns a stake.</div>`;
   h += `<details class="card" style="margin-top:14px;padding:4px 12px"><summary style="padding:8px 0;font-weight:700;cursor:pointer">👀 Watchlist — paper only, don't bet (${watch.length})</summary>
@@ -485,7 +534,7 @@ function matchRow(m) {
     <div class="who">
       ${[0, 1].map(i => `<div class="${fav === i ? "fav" : ""}"><span class="nm">${esc(m.names[i])}</span><span class="pp" style="color:var(--${i ? "b" : "a"})">${p == null ? "" : pct(i ? 1 - p : p)}</span></div>`).join("")}
       ${p != null ? `<div class="bar2"><i style="width:${p * 100}%"></i><i style="width:${(1 - p) * 100}%"></i></div>${pm != null ? `<div class="mk"><i style="left:calc(${pm * 100}% - 1px)" title="market"></i></div>` : ""}` : ""}
-      <div class="mtags">${dot}<span class="badge">${esc(m.tourney)}${m.round ? " · " + esc(m.round) : ""}</span>${status}${sigBadges({ ...m, signals: (m.signals || []).slice(0, 2) }, null)}${(m.signals || []).length > 2 ? `<span class="badge sharp">+${m.signals.length - 2}</span>` : ""}${m.model ? "" : `<span class="badge">no model</span>`}</div>
+      <div class="mtags">${dot}<span class="badge">${esc(m.tourney)}${m.round ? " · " + esc(m.round) : ""}</span>${status}${riskBadge(m.risk)}${sigBadges({ ...m, signals: (m.signals || []).slice(0, 2) }, null)}${(m.signals || []).length > 2 ? `<span class="badge sharp">+${m.signals.length - 2}</span>` : ""}${m.model ? "" : `<span class="badge">no model</span>`}</div>
     </div>
     <div class="edgecol">${best && best.ev > 0 ? `<b class="pos">${sgn(best.ev)}</b><span>${esc(best.label.replace(" to win", ""))}</span>` : `<b style="color:var(--mute)">${pm == null ? "—" : cents(pm)}</b><span>market</span>`}</div>
   </button>${S.open.has(m.id) ? matchDetail(m) : ""}`;
@@ -500,7 +549,7 @@ function matchDetail(m) {
       ${md ? `<div><span>Hold % (proj.)</span><b class="num">${pct(sm.hold[i])}</b></div><div><span>Mins last 10 days</span><b class="num">${md.load[i]}</b></div>` : ""}</div>
       <h3>Last ${P.form.length}</h3><div class="form">${P.form.map(f => `<i class="${f.w ? "W" : "L"}" title="${esc((f.w ? "W " : "L ") + f.opp + " " + f.s + " (" + f.d + ")")}">${f.w ? "W" : "L"}</i>`).join("")}</div>
       <div class="note" style="margin-top:4px">${P.form.slice(0, 3).map(f => `${f.w ? "beat" : "lost to"} ${esc(f.opp)} ${esc(f.s)}`).join("; ")}</div></div>`; };
-  out.push(`<div class="two">${pc(0)}${pc(1)}</div>`);
+  out.push(riskBox(m.risk) + `<div class="two">${pc(0)}${pc(1)}</div>`);
   if (md) {
     out.push(`<div><h3>Why the model says ${pct(md.p)} for ${esc(m.names[0])}</h3><div class="kv">
       <div><span>Elo (surface-blended)</span><b class="num">${pct(md.p_elo)}</b></div>
@@ -730,6 +779,12 @@ function renderGuide() {
     <li><b>Tired favourite</b> (10-day minutes): +1.4% / +3.7% at Pinnacle and +3.3% / +6.1% at the best price. That supports the live 3-day rule, although the 10-day version lost on Kalshi's smaller sample.</li>
     <li><b>Favourites vs longshots:</b> at Pinnacle, odds under 1.25 lost only 0.3%, while odds above 5.0 lost 22%. Big underdogs are the worst bet in tennis.</li>
     <li><b>Challengers aren't upset city.</b> Over 2015–26, rating favourites won 64.6% at Challengers, 64.8% at ATP/WTA 250–500 and 65.4% at Masters, against 70.8% at Slams and 70.7% at ITFs. Masters events had the most upsets relative to ratings (−3.4 pts). On Kalshi Challengers, backing underdogs lost 9% and big underdogs 22%: people overpay for upsets there.</li>
+    <li><b>Predicting upsets</b> (tools/upset_risk: 8,000 Kalshi and 27,000 Pinnacle-priced matches, every signal checked in both halves). Nothing reliably predicts upsets beyond the price; the market already prices most of what you'd think of. What did show up:
+      <ul style="margin:4px 0;padding-left:16px">
+        <li><b>Favourites under-priced:</b> veterans aged 32+ (won +3.8 and +4.3 pts above price), heavy favourites at 80%+, best-of-5, and when the underdog is the hotter player. Veteran favourites returned +3.7% and +3.4% at Kalshi's real ask, so they are now a small-stake TAKE rule.</li>
+        <li><b>Stay away:</b> when our ratings and the market disagree by 20+ pts, the price was least reliable (the favourite beat its price by 6 pts in one half and missed it by 8 in the other). Also stay away right after a player retired injured.</li>
+        <li><b>Upset alerts:</b> favourites who played 4+ matches in 7 days ran about 1.4 pts under their price in both halves, and favourites back from 45+ days off have more uncertain results. These are minor effects, so treat them as reasons to skip, not to bet the underdog.</li>
+      </ul></li>
     <li><b>Total games.</b> Anchored to Pinnacle's price, the engine was within 0.3 games per match on average. Best-of-3 matches ran ~0.3 games short, while grass and best-of-5 ran longer (+0.65 on grass). These offsets are now built into the totals. Kalshi's totals still beat our fair price, so games over/unders are bet only via the Books tab: US books against Pinnacle's own totals and games spreads, tennis first.</li>
   </ul>
   <p><b>Units.</b> Stakes are quarter-Kelly in units (1u = 1% of bankroll by default), capped at ${B.config.max_units}u.</p>
@@ -750,6 +805,8 @@ function render() {
 document.addEventListener("click", e => {
   const t = e.target.closest("button, [data-open]");
   if (!t) return;
+  if (t.dataset.goto) { S.tab = "board"; store.set("te_tab", S.tab); S.open.add(t.dataset.goto); render();
+    const el = document.querySelector(`[data-open="${t.dataset.goto}"]`); el && el.scrollIntoView({ block: "start" }); return; }
   if (t.dataset.tab) { S.tab = t.dataset.tab; store.set("te_tab", S.tab); render(); window.scrollTo(0, 0); return; }
   if (t.dataset.f) { S.f = t.dataset.f; store.set("te_filter", S.f); render(); return; }
   if (t.dataset.open) { S.open.has(t.dataset.open) ? S.open.delete(t.dataset.open) : S.open.add(t.dataset.open); render(); return; }
