@@ -184,6 +184,19 @@
       "proven": false,
       "kelly_mult": 0,
       "why": "On 6,900 Kalshi ITF matches, when our model rated the market favourite 30+ pts lower than its price, the favourite won ~71% vs ~76-77% priced in both halves; backing the underdog returned +15% and +14% but with very wide error bars (about 400 bets). Paper-tracked until the live record confirms it. Smaller gaps (20 pts, or close matches where the model picks the underdog) flipped between halves."
+    },
+    "itf_early": {
+      "label": "ITF early line (paper)",
+      "min_hours": 6,
+      "min_ev": 0.06,
+      "min_price": 0.08,
+      "max_price": 0.92,
+      "w_model": 0.132,
+      "w_market": 0.897,
+      "c": 0.012,
+      "proven": false,
+      "kelly_mult": 0,
+      "why": "On 6,800 Kalshi ITF matches the price moved toward our model after the open more often than away (51-53% vs 36-39%, both halves), so our ratings lead the ITF market a little. Betting our raw model at the open lost (spread + fee), but a 13% model / 90% market blend with a 6%+ edge at the early ask was positive out of sample (+4.8%, positive closing-line value) on only ~70 bets. Paper-tracked; the ledger and CLV will show whether it holds."
     }
   },
   "smart_refresh_hours": 24,

@@ -427,6 +427,12 @@ def run(data, cfg, do_smart=True, verbose=True):
                 if pt is None or pl > pt:
                     pt = pl
                 u = max(u, units(pl, ask, cfg) * sl["kelly_mult"])
+            se_ = strat.get("itf_early")
+            if (se_ and "ITF" in m["series"] and p_mkt_i is not None and m["start"] - NOW >= se_["min_hours"] * 3600
+                    and se_["min_price"] <= ask <= se_["max_price"]):
+                pb = sig(se_["c"] + se_["w_model"] * logit(pmi) + se_["w_market"] * logit(p_mkt_i))
+                if ev_at(pb, ask) >= se_["min_ev"]:
+                    tags.append("itf_early")            # paper: early ITF price vs model+market blend (tools/itf_openers)
             sg = strat.get("itf_big_gap")
             if (sg and "ITF" in m["series"] and p_mkt_i is not None and p_mkt_i < 0.5 and pmi - p_mkt_i >= sg["min_gap"]
                     and sg["min_price"] <= ask <= sg["max_price"]):
@@ -436,6 +442,8 @@ def run(data, cfg, do_smart=True, verbose=True):
             if sh and fm[0] is not None and p_mkt_i is not None and p_mkt_i >= 0.5 and sh["min_price"] <= ask <= sh["max_price"]:
                 if fm[1 - i] - fm[i] >= sh["min_gap"]:        # the underdog is the hotter player: markets over-rate that
                     tags.append("hot_dog_fade")
+            if any(f"Don't back {m['names'][i]}" in t for t in (m.get("risk") or {}).get("avoid", [])):
+                tags, u = [], 0.0                        # the board warns against backing this player: no pick from any strategy
             u = round(min(max(u, cfg["min_units"]), cfg["max_units"]) * 4) / 4 if u > 0 else 0
             m["bets"].append({"ticker": q["ticker"], "label": f"{m['names'][i]} to win", "kind": "match", "p": round(pi, 4), "p_model": round(pmi, 4),
                               "ask": ask, "ev": round(ev if pt is None else ev_at(pt, ask), 4), "ev_model": round(ev_m, 4),

@@ -884,6 +884,13 @@ function renderGuide() {
         <li><b>Model 30+ pts below the market on the favourite:</b> the favourite won ~71% against 76–77% priced in both halves, and backing the underdog returned +15% and +14%, but with wide error bars. It's now a paper strategy.</li>
         <li><b>Teen favourites (18 or under):</b> backing their underdogs lost 42% and 25%. The board now says "Don't back".</li>
       </ul></li>
+    <li><b>ITF opening lines</b> (tools/itf_openers, 6,800 matches, each price path from Kalshi's first tradable quote, a median 12 h before the start):
+      <ul style="margin:4px 0;padding-left:16px">
+        <li>The opening price is almost as sharp as the close (log-loss 0.545/0.535 vs 0.537/0.529).</li>
+        <li><b>The price drifts toward our model after the open</b> (51–53% toward vs 36–39% away, bigger when we disagree more, both halves). Our ratings do lead the ITF market a little.</li>
+        <li>Betting our raw model at the open still lost 2–17%, because the spread and fee are bigger than the drift.</li>
+        <li>A 13/90 model+market blend at a 6%+ edge was positive out of sample (+4.8%, positive closing-line value) on only ~70 bets. It's now a paper strategy (ITF early line) until the live record confirms it.</li>
+      </ul></li>
     <li><b>Live matches</b> keep their pre-match price and verdict; the in-play price is shown separately (it used to replace the pre-match read once a match started).</li>
     <li><b>🔒 Locks</b> (tools/locks): a market favourite at 85%+, our model within 10 pts, no risk flags, not ITF. These won 93.2% and 93.7% in the two halves (priced at 90.8%) and returned +1.4% and +2.0% at the real ask. At 90%+ they won 95–96%. Shown as YES picks, with small stakes when the price is 95¢ or less.</li>
     <li><b>Total games.</b> Anchored to Pinnacle's price, the engine was within 0.3 games per match on average. Best-of-3 matches ran ~0.3 games short, while grass and best-of-5 ran longer (+0.65 on grass). These offsets are now built into the totals. Kalshi's totals still beat our fair price, so games over/unders are bet only via the Books tab: US books against Pinnacle's own totals and games spreads, tennis first.</li>
