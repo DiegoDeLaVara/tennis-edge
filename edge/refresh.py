@@ -231,11 +231,12 @@ def run(data, cfg, do_smart=True, verbose=True):
 
     # ---- trade tapes (money flow) for matches with some trading
     def tape_job(m):
-        if max(m["q"][0]["vol"], m["q"][1]["vol"]) < cfg["trade_fetch_min_volume"]:
+        itf = "ITF" in m["series"]                # ITF books are ~10x thinner: lower bars, or in-play goes unnoticed
+        if max(m["q"][0]["vol"], m["q"][1]["vol"]) < (min(cfg["trade_fetch_min_volume"], 150) if itf else cfg["trade_fetch_min_volume"]):
             return None
         ta = src.kalshi_trades(m["q"][0]["ticker"], max_pages=6)
         tb = src.kalshi_trades(m["q"][1]["ticker"], max_pages=6)
-        return money.flow_features(ta, tb)
+        return money.flow_features(ta, tb, lo=250.0, lo2=150.0) if itf else money.flow_features(ta, tb)
     with ThreadPoolExecutor(10) as ex:
         flows = list(ex.map(tape_job, matches))
 
@@ -295,12 +296,18 @@ def run(data, cfg, do_smart=True, verbose=True):
             status = "live"
         elif NOW > m["start"] + 4 * 3600:
             status = "live"
+        pv = PRE.get(m["event"])
+        if status == "pre" and pv and (len(pv) > 2 or (p_mkt is not None and abs(p_mkt - pv[0]) >= 0.12 and NOW - pv[1] <= 5400)):
+            status = "live"                           # a 12c+ jump within ~an hour: almost always in play (Kalshi's start time can be hours off)
+        if status == "live" and pv and len(pv) == 2:
+            pv.append(1)                              # once live, stays live
         m["status"] = status
         if status == "pre" and p_mkt is not None:
             PRE[m["event"]] = [round(p_mkt, 4), NOW]
-        elif status == "live" and m["event"] in PRE:
+        elif status == "live" and (m["event"] in PRE or (fl and fl.get("started") and fl.get("px_last") is not None)):
             m["p_live"] = p_mkt                       # in-play price, shown separately
-            p_mkt = PRE[m["event"]][0]                # verdict, blend and risk use the pre-match price
+            # verdict, blend and risk use the pre-match price: our stored one, else the last trade before the start
+            p_mkt = PRE[m["event"]][0] if m["event"] in PRE else fl["px_last"]
             m["p_mkt"] = p_mkt
         m["flow"] = fl
         m["signals"] = [{"k": k, "dir": d, "txt": t} for k, d, t in money.signals(fl)] if fl else []

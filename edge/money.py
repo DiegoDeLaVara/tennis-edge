@@ -36,7 +36,7 @@ def tape(trades_a, trades_b):
     return out
 
 
-def detect_start(T, bucket=600):
+def detect_start(T, bucket=600, lo=2500.0, lo2=1500.0):
     """First 10-minute bucket where trading surges and stays high: in-play has begun. None if not yet."""
     if not T:
         return None
@@ -50,16 +50,16 @@ def detect_start(T, bucket=600):
     for i in range(n - 1):
         prior = sorted(x for x in v[max(0, i - 36):i] if x > 0)
         med = prior[len(prior) // 2] if prior else 0.0
-        thr = max(2500.0, 8 * med)
-        if v[i] >= thr and v[i + 1] >= max(1500.0, 3 * med):
+        thr = max(lo, 8 * med)
+        if v[i] >= thr and v[i + 1] >= max(lo2, 3 * med):
             return t0 + i * bucket
     return None
 
 
-def flow_features(trades_a, trades_b, start_ts=None):
+def flow_features(trades_a, trades_b, start_ts=None, lo=2500.0, lo2=1500.0):
     """Pre-match money flow. With start_ts None, the start is detected from the tape (in-play surge)."""
     T = tape(trades_a, trades_b)
-    started = detect_start(T)
+    started = detect_start(T, lo=lo, lo2=lo2)
     if start_ts is None:
         start_ts = (started - 600) if started else float("inf")
     T = [x for x in T if x[0] <= start_ts]
