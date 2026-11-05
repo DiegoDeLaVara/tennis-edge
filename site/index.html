@@ -806,7 +806,20 @@ function renderRecord() {
 // ------------------------------------------------------------- guide tab
 function renderGuide() {
   const s = B.config.strategies;
-  return `<h2 class="sec">How it works</h2><div class="card" style="padding:12px 14px;font-size:14px">
+  return `<h2 class="sec">How to bet with this board</h2><div class="card" style="padding:12px 14px;font-size:14px">
+  <ol style="margin:0;padding-left:18px">
+    <li><b>Set your unit:</b> My bets → Bankroll &amp; units. Use money you can afford to lose; 1 unit = 1% of it.</li>
+    <li><b>Check Picks 2–3 times a day</b> (prices change; the board refreshes every ~20 min). Bet only green <b>TAKE</b> cards, only at the price shown <b>or better</b>, and only the units shown.</li>
+    <li><b>Books tab:</b> sportsbook prices that beat Pinnacle are the best-proven edge. Bet them at that book if the price is still there.</li>
+    <li><b>🔒 Locks:</b> win ~94% but pay little. Bet them as singles at the listed price; never chain several into a parlay.</li>
+    <li><b>💰 Underdog value:</b> lose about 3 in 4 and still profit over time. Keep them small and judge them after 100+ bets, not 5.</li>
+    <li><b>Skip:</b> 🎲 toss-ups (unless a TAKE card shows a better price), 🚫 stay-away matches, ✋ "Don't back" players, and anything live/in play.</li>
+    <li><b>Log every bet</b> with "I bet this". My bets tracks units, ROI and the ladder (if used: restake 25%, bank after 5 wins).</li>
+    <li><b>Once a week:</b> check Model record and the 📒 ledger. A strategy whose CLV stays negative after ~100 bets gets dropped; one with positive CLV and ROI earns bigger stakes.</li>
+    <li><b>Never:</b> raise stakes to win back losses, bet hunches, or bet "paper" picks from the watchlist.</li>
+  </ol>
+  <p class="note" style="margin-top:8px">Realistic expectations: the edges are a few % per bet. With ~10–20 bets a week at 0.25–2u, a good month is a few units, and losing weeks are normal. Over hundreds of bets, following the rules is what wins.</p></div>
+  <h2 class="sec">How it works</h2><div class="card" style="padding:12px 14px;font-size:14px">
   <p><b>Ratings.</b> Every pro match since 1985 (tour, Challenger, ITF, ATP and WTA) is replayed to build Elo ratings per surface, weighted by how dominant each win was, plus each player's serve and return strength adjusted for opponents, recent form, fatigue (minutes in the last 10 days), layoffs and head-to-head. New results are added every refresh from TennisMyLife, ESPN and Kalshi settlements.</p>
   <p><b>Match maths.</b> Each player's chance of winning a point on serve feeds an exact simulation of games, tiebreaks and sets. That gives the win probability and also set scores, total games, game spreads and set winners — all consistent, so combos are priced with real correlation.</p>
   <p><b>Market.</b> The final number blends the model with Kalshi's price (weights fitted on settled Kalshi matches). A bet is only flagged when the model still beats the ask after Kalshi's fee by enough margin.</p>
