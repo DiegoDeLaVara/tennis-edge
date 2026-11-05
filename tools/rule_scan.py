@@ -39,6 +39,7 @@ def tour_data():
     D["form_f"] = np.where(fa, D.form_a, D.form_b); D["form_d"] = np.where(fa, D.form_b, D.form_a)
     D["load_f"] = np.where(fa, D.load_a, D.load_b); D["load_d"] = np.where(fa, D.load_b, D.load_a)
     D["edge_f"] = D.pm_f - D.pf
+    D = D.sort_values("date", kind="stable").reset_index(drop=True)   # sort BEFORE building variables, so rows stay aligned
     V = {  # name -> (values, description)
         "model edge on fav (model - price)": D.edge_f, "price of fav": D.pf, "sub-model disagreement": D.dis,
         "market volume $": D.vol2, "spread": D.spread,
@@ -63,6 +64,7 @@ def itf_data():
     from tools.itf_study import load_itf
     D = load_itf()
     D["edge_f"] = D.pm_f - D.pf
+    D = D.sort_values("date", kind="stable").reset_index(drop=True)   # sort BEFORE building variables, so rows stay aligned
     V = {"model edge on fav (model - price)": D.edge_f, "price of fav": D.pf, "fav rated matches": D.n_f, "dog rated matches": D.n_d,
          "fav days since last": D.days_f, "dog days since last": D.days_d, "fav age": D.age_f, "dog age": D.age_d,
          "fav rank": D.rank_f, "dog rank": D.rank_d, "log rank ratio dog/fav": np.log(D.rank_d.clip(1, 3000) / D.rank_f.clip(1, 3000))}
@@ -80,8 +82,7 @@ def stat(r, m):
 def main():
     itf = "--itf" in sys.argv
     D, V = itf_data() if itf else tour_data()
-    D = D.sort_values("date").reset_index(drop=True)
-    n = len(D)
+    n = len(D)                                   # already date-sorted inside tour_data / itf_data
     split = np.zeros(n, int); split[n // 2:] = 1; split[(3 * n) // 4:] = 2
     disc, val, test = split == 0, split == 1, split == 2
     print(f"{'ITF' if itf else 'Tour + Challenger'}: {n:,} matches | discover {D.date[disc].min()}..{D.date[disc].max()} | "
@@ -92,6 +93,8 @@ def main():
     R = returns(D)
     bands = {"any price": np.ones(n, bool), "fav 50-62%": D.pf.between(0.5, 0.62).values, "fav 62-78%": D.pf.between(0.62, 0.78).values,
              "fav 78-95%": D.pf.between(0.78, 0.95).values}
+    if "--lean" in sys.argv:                       # leans only: favourite priced 58-70%
+        bands = {"lean 58-70%": D.pf.between(0.58, 0.70).values}
     rules = []
     for name, v in V.items():
         v = np.asarray(v, float)
@@ -110,7 +113,7 @@ def main():
                 m = cm & bm
                 for side in ("fav", "dog"):
                     k, mu, se = stat(R[side], m & disc)
-                    if k >= 80:
+                    if k >= (60 if "--lean" in sys.argv else 80):
                         rules.append((cname, bname, side, m, k, mu, se))
     print(f"rules tested on DISCOVER: {len(rules):,}")
     # rank on discover by t-stat, require a real ROI

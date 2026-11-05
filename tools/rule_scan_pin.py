@@ -17,7 +17,7 @@ def stat(r, m):
 
 
 def scan(D, V, label):
-    D = D.sort_values("date").reset_index(drop=True)
+    D = D.sort_values("date", kind="stable").reset_index(drop=True)
     n = len(D)
     split = np.zeros(n, int); split[n // 2:] = 1; split[(3 * n) // 4:] = 2
     disc, val, test = split == 0, split == 1, split == 2
@@ -28,6 +28,8 @@ def scan(D, V, label):
     B = {"fav": np.where(D.y == 1, D.max_f - 1, -1.0), "dog": np.where(D.y == 0, D.max_d - 1, -1.0)}
     bands = {"any price": np.ones(n, bool), "fav 50-62%": D.p.between(0.5, 0.62).values, "fav 62-78%": D.p.between(0.62, 0.78).values,
              "fav 78-95%": D.p.between(0.78, 0.95).values}
+    if "--lean" in sys.argv:                       # leans only: favourite priced 58-70%
+        bands = {"lean 58-70%": D.p.between(0.58, 0.70).values}
     rules = []
     for name, f in V.items():
         v = np.asarray(f(D), float); ok = np.isfinite(v)
