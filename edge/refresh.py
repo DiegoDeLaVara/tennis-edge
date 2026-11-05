@@ -866,6 +866,11 @@ def risk_flags(m):
         out["avoid"].append(f"Don't back {dog}: they face a teenage ITF favourite ({fav}, {g('age', sf):.0f}). "
                             "Backing those underdogs lost 42% and 25% on 6,900 Kalshi ITF matches.")
         net += 4
+    ld = md.get("load") or [None, None]
+    if ld[0] is not None and ld[1 - fi] >= 400 and ld[fi] <= 150:
+        out["avoid"].append(f"Don't back {dog}: tired ({ld[1 - fi]} min in the last 10 days) against a fresh favourite ({ld[fi]} min). "
+                            "Backing tired underdogs lost 10-14% at Pinnacle in both halves (normal is 4-6%); unlike tired favourites, the market doesn't over-punish them.")
+        net += 1.5
     if (g("days", sd) or 0) >= 31:
         out["avoid"].append(f"Don't back {dog}: back after {g('days', sd)} days off. Underdogs returning from a month or more off lost 14-37% "
                             "when backed (Kalshi and Pinnacle); the market over-rates them.")
