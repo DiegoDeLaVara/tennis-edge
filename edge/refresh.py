@@ -845,6 +845,12 @@ def risk_flags(m):
     if (g("m7", sf) or 0) >= 4:
         out["warn"].append(f"{fav} has played {g('m7', sf)} matches in 7 days. Busy favourites ran about 1.4 pts below their price in both halves.")
         net -= 1.4
+    if "ITF" in m.get("series", "") and md.get("p_model") is not None:
+        pmf = md["p_model"] if fi == 0 else 1 - md["p_model"]
+        if pf - pmf >= 0.30:
+            out["avoid"].append(f"Don't back {fav}: our ratings give them only {pmf:.0%} against the market's {pf:.0%}. In ITF, favourites our "
+                                "ratings rated 30+ pts lower won ~71% when priced at ~77%, and backing them lost 11% and 10% (6,900 Kalshi matches, both halves).")
+            net -= 6
     if "ITF" in m.get("series", "") and (g("age", sf) or 99) <= 18:
         out["avoid"].append(f"Don't back {dog}: they face a teenage ITF favourite ({fav}, {g('age', sf):.0f}). "
                             "Backing those underdogs lost 42% and 25% on 6,900 Kalshi ITF matches.")
@@ -910,7 +916,8 @@ def _verdict(m):
             and (md.get("dis") or 0) < 0.6):
         return {"k": "lock", "who": who, "p": round(pf, 3), "txt": f"{who} wins. Lock tier: won 94-95% historically (about 1 loss in 18)."}
     if r.get("level") == "warn" and pf >= 0.58:
-        return {"k": "risk", "who": who, "p": round(pf, 3), "txt": f"{who} favoured ({pf:.0%}) but upset risk: {r['warn'][0]}"}
+        why = r["warn"][0] if r.get("warn") else (r.get("avoid") or [r.get("summary", "")])[0]
+        return {"k": "risk", "who": who, "p": round(pf, 3), "txt": f"{who} favoured ({pf:.0%}) but upset risk: {why}"}
     if pf >= 0.70:
         return {"k": "win", "who": who, "p": round(pf, 3), "txt": f"{who} should win ({pf:.0%}). Favourites at this price win about that often; not a lock."}
     if pf >= 0.58:
