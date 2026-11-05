@@ -1,18 +1,18 @@
 {
  "w": [
-  0.32955,
-  0.528023,
-  0.088822,
-  -0.010392,
-  1.055159,
-  0.028672,
-  -0.294371,
-  0.193308,
-  0.014524,
-  0.14387,
-  0.163895
+  0.321712,
+  0.431162,
+  0.093967,
+  -0.010633,
+  0.638434,
+  0.028859,
+  -0.232199,
+  0.231998,
+  0.011372,
+  0.100585,
+  0.108236
  ],
- "b": 0.006499,
+ "b": 0.006922,
  "features": [
   "elo_blend",
   "elo_all",
@@ -26,95 +26,95 @@
   "wta_x_elo",
   "lowtier_x_elo"
  ],
- "trained_rows": 738485,
+ "trained_rows": 738940,
  "walk_forward": [
   {
    "year": 2016,
    "n": 51233,
-   "ll_elo": 0.5654163542102795,
-   "ll_model": 0.5596006327433126,
-   "acc_elo": 0.7029844045829836,
-   "acc_model": 0.7076688852887787
+   "ll_elo": 0.5600960930806022,
+   "ll_model": 0.5564580329636984,
+   "acc_elo": 0.7071223625397693,
+   "acc_model": 0.7097183455975641
   },
   {
    "year": 2017,
    "n": 49415,
-   "ll_elo": 0.5726717517391291,
-   "ll_model": 0.5674563762987281,
-   "acc_elo": 0.697116260244865,
-   "acc_model": 0.7022563998785794
+   "ll_elo": 0.5688517436917164,
+   "ll_model": 0.5644598211506564,
+   "acc_elo": 0.7015481129211778,
+   "acc_model": 0.7054942831124152
   },
   {
    "year": 2018,
    "n": 47716,
-   "ll_elo": 0.5847492269840797,
-   "ll_model": 0.580186535563326,
-   "acc_elo": 0.6883016179059435,
-   "acc_model": 0.6903554363316288
+   "ll_elo": 0.5819216932960495,
+   "ll_model": 0.577390231952385,
+   "acc_elo": 0.6903973509933775,
+   "acc_model": 0.6924930840808114
   },
   {
    "year": 2019,
    "n": 55497,
-   "ll_elo": 0.58063517087246,
-   "ll_model": 0.5763656130072893,
-   "acc_elo": 0.6894066345928609,
-   "acc_model": 0.6911724958105844
+   "ll_elo": 0.5736073754034384,
+   "ll_model": 0.5711174922854498,
+   "acc_elo": 0.6938573256212047,
+   "acc_model": 0.6957853577670865
   },
   {
    "year": 2020,
    "n": 18647,
-   "ll_elo": 0.5935851521577015,
-   "ll_model": 0.58858384261885,
-   "acc_elo": 0.6776961441518743,
-   "acc_model": 0.6802166568348796
+   "ll_elo": 0.5892868019588942,
+   "ll_model": 0.5843516381495769,
+   "acc_elo": 0.6775352603635973,
+   "acc_model": 0.6825226578001823
   },
   {
    "year": 2021,
    "n": 44811,
-   "ll_elo": 0.5884334238598581,
-   "ll_model": 0.5804451497782098,
-   "acc_elo": 0.6840954229988172,
-   "acc_model": 0.6894289348597442
+   "ll_elo": 0.5808570244812923,
+   "ll_model": 0.5751049308842573,
+   "acc_elo": 0.6888933520787307,
+   "acc_model": 0.6922853763584834
   },
   {
    "year": 2022,
    "n": 59330,
-   "ll_elo": 0.5754263101694742,
-   "ll_model": 0.5689360094442106,
-   "acc_elo": 0.6941176470588235,
-   "acc_model": 0.6989381425922805
+   "ll_elo": 0.5671463623961175,
+   "ll_model": 0.563226760749069,
+   "acc_elo": 0.6986347547615035,
+   "acc_model": 0.7013315354795213
   },
   {
    "year": 2023,
    "n": 63778,
-   "ll_elo": 0.5759446954253775,
-   "ll_model": 0.5700150772321192,
-   "acc_elo": 0.6939383486468689,
-   "acc_model": 0.6977327605130296
+   "ll_elo": 0.5698387115260796,
+   "ll_model": 0.5658871940911754,
+   "acc_elo": 0.696729279688921,
+   "acc_model": 0.7008372793126156
   },
   {
    "year": 2024,
    "n": 68433,
-   "ll_elo": 0.5682762386950978,
-   "ll_model": 0.5616036621332986,
-   "acc_elo": 0.7007291803661976,
-   "acc_model": 0.7038271009600632
+   "ll_elo": 0.5599886494990518,
+   "ll_model": 0.5565991931066236,
+   "acc_elo": 0.7043970014466705,
+   "acc_model": 0.7064427980652609
   },
   {
    "year": 2025,
    "n": 53801,
-   "ll_elo": 0.5824174084237222,
-   "ll_model": 0.5769420189334814,
-   "acc_elo": 0.6866415122395495,
-   "acc_model": 0.6906748945186892
+   "ll_elo": 0.5801593821736262,
+   "ll_model": 0.5745155746009424,
+   "acc_elo": 0.6899500009293508,
+   "acc_model": 0.6925707700600361
   },
   {
    "year": 2026,
-   "n": 38548,
-   "ll_elo": 0.5920406845848886,
-   "ll_model": 0.5875069404254035,
-   "acc_elo": 0.6807357061326139,
-   "acc_model": 0.684315658399917
+   "n": 39003,
+   "ll_elo": 0.5903462997302805,
+   "ll_model": 0.5846710514806994,
+   "acc_elo": 0.6843832525703151,
+   "acc_model": 0.6874599389790529
   }
  ],
  "market": {
@@ -122,187 +122,6 @@
   "b": 0.8979,
   "c": 0.0447,
   "n": 5516
- },
- "kalshi_backtest": {
-  "period": "2025-06-19 to 2026-11-02, 5516 matches",
-  "rows": [
-   {
-    "rule": "Model alone: EV \u2265 0%",
-    "n": 1750,
-    "win": 0.4954,
-    "roi": -0.0107
-   },
-   {
-    "rule": "Model alone: EV \u2265 3%",
-    "n": 1458,
-    "win": 0.4801,
-    "roi": 0.0007
-   },
-   {
-    "rule": "Model alone: EV \u2265 5%",
-    "n": 1245,
-    "win": 0.449,
-    "roi": -0.0088
-   },
-   {
-    "rule": "Model alone: EV \u2265 8%",
-    "n": 1004,
-    "win": 0.4243,
-    "roi": 0.0056
-   },
-   {
-    "rule": "Model alone: EV \u2265 12%",
-    "n": 774,
-    "win": 0.4083,
-    "roi": 0.0346
-   },
-   {
-    "rule": "Model + market blend: EV \u2265 0%",
-    "n": 482,
-    "win": 0.2614,
-    "roi": -0.0587
-   },
-   {
-    "rule": "Model + market blend: EV \u2265 3%",
-    "n": 11,
-    "win": 0.0,
-    "roi": -1.0
-   },
-   {
-    "rule": "KXATPCHALLENGERMATCH model: EV \u2265 3%",
-    "n": 145,
-    "win": 0.4,
-    "roi": -0.14
-   },
-   {
-    "rule": "KXATPCHALLENGERMATCH model: EV \u2265 6%",
-    "n": 118,
-    "win": 0.3305,
-    "roi": -0.2293
-   },
-   {
-    "rule": "KXATPCHALLENGERMATCH blend: EV \u2265 3%",
-    "n": 1,
-    "win": 0.0,
-    "roi": -1.0
-   },
-   {
-    "rule": "KXATPMATCH model: EV \u2265 3%",
-    "n": 509,
-    "win": 0.5147,
-    "roi": 0.052
-   },
-   {
-    "rule": "KXATPMATCH model: EV \u2265 6%",
-    "n": 415,
-    "win": 0.4892,
-    "roi": 0.0519
-   },
-   {
-    "rule": "KXATPMATCH blend: EV \u2265 3%",
-    "n": 3,
-    "win": 0.0,
-    "roi": -1.0
-   },
-   {
-    "rule": "KXWTAMATCH model: EV \u2265 3%",
-    "n": 804,
-    "win": 0.4726,
-    "roi": -0.0064
-   },
-   {
-    "rule": "KXWTAMATCH model: EV \u2265 6%",
-    "n": 628,
-    "win": 0.4268,
-    "roi": -0.0094
-   },
-   {
-    "rule": "KXWTAMATCH blend: EV \u2265 3%",
-    "n": 7,
-    "win": 0.0,
-    "roi": -1.0
-   },
-   {
-    "rule": "Model alone EV \u2265 5%, price 5-30c",
-    "n": 306,
-    "win": 0.1765,
-    "roi": -0.1115
-   },
-   {
-    "rule": "Model alone EV \u2265 5%, price 30-50c",
-    "n": 487,
-    "win": 0.4497,
-    "roi": 0.0903
-   },
-   {
-    "rule": "Model alone EV \u2265 5%, price 50-70c",
-    "n": 301,
-    "win": 0.5847,
-    "roi": -0.0348
-   },
-   {
-    "rule": "Model alone EV \u2265 5%, price 70-95c",
-    "n": 151,
-    "win": 0.7285,
-    "roi": -0.0681
-   },
-   {
-    "rule": "Model EV \u2265 3% and money agrees",
-    "n": 582,
-    "win": 0.5876,
-    "roi": 0.0079
-   },
-   {
-    "rule": "Model EV \u2265 3% and money disagrees",
-    "n": 765,
-    "win": 0.4,
-    "roi": -0.0065
-   },
-   {
-    "rule": "Model EV \u2265 3% and no money signal",
-    "n": 111,
-    "win": 0.4685,
-    "roi": 0.0126
-   },
-   {
-    "rule": "Follow: Big tickets one way ($750+, 60%+)",
-    "n": 3865,
-    "win": 0.6851,
-    "roi": -0.0327
-   },
-   {
-    "rule": "Follow: Line moved 6c+ since open",
-    "n": 2786,
-    "win": 0.5847,
-    "roi": -0.002
-   },
-   {
-    "rule": "Follow: Steam 5c+ in an hour",
-    "n": 1649,
-    "win": 0.5585,
-    "roi": -0.0006
-   },
-   {
-    "rule": "Follow: 35%+ one-way flow",
-    "n": 4490,
-    "win": 0.6786,
-    "roi": -0.0325
-   }
-  ],
-  "note": "Held-out = the most recent 40% of matches, never used to fit the blend. Entry at the real Kalshi ask about an hour before the start, plus the taker fee."
- },
- "futures_backtest": {
-  "summary": "from the quarterfinals on 32 past tournaments the draw odds were slightly sharper than Kalshi's winner prices (log-loss 0.387 vs 0.393, 125 markets); from the round of 16 Kalshi was slightly sharper. Too few bets to prove profit, so stakes are a quarter of normal.",
-  "qf": {
-   "n": 125,
-   "ll_kalshi": 0.3933,
-   "ll_model": 0.3868
-  },
-  "r16": {
-   "n": 102,
-   "ll_kalshi": 0.2938,
-   "ll_model": 0.301
-  }
  },
  "uncertainty": {
   "kind": "disagree",

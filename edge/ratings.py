@@ -12,7 +12,13 @@ SURFACES = ("Hard", "Clay", "Grass", "Carpet")
 HALF_LIFE = 300.0          # days, serve/return stats
 FORM_HL = 45.0             # days, form residual
 SHRINK_PTS = 900.0         # pseudo serve points pulling a player's rates to the tour mean
-LEVEL_K = {"G": 1.0, "M": 1.0, "F": 1.0, "A": 1.0, "C": 0.9, "S": 0.85, "D": 0.85, "Q": 0.9, "O": 0.85}
+# Tuned 2026-11-04 (tools/elo_tune, walk-forward on 1.6M matches; chosen on ITF 2016-21, checked on 2022-26):
+# faster learning (K0 400, offset 2), scorelines count 1.5x more, Challenger/qualifying results count 80%.
+# ITF test log-loss 0.5641 -> 0.5600, all levels 0.5760 -> 0.5716. Bump RATINGS_VER whenever these change so the
+# cloud swaps its rolling state for the rebuilt seed (edge/refresh.load_state).
+RATINGS_VER = 2
+LEVEL_K = {"G": 1.0, "M": 1.0, "F": 1.0, "A": 1.0, "C": 0.8, "S": 0.85, "D": 0.85, "Q": 0.8, "O": 0.85}
+MARGIN = 1.5
 
 
 def ordinal(d):
@@ -73,7 +79,7 @@ class Player:
 
 
 def k_factor(n):
-    return 250.0 / (n + 5) ** 0.4
+    return 400.0 / (n + 2) ** 0.4
 
 
 def p_elo(ra, rb):
@@ -175,7 +181,7 @@ class Ratings:
         mult = 1.0
         if self.margin and gw + gl > 0 and not ret:
             share = gw / (gw + gl)                          # winner's share of games, ~0.5..1
-            mult = 0.6 + 1.6 * (share - 0.5)                # 0.6 for a coin-flip win, 1.4 for a bagel-bagel
+            mult = max(0.3, 1 + MARGIN * 1.6 * (share - 0.75))   # 0.4 for a coin-flip win, 1.6 for a bagel-bagel
         e = p_elo(W.elo, L.elo)
         kw, kl = k_factor(W.n), k_factor(L.n)
         lay_w = 1.3 if W.last and t - W.last > 120 else 1.0

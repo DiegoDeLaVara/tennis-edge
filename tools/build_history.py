@@ -161,6 +161,8 @@ def main():
     cut = (date.today() - timedelta(days=900)).toordinal()
     st = R.dump(min_last=cut)
     st["built"] = datetime.now(timezone.utc).isoformat()
+    from edge.ratings import RATINGS_VER
+    st["ver"] = RATINGS_VER
     st["seen_pairs"] = [[m["w"], m["l"], m["date"]] for m in allrows if m["date"] > date.today().toordinal() - 40]
     st["surfaces"] = surfaces.t
     with gzip.open(STATE / "ratings.json.gz", "wt") as fh:

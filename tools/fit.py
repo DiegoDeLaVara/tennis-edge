@@ -72,8 +72,9 @@ def main():
     old = ROOT / "model" / "coef.json"
     if old.exists():
         prev = json.loads(old.read_text())
-        if "market" in prev:
-            out["market"] = prev["market"]
+        for k in ("market", "uncertainty"):          # fitted elsewhere (kalshi_backtest, uncertainty_disagree): keep
+            if k in prev:
+                out[k] = prev[k]
     old.parent.mkdir(exist_ok=True)
     old.write_text(json.dumps(out, indent=1))
     print(dict(zip(FEATURES, out["w"])), out["b"])

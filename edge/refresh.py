@@ -67,11 +67,15 @@ def tsf(s):
 
 # ------------------------------------------------------------------ state
 def load_state(data):
+    from .ratings import RATINGS_VER
     f = data / "ratings.json.gz"
     if not f.exists():
         f = ROOT / "state" / "ratings.json.gz"
     with gzip.open(f, "rt") as fh:
         st = json.load(fh)
+    if st.get("ver", 1) < RATINGS_VER:          # ratings were rebuilt with new settings: start from the new seed once
+        with gzip.open(ROOT / "state" / "ratings.json.gz", "rt") as fh:
+            st = json.load(fh)
     R = Ratings.load(st)
     surfaces = src.Surfaces(st.get("surfaces"))
     seen = {}
@@ -83,6 +87,7 @@ def load_state(data):
 def save_state(data, R, surfaces, seen, st):
     out = R.dump(min_last=date.today().toordinal() - 900)
     out["built"] = st.get("built")
+    out["ver"] = st.get("ver", 1)
     out["updated"] = iso(NOW)
     cut = date.today().toordinal() - 40
     out["seen_pairs"] = [[w, l, d] for (w, l, d) in seen if d >= cut]
@@ -397,14 +402,14 @@ def run(data, cfg, do_smart=True, verbose=True):
                 if ev_at(pf, ask) >= sp["min_ev"]:
                     tags.append("pinnacle_gap")
                     u = max(u, units(pf, ask, cfg) * sp.get("kelly_mult", 1.0))
-            st = strat.get("tired_fav")
+            stf = strat.get("tired_fav")
             pt = None
-            if st and m.get("ctx") and m["series"] not in ("KXITFMATCH", "KXITFWMATCH") and p_mkt_i is not None and p_mkt_i >= 0.5 and st["min_price"] <= ask <= st["max_price"]:
+            if stf and m.get("ctx") and m["series"] not in ("KXITFMATCH", "KXITFWMATCH") and p_mkt_i is not None and p_mkt_i >= 0.5 and stf["min_price"] <= ask <= stf["max_price"]:
                 me, them = ("_a", "_b") if i == 0 else ("_b", "_a")
-                if (m["ctx"]["mins3" + me] or 0) >= st["min_mins_fav"] and (m["ctx"]["mins3" + them] or 0) < st["max_mins_dog"]:
+                if (m["ctx"]["mins3" + me] or 0) >= stf["min_mins_fav"] and (m["ctx"]["mins3" + them] or 0) < stf["max_mins_dog"]:
                     tags.append("tired_fav")
-                    pt = min(p_mkt_i + st["p_edge"], 0.97)          # backtest: tired favourites win ~4 pts more than priced
-                    u = max(u, units(pt, ask, cfg) * st["kelly_mult"])
+                    pt = min(p_mkt_i + stf["p_edge"], 0.97)          # backtest: tired favourites win ~4 pts more than priced
+                    u = max(u, units(pt, ask, cfg) * stf["kelly_mult"])
             sv = strat.get("veteran_fav")
             stay = bool((m.get("risk") or {}).get("stay"))
             if sv and m.get("ctx") and "ITF" not in m["series"] and p_mkt_i is not None and p_mkt_i >= 0.5 and sv["min_price"] <= ask <= sv["max_price"]:
