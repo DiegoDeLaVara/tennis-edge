@@ -197,6 +197,17 @@
       "proven": false,
       "kelly_mult": 0,
       "why": "On 6,800 Kalshi ITF matches the price moved toward our model after the open more often than away (51-53% vs 36-39%, both halves), so our ratings lead the ITF market a little. Betting our raw model at the open lost (spread + fee), but a 13% model / 90% market blend with a 6%+ edge at the early ask was positive out of sample (+4.8%, positive closing-line value) on only ~70 bets. Paper-tracked; the ledger and CLV will show whether it holds."
+    },
+    "dog_value": {
+      "label": "Underdog value (model likes a cheap underdog)",
+      "min_price": 0.15,
+      "max_price": 0.3,
+      "min_edge": 0.1,
+      "min_edge_itf": 0.2,
+      "p_edge": 0.04,
+      "proven": false,
+      "kelly_mult": 0.3,
+      "why": "Underdogs priced 15-30c that our retuned model rates 10+ pts higher (20+ in ITF). On 8,100 tour/Challenger Kalshi matches they won 28% vs 23-24% priced: +15.3% then +11.1% at the real ask after the fee (all 15-30c underdogs: +0.9% / -9.3%). ITF: +3.2% / +3.1% (all ITF 15-30c dogs: -10% / -13%). They still lose ~3 times in 4, so stakes are small."
     }
   },
   "smart_refresh_hours": 24,

@@ -289,7 +289,7 @@ function verdictChip(v) {
   if (!v) return "";
   const [ic, cl, word] = VK[v.k] || ["", "", ""];
   const nm = v.k === "toss" || v.k === "stay" ? "" : " " + esc(v.who.split(" ").slice(-1)[0]);
-  return `<span class="badge ${cl}" title="${esc(v.txt)}">${ic} ${word}${nm}</span>`;
+  return `<span class="badge ${cl}" title="${esc(v.txt)}">${ic} ${word}${nm}</span>` + (v.value ? `<span class="badge good">💰 VALUE ${esc(v.value.split(" ").slice(-1)[0])}</span>` : "");
 }
 function verdictBox(v, live) {
   if (!v) return "";
@@ -884,6 +884,14 @@ function renderGuide() {
         <li><b>Model 30+ pts below the market on the favourite:</b> the favourite won ~71% against 76–77% priced in both halves, and backing the underdog returned +15% and +14%, but with wide error bars. It's now a paper strategy.</li>
         <li><b>Teen favourites (18 or under):</b> backing their underdogs lost 42% and 25%. The board now says "Don't back".</li>
       </ul></li>
+    <li><b>💰 Underdog value</b> (tools/dog_sweep, with the retuned ratings). For underdogs priced 15–30c that our model rates 10+ pts higher (20+ in ITF):
+      <ul style="margin:4px 0;padding-left:16px">
+        <li>Tour/Challenger: they won 28% against 23–24% priced and returned +15.3% then +11.1%, while all cheap underdogs returned +0.9% then −9.3%.</li>
+        <li>ITF: +3.2% then +3.1%, while all cheap ITF underdogs lost 10–13%.</li>
+        <li>Pricier underdogs (30–50%) flipped between halves, so they're out.</li>
+        <li>Toss-ups: still no pick beats the price (our model picks close-match winners only 50–52% of the time).</li>
+      </ul>
+      These are value bets that lose about 3 in 4, so stakes are small.</li>
     <li><b>ITF favourites our ratings rate 30+ pts lower</b> (the Gogineni vs Mirarchi case, 5 Nov 2026: Kalshi 76–80%, our model 42%): backing them lost 11.3% and 9.7% in the two halves of 6,900 Kalshi ITF matches. The board now says "Don't back" on these and marks them as upset risk. Also fixed: thin ITF markets weren't detected as in play (Kalshi's listed start time can be hours off), so in-play prices were being treated as pre-match.</li>
     <li><b>Ratings retuned</b> (tools/elo_tune: walk-forward replay of 1.6M matches since 1985; settings chosen on ITF 2016–21, judged on 2022–26). Ratings now learn faster, especially for newer players, count scorelines more, and weight Challenger and qualifying results at 80%. Elo log-loss improved from 0.5641 to 0.5600 on ITF and from 0.5760 to 0.5716 on all levels. The full model's 2016–26 walk-forward went from 0.5726 to 0.5685 (69.9% of winners). That's bigger than every feature added before it combined. On Kalshi ITF our model improved from 0.585 to 0.578, and the drift of opening prices toward our number got stronger (55–56% toward vs 35% away when we disagree by 20+ pts). On tour and Challenger matches next to Kalshi it's about unchanged.</li>
     <li><b>ITF opening lines</b> (tools/itf_openers, 6,800 matches, each price path from Kalshi's first tradable quote, a median 12 h before the start):

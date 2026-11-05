@@ -439,6 +439,15 @@ def run(data, cfg, do_smart=True, verbose=True):
                 if pt is None or pl > pt:
                     pt = pl
                 u = max(u, units(pl, ask, cfg) * sl["kelly_mult"])
+            sd_ = strat.get("dog_value")
+            if sd_ and p_mkt_i is not None and p_mkt_i < 0.5 and sd_["min_price"] <= ask <= sd_["max_price"]:
+                need = sd_["min_edge_itf"] if "ITF" in m["series"] else sd_["min_edge"]
+                if pmi - p_mkt_i >= need:
+                    tags.append("dog_value")
+                    pd_ = min(p_mkt_i + sd_["p_edge"], 0.6)
+                    if pt is None or pd_ > pt:
+                        pt = pd_
+                    u = max(u, units(pd_, ask, cfg) * sd_["kelly_mult"])
             se_ = strat.get("itf_early")
             if (se_ and "ITF" in m["series"] and p_mkt_i is not None and m["start"] - NOW >= se_["min_hours"] * 3600
                     and se_["min_price"] <= ask <= se_["max_price"]):
@@ -832,7 +841,9 @@ def risk_flags(m):
     g = lambda k, s: cx.get(k + s)
     if md.get("p_model") is not None:
         pm_f = md["p_model"] if fi == 0 else 1 - md["p_model"]
-        if abs(pm_f - pf) >= 0.20 and "ITF" not in m.get("series", ""):     # ITF: our ratings are too thin to read anything into it
+        # Only when our model is MORE bullish on the favourite: when it rates the underdog 20+ pts higher, that underdog
+        # is a value bet since the 2026-11-05 ratings retune (tools/dog_sweep), not a match to avoid.
+        if pm_f - pf >= 0.20 and "ITF" not in m.get("series", ""):
             out["stay"].append(f"Our ratings and the market disagree by {abs(pm_f - pf) * 100:.0f} pts. That usually means news the numbers can't see "
                                "(injury, illness, motivation). In 500 Kalshi matches with a gap this big, the price was least reliable: "
                                "the favourite won 6 pts more than priced in one half of the data and 8 pts less in the other.")
@@ -892,6 +903,12 @@ def risk_flags(m):
 
 def verdict(m):
     v = _verdict(m)
+    dv = [b for b in m.get("bets", []) if "dog_value" in (b.get("tags") or []) and b.get("units")]
+    if v and dv and v["k"] != "stay":
+        b = dv[0]
+        v["txt"] += (f" 💰 Value: {b['label'].replace(' to win', '')} at {b.get('take_at')}¢ or less. Cheap underdogs our model rates well above "
+                     "the price won about 28% vs 23% priced (+11% to +15% in both halves), so it's a value bet, not a likely winner.")
+        v["value"] = b["label"].replace(" to win", "")
     av = (m.get("risk") or {}).get("avoid") or []
     if v and av and v["k"] not in ("stay",):
         v["txt"] += " " + av[0].split(". ")[0] + "."
