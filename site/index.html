@@ -345,6 +345,45 @@ function takeCard(x) {
     ${x.risk && x.risk.level === "stay" ? `<div class="row2" style="margin-top:0"><span class="note" style="color:var(--bad)">${esc(x.risk.stay[0])}</span></div>` : ""}
     <div class="row2" style="margin-top:0"><span class="note" style="flex:1">${esc(x.why)}</span><button class="btn small primary" ${x.logAttr}>I bet this</button></div></div>`;
 }
+function valueParlays(picks, now) {
+  // Parlays built ONLY from TAKE legs (each already +EV), one leg per match. Edges multiply, and so do payouts.
+  // 15-year test: favourite parlays lost 4-8% (the margin compounds); parlays of +EV legs made +9% (2 legs) / +15% (3 legs).
+  const S = B.config.strategies;
+  const best = {};
+  picks.filter(x => x.units > 0 && x.start > now + 600 && x.ask > 0.03 && x.ask < 0.97).forEach(x => {
+    const c = x.ask + fee(x.ask), q = Math.min(0.99, (1 + x.ev) * c);
+    if (!(q > c)) return;
+    if (!best[x.match] || x.ev > best[x.match].ev) best[x.match] = { ...x, q, c };
+  });
+  const legs = Object.values(best).sort((a, b) => b.ev - a.ev).slice(0, 10);
+  if (legs.length < 2) return `<h2 class="sec">💥 Value parlays <span>built only from TAKE legs</span></h2><div class="card empty">Need at least two TAKE bets on different matches to build a value parlay. Check back after the next refresh.</div>`;
+  const out = [];
+  const pick = (k, start, cur) => {
+    if (cur.length === k) { out.push(cur.slice()); return; }
+    for (let i = start; i < legs.length; i++) { cur.push(legs[i]); pick(k, i + 1, cur); cur.pop(); }
+  };
+  [2, 3, 4].forEach(k => pick(k, 0, []));
+  const rows = out.map(L => {
+    const Q = L.reduce((a, x) => a * x.q, 1), C = L.reduce((a, x) => a * x.c, 1);
+    let take = Q / 1.03;                                   // highest combo price that still leaves a 3% edge after the fee
+    for (let i = 0; i < 30; i++) take = Q / 1.03 - fee(take);
+    return { L, Q, C, ev: Q / C - 1, take, pays: 1 / (take + fee(take)) };
+  }).filter(r => r.ev > 0.03 && r.take > 0.02);
+  if (!rows.length) return "";
+  const byEV = rows.slice().sort((a, b) => b.ev - a.ev).slice(0, 4);
+  const byPay = rows.filter(r => !byEV.includes(r)).sort((a, b) => b.pays - a.pays).slice(0, 3);
+  const units = n => n === 2 ? 0.5 : n === 3 ? 0.25 : 0.1;
+  const card = r => `<div class="pick">
+      <div><div class="what">${r.L.length}-leg parlay · pays ~${r.pays.toFixed(1)}x</div>
+        <div class="sub">${r.L.map(x => `${esc(x.label.replace(" to win", ""))} <span class="note">(${cents(x.ask)}, ${esc(S[(x.tags || []).find(t => (S[t]?.kelly_mult || 0) > 0)]?.label || "")})</span>`).join(" + ")}</div></div>
+      <div class="right"><div class="units">${units(r.L.length)}<small>u</small></div><div class="note">$${(units(r.L.length) * unitVal()).toFixed(0)}</div></div>
+      <div class="row2"><span class="badge good">${sgn(r.ev)} EV</span><span class="badge">hits ${pct(r.Q, 1)}</span><span class="badge warn">take ≤ ${Math.floor(r.take * 100)}¢</span>
+        <span style="flex:1"></span><button class="btn small" data-logcombo='${esc(JSON.stringify({ legs: r.L.map(x => x.label), names: r.L.map(x => x.names), p: r.Q, take: Math.floor(r.take * 100), start: Math.min(...r.L.map(x => x.start)) }))}'>I bet this</button></div></div>`;
+  return `<h2 class="sec">💥 Value parlays <span>built only from TAKE legs</span></h2>
+    <div class="card list">${byEV.map(card).join("")}</div>
+    ${byPay.length ? `<h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--mute);margin:12px 2px 6px">Bigger payouts (still +EV, hit less often)</h3><div class="card list">${byPay.map(card).join("")}</div>` : ""}
+    <p class="note" style="margin:6px 2px">Every leg is a current TAKE bet, so its edge carries into the parlay. Build it on Kalshi as a combo (request a quote) and accept only at the listed price or less; each leg must still be at or under its own price. Legs are different matches, treated as independent. Over 15 years, parlays of favourites lost 4–8% while parlays of +EV legs made +9% (2 legs) to +15% (3 legs). Most of these still lose: a 3-leg parlay with underdog legs might hit 1 time in 15–30. Keep them at the small stakes shown, and never chase a missed parlay.</p>`;
+}
 function renderPicks() {
   const now = Date.now() / 1000;
   const S = B.config.strategies;
@@ -413,6 +452,7 @@ function renderPicks() {
       <div class="row2"><span class="badge">was ${d.units}u at ${cents(d.entry)}</span><span class="badge bad">now ${d.now == null ? "off the board" : cents(d.now)}</span>
         <span class="note">${d.now != null && d.now > d.entry + 0.005 ? `The price went up, so the edge is gone. If you already bet it at ${cents(d.entry)}, keep it: you got the better number.`
           : d.now == null ? "No longer listed before the match." : "Same price, but it no longer meets the rule (the strategy was tightened or the fair price moved). Don't add to it."}</span></div></div>`).join("")}</div>`;
+  h += valueParlays(picks, now);
   const hist = (B.history || []).filter(x => x.start < now || x.result);       // upcoming ones are in the TAKE list
   if (hist.length) {
     const done = hist.filter(x => histPnl(x) != null), tot = done.reduce((a, x) => a + histPnl(x), 0);
@@ -816,6 +856,7 @@ function renderGuide() {
     <li><b>Skip:</b> 🎲 toss-ups (unless a TAKE card shows a better price), 🚫 stay-away matches, ✋ "Don't back" players, and anything live/in play.</li>
     <li><b>Log every bet</b> with "I bet this". My bets tracks units, ROI and the ladder (if used: restake 25%, bank after 5 wins).</li>
     <li><b>Once a week:</b> check Model record and the 📒 ledger. A strategy whose CLV stays negative after ~100 bets gets dropped; one with positive CLV and ROI earns bigger stakes.</li>
+    <li><b>💥 Value parlays</b> (Picks tab) combine only TAKE legs from different matches, so the edges multiply along with the payout. Use the stakes shown (0.5u / 0.25u / 0.1u for 2 / 3 / 4 legs), accept only at the listed price or less, and expect most to miss.</li>
     <li><b>Never:</b> raise stakes to win back losses, bet hunches, or bet "paper" picks from the watchlist.</li>
   </ol>
   <p class="note" style="margin-top:8px">Realistic expectations: the edges are a few % per bet. With ~10–20 bets a week at 0.25–2u, a good month is a few units, and losing weeks are normal. Over hundreds of bets, following the rules is what wins.</p></div>
@@ -955,7 +996,7 @@ document.addEventListener("click", e => {
     for (const m of B.matches) for (const b of m.bets || []) if (b.ticker === tk) pre = { label: b.label, match: m.names.join(" vs "), price: b.ask, units: b.units || 1, ticker: tk, type: b.kind === "match" ? "Straight" : "Sets/games", where: "Kalshi", strategy: (b.tags || []).map(x => B.config.strategies[x]?.label || x).join(", "), tour: m.tour };
     betForm(pre || {}); return;
   }
-  if (t.dataset.logcombo) { const c = JSON.parse(t.dataset.logcombo); betForm({ label: c.legs.join(" + "), match: Array.isArray(c.names[0]) ? c.names.map(n => n.join(" v ")).join(" & ") : c.names.join(" vs "), type: "Combo", where: "Kalshi", price: c.take ? c.take / 100 : null, units: 0.5, strategy: "2-leg combo" }); return; }
+  if (t.dataset.logcombo) { const c = JSON.parse(t.dataset.logcombo); betForm({ label: c.legs.join(" + "), match: Array.isArray(c.names[0]) ? c.names.map(n => n.join(" v ")).join(" & ") : c.names.join(" vs "), type: "Combo", where: "Kalshi", price: c.take ? c.take / 100 : null, units: c.legs.length === 2 ? 0.5 : c.legs.length === 3 ? 0.25 : 0.1, strategy: `${c.legs.length}-leg value parlay` }); return; }
   if (t.dataset.logbook) { const f = JSON.parse(t.dataset.logbook); betForm({ label: f.l || `${f.n} to win (${f.b})`, match: f.m, type: f.ty || "Straight", where: "Sportsbook", odds: f.o, units: f.u || 1, ticker: f.t, strategy: f.s || "Sportsbook beats Pinnacle" }); return; }
   if (t.dataset.logfut) { const f = JSON.parse(t.dataset.logfut); betForm({ label: `${f.n} ${f.s === "yes" ? "to win" : "not to win"} ${f.tn}`, match: f.tn, type: "Futures", where: "Kalshi", price: f.s === "yes" ? f.a : 1 - f.b, units: 0.5, ticker: f.t, side: f.s, strategy: "Tournament winner (draw sim)", tour: f.tour }); return; }
   if (t.id === "addbet") return betForm();
