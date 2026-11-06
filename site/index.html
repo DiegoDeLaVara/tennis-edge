@@ -632,6 +632,7 @@ function matchDetail(m) {
       <div><span>Kalshi ${m.p_live != null ? "pre-match" : "market"}</span><b class="num">${pct(m.p_mkt)}</b></div>
       ${m.p_live != null ? `<div><span>Kalshi live (in play)</span><b class="num">${pct(m.p_live)}</b></div>` : ""}
       <div><span>Final (model + market)</span><b class="num">${pct(md.p)}</b></div>
+      ${md.p_adj != null ? `<div><span>Final + signals</span><b class="num">${pct(md.p_adj)}</b></div>` : ""}
       <div><span>Head to head</span><b class="num">${md.h2h[0]}–${md.h2h[1]}</b></div></div>
       <p class="note">Final blends the model with the market because the market knows things ratings can't (injuries, motivation). An edge only exists where they still disagree after that.</p></div>`);
     const sets = Object.entries(sm.sets).sort((a, b) => b[1] - a[1]);
@@ -813,11 +814,11 @@ function renderLedger() {
   let h = `<h2 class="sec" style="margin-top:14px">📒 Prediction ledger <span>are we getting closer to predicting the future?</span></h2>`;
   if (!L || !L.all) return h + `<div class="card empty">Scored from 5 Nov 2026 (after the ITF in-play fix). Every rated match is logged with Kalshi's opening and closing prices and our numbers; the scorecard appears as matches settle (${L?.pending ?? 0} waiting).</div>`;
   const cell = (g, k, ref) => g && g["ll_" + k] != null ? `<td class="n ${g["ll_" + k] <= g["ll_" + ref] ? "pos" : ""}">${g["ll_" + k].toFixed(3)}</td>` : `<td class="n">—</td>`;
-  const row = (name, g) => g ? `<tr><td>${esc(name)}</td><td class="n">${g.n}</td>${cell(g, "open", "close")}${cell(g, "model", "close")}${cell(g, "final", "close")}<td class="n"><b>${g.ll_close.toFixed(3)}</b></td>
+  const row = (name, g) => g ? `<tr><td>${esc(name)}</td><td class="n">${g.n}</td>${cell(g, "open", "close")}${cell(g, "model", "close")}${cell(g, "final", "close")}${cell(g, "adj", "close")}<td class="n"><b>${g.ll_close.toFixed(3)}</b></td>
     <td class="n">${g.lead_n ? `${pct(g.lead_toward, 0)} / ${pct(g.lead_away, 0)}` : "—"}</td></tr>` : "";
   const a = L.all;
   const gapMr = a.ll_mr != null ? `With market ratings our model scored ${a.ll_mr.toFixed(3)} against the close's ${a.ll_close_mr.toFixed(3)} on the same ${a.n_mr} matches.` : "";
-  h += `<div class="card tw" style="padding:6px 8px"><table><tr><th></th><th class="n">Matches</th><th class="n">Kalshi open</th><th class="n">Our model</th><th class="n">Model + market</th><th class="n">Kalshi close</th><th class="n">Price moved toward / away from us</th></tr>
+  h += `<div class="card tw" style="padding:6px 8px"><table><tr><th></th><th class="n">Matches</th><th class="n">Kalshi open</th><th class="n">Our model</th><th class="n">Model + market</th><th class="n">+ signals</th><th class="n">Kalshi close</th><th class="n">Price moved toward / away from us</th></tr>
     ${row("All", a)}${row("Last 7 days", L.last7)}${Object.entries(L.by_level || {}).map(([k, g]) => row(k, g)).join("")}</table></div>
     <p class="note" style="margin:6px 2px">Log-loss: lower is better, 0.693 is a coin flip. <b>Kalshi close</b> is the bar to beat. "Toward / away" covers matches where our model disagreed with the opening price by 3+ pts: how often the price then moved our way before the start (and by ${a.lead_move ?? "—"} pts on average).
     If "toward" stays well above "away", our model knows things before the market does: that's what predicting the future looks like. ${gapMr}</p>`;
@@ -938,6 +939,7 @@ function renderGuide() {
         <li><b>Model 30+ pts below the market on the favourite:</b> the favourite won ~71% against 76–77% priced in both halves, and backing the underdog returned +15% and +14%, but with wide error bars. It's now a paper strategy.</li>
         <li><b>Teen favourites (18 or under):</b> backing their underdogs lost 42% and 25%. The board now says "Don't back".</li>
       </ul></li>
+    <li><b>Signals in the shown chance</b> (tools/net_adjust). The net signal score now nudges each match's displayed chance and verdict, at half strength on tour/Challenger and a quarter on ITF. That made the price slightly more accurate than Kalshi's own in both halves (newer half log-loss 0.58384 → 0.58324 tour, 0.52202 → 0.52161 ITF). At full strength it over-corrected, and betting the disagreements didn't pay (+0.9% then −5.5%), so no stakes depend on it.</li>
     <li><b>Thinking like the market</b> (tools/market_mind). We tested 10 public habits on toss-ups, leans and confident matches, measuring both the public side and the contrarian side: fame (better-ranked), high-attention matches, crowd money, big tickets, hot streaks, home crowd, youth hype, chasing price moves and big stages.
       <ul style="margin:4px 0;padding-left:16px">
         <li>Two habits clearly cost the public: <b>home players</b> (backing them lost 14–20% in most ranges, both halves) and <b>much younger players</b> (−5% to −11%).</li>

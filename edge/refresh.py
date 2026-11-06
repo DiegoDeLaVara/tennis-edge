@@ -374,6 +374,13 @@ def run(data, cfg, do_smart=True, verbose=True):
         except Exception as e:  # noqa
             m["risk"] = None
             notes.append(f"risk {m.get('id')}: {e}")
+        # gentle signal adjustment of the shown chance (tools/net_adjust: half weight on tour/Challenger, quarter on ITF
+        # sharpened log-loss in both halves; full weight over-corrected and the edges it found did not pay, so no stakes use it)
+        rk, md_ = m.get("risk") or {}, m.get("model")
+        if md_ and rk and not rk.get("stay") and rk.get("net"):
+            w_ = 0.25 if "ITF" in m["series"] else 0.5
+            sgn_ = 1 if (m.get("p_mkt") or 0.5) >= 0.5 else -1          # net is in favourite points
+            md_["p_adj"] = round(min(max(md_["p"] + sgn_ * w_ * rk["net"] / 100, 0.02), 0.98), 4)
         if m["status"] != "pre" or not m.get("model"):
             continue
         p = m["model"]["p"]
@@ -930,7 +937,7 @@ def _verdict(m):
     """One plain call per match (tools/locks, tools/close_matches, tools/close_books, tools/upset_risk):
     lock / should win / lean / toss-up / upset risk / stay away. Uses the final (market-blended) probability."""
     md, r = m.get("model") or {}, m.get("risk") or {}
-    p = md.get("p", m.get("p_mkt"))
+    p = md.get("p_adj", md.get("p", m.get("p_mkt")))
     if p is None:
         return None
     fi = 0 if p >= 0.5 else 1
@@ -989,7 +996,7 @@ def update_ledger(data, board, results):
             e = L[m["event"]] = {"names": m["names"], "series": m["series"], "tourney": m["tourney"], "tk": m["q"][0]["ticker"],
                                  "t0": round(NOW), "open": round(m["p_mkt"], 4), "model_open": md["p_model"],
                                  "mr_open": md.get("p_model_mr"), "y": None}
-        e.update({"start": m["start"], "close": round(m["p_mkt"], 4), "model": md["p_model"], "mr": md.get("p_model_mr"), "final": md["p"]})
+        e.update({"start": m["start"], "close": round(m["p_mkt"], 4), "model": md["p_model"], "mr": md.get("p_model_mr"), "final": md["p"], "adj": md.get("p_adj", md["p"])})
     for e in L.values():
         if e["y"] is None and results.get(e["tk"]) in ("yes", "no"):
             e["y"] = 1 if results[e["tk"]] == "yes" else 0
@@ -1004,6 +1011,7 @@ def update_ledger(data, board, results):
         o = {"n": len(es)}
         for k in ("open", "close", "model_open", "model", "final"):
             o["ll_" + k] = round(sum(_ll(e["y"], e[k]) for e in es) / len(es), 4)
+        o["ll_adj"] = round(sum(_ll(e["y"], e.get("adj", e["final"])) for e in es) / len(es), 4)
         mr = [e for e in es if e.get("mr") is not None]
         if mr:
             o["n_mr"] = len(mr)
