@@ -866,6 +866,12 @@ def risk_flags(m):
         out["avoid"].append(f"Don't back {dog}: they face a teenage ITF favourite ({fav}, {g('age', sf):.0f}). "
                             "Backing those underdogs lost 42% and 25% on 6,900 Kalshi ITF matches.")
         net += 4
+    if "ITF" not in m.get("series", ""):
+        for s_, who, is_fav in ((sf, fav, True), (sd, dog, False)):
+            if g("home", s_) and not g("home", sd if is_fav else sf):
+                out["avoid"].append(f"Don't back {who}: home player. Home-crowd money makes them overpriced; backing the home player lost "
+                                    "14-20% in most price ranges on Kalshi (both halves), 3-4x the usual loss.")
+                net += -3 if is_fav else 2
     ld = md.get("load") or [None, None]
     if ld[0] is not None and ld[1 - fi] >= 400 and ld[fi] <= 150:
         out["avoid"].append(f"Don't back {dog}: tired ({ld[1 - fi]} min in the last 10 days) against a fresh favourite ({ld[fi]} min). "
