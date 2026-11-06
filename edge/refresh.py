@@ -1126,7 +1126,8 @@ def settled_map(data, cfg, notes):
             notes.append(f"settled {s} failed: {e}")
     old = {k: v for k, v in old.items() if NOW - v[1] < 21 * 86400}
     f.write_text(json.dumps(old))
-    return {k: v[0] for k, v in old.items()}
+    # the page only needs recent results to grade your logged bets: 7 days keeps board.json small enough for phones
+    return {k: v[0] for k, v in old.items() if NOW - v[1] < 7 * 86400}
 
 
 def main():
