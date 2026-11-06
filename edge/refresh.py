@@ -1014,7 +1014,8 @@ def update_ledger(data, board, results):
 
     def kind(s):
         return "ITF" if "ITF" in s else "Challenger" if "CHALLENGER" in s else "Tour"
-    vals = list(L.values())
+    # entries from before the ITF in-play fix (5 Nov 2026, 20:00 UTC) could log in-play prices as the "close": score from then on
+    vals = [e for e in L.values() if e.get("t0", 0) >= 1793908800]
     out = {"all": grp(vals), "last7": grp([e for e in vals if NOW - e.get("start", 0) <= 7 * 86400]),
            "by_level": {k: grp([e for e in vals if kind(e["series"]) == k]) for k in ("Tour", "Challenger", "ITF")},
            "weeks": [], "pending": sum(1 for e in vals if e["y"] is None)}
