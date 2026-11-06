@@ -810,8 +810,9 @@ function settingsForm() {
 // ------------------------------------------------------------- model record tab
 function renderLedger() {
   // The honest scorecard: our numbers vs Kalshi's opening and closing prices on every match we rate.
-  const L = B.ledger;
+  const L = B.ledger, A = B.archive;
   let h = `<h2 class="sec" style="margin-top:14px">📒 Prediction ledger <span>are we getting closer to predicting the future?</span></h2>`;
+  if (A) h += `<div class="callout" style="margin-top:0">🗄 <b>Match archive:</b> ${A.archived.toLocaleString()} matches logged with a full pre-match snapshot and result, ${A.pending} waiting for results. Every rated match is saved: prices at open and close, every model part, player context, risk flags, money flow and verdict. That makes it a clean dataset for finding new signals (tools/archive_study), growing by a few hundred matches a day.</div>`;
   if (!L || !L.all) return h + `<div class="card empty">Scored from 5 Nov 2026 (after the ITF in-play fix). Every rated match is logged with Kalshi's opening and closing prices and our numbers; the scorecard appears as matches settle (${L?.pending ?? 0} waiting).</div>`;
   const cell = (g, k, ref) => g && g["ll_" + k] != null ? `<td class="n ${g["ll_" + k] <= g["ll_" + ref] ? "pos" : ""}">${g["ll_" + k].toFixed(3)}</td>` : `<td class="n">—</td>`;
   const row = (name, g) => g ? `<tr><td>${esc(name)}</td><td class="n">${g.n}</td>${cell(g, "open", "close")}${cell(g, "model", "close")}${cell(g, "final", "close")}${cell(g, "adj", "close")}<td class="n"><b>${g.ll_close.toFixed(3)}</b></td>

@@ -527,6 +527,11 @@ def run(data, cfg, do_smart=True, verbose=True):
         except Exception as e:  # noqa
             m["verdict"] = None
             notes.append(f"verdict {m.get('id')}: {e}")
+    try:
+        archive = update_archive(data, board, results)
+    except Exception as e:  # noqa
+        archive = None
+        notes.append(f"archive: {e}")
     picks = sorted([dict(b, match=m["id"], names=m["names"], tourney=m["tourney"], start=m["start"], tour=m["tour"], level=m["level"])
                     for m in board for b in m.get("bets", []) if b["tags"]], key=lambda b: -b["ev"])
     # staked picks that lost their stake since they were flagged (price moved, or the strategy went to paper)
@@ -544,7 +549,7 @@ def run(data, cfg, do_smart=True, verbose=True):
            "config": {k: cfg[k] for k in ("bankroll", "unit_pct", "kelly_frac", "max_units")} | {"strategies": strat},
            "model_meta": {k: meta.get(k) for k in ("walk_forward", "market", "kalshi_backtest", "features", "futures_backtest")},
            "smart_wallets": len(sw), "matches": sorted(board, key=lambda m: m["start"]), "picks": picks, "combos": combos,
-           "futures": futs, "lines": lines, "dropped": dropped, "lines_meta": {k: snap.get(k) for k in ("ts", "status", "remaining", "usage", "sports")}, "record": rec, "history": pick_history(log), "results": results, "ledger": ledger}
+           "futures": futs, "lines": lines, "dropped": dropped, "lines_meta": {k: snap.get(k) for k in ("ts", "status", "remaining", "usage", "sports")}, "record": rec, "history": pick_history(log), "results": results, "ledger": ledger, "archive": archive}
     (data / "board.json").write_text(json.dumps(out, separators=(",", ":"), default=lambda o: None))
     save_state(data, R, surfaces, seen, st)
     try:
@@ -976,6 +981,66 @@ def pick_history(log, hours=48):
 def _ll(y, p):
     p = min(max(p, 1e-4), 1 - 1e-4)
     return -math.log(p if y else 1 - p)
+
+
+def update_archive(data, board, results):
+    """Match archive: an exact snapshot of everything the board knew BEFORE each match (prices at first sight and at
+    the last pre-match refresh, model parts, context, risk flags, verdict, money flow, strategy tags), plus the
+    result once Kalshi settles it. Written to archive/YYYY-MM.jsonl (append-only, one line per match). This is the
+    leak-free research set for future studies: no reconstruction from history files, no tournament-start dates."""
+    pf = data / "archive_pending.json"
+    try:
+        P = json.loads(pf.read_text())
+    except (OSError, ValueError):
+        P = {}
+    for m in board:
+        md = m.get("model")
+        if m["status"] != "pre" or m.get("p_mkt") is None or not md:
+            continue
+        old = P.get(m["event"]) or {}
+        flow = m.get("flow") or {}
+        P[m["event"]] = {
+            "event": m["event"], "series": m["series"], "tour": m["tour"], "level": m["level"], "tourney": m["tourney"],
+            "round": m.get("round"), "surface": m.get("surface"), "bo": m.get("bo"), "start": m["start"], "names": m["names"],
+            "keys": m.get("keys"), "tk": m["q"][0]["ticker"],
+            "first_seen": old.get("first_seen", round(NOW)), "p_open": old.get("p_open", round(m["p_mkt"], 4)),
+            "p_close": round(m["p_mkt"], 4), "last_seen": round(NOW),
+            "q": [{k: q.get(k) for k in ("bid", "ask", "vol", "vol24", "oi")} for q in m["q"]],
+            "model": {k: md.get(k) for k in ("p_model", "p_elo", "p_stats", "p_mrate", "p_model_mr", "p", "p_adj", "dis", "form", "load", "h2h", "pa", "pb", "stat_w")},
+            "ctx": m.get("ctx"),
+            "risk": {k: (m.get("risk") or {}).get(k) for k in ("level", "net")} | {
+                "flags": [t.split(":")[0][:60] for k in ("stay", "warn", "good", "avoid") for t in ((m.get("risk") or {}).get(k) or [])]},
+            "verdict": (m.get("verdict") or {}).get("k"),
+            "signals": [[x["k"], x["dir"]] for x in (m.get("signals") or [])],
+            "flow": {k: flow.get(k) for k in ("n", "vol", "net_share", "big_net", "big_vol", "late_net", "steam", "px_first", "px_last", "px_6h", "px_24h")},
+            "tags": sorted({t for b in m.get("bets", []) for t in (b.get("tags") or [])}),
+            "staked": sorted({t for b in m.get("bets", []) if b.get("units") for t in (b.get("tags") or [])}),
+        }
+    adir = data / "archive"
+    adir.mkdir(exist_ok=True)
+    done = 0
+    for ev, e in list(P.items()):
+        r = results.get(e["tk"])
+        if r in ("yes", "no"):
+            e["y"] = 1 if r == "yes" else 0
+            month = datetime.fromtimestamp(e["start"], timezone.utc).strftime("%Y-%m")
+            with open(adir / f"{month}.jsonl", "a", encoding="utf-8") as fh:
+                fh.write(json.dumps(e, separators=(",", ":")) + "\n")
+            del P[ev]
+            done += 1
+        elif NOW - e["start"] > 10 * 86400:             # never settled (void / walkover): drop
+            del P[ev]
+    pf.write_text(json.dumps(P, separators=(",", ":")))
+    this_month = datetime.now(timezone.utc).strftime("%Y-%m")
+    for f in adir.glob("*.jsonl"):                      # finished months are compressed (~8x smaller)
+        if f.stem < this_month and f.stat().st_size:
+            (adir / (f.name + ".gz")).write_bytes(gzip.compress(f.read_bytes()))
+            f.unlink()
+    total = 0
+    for f in adir.glob("*.jsonl*"):
+        raw = gzip.decompress(f.read_bytes()) if f.suffix == ".gz" else f.read_bytes()
+        total += raw.count(b"\n")
+    return {"archived": total, "pending": len(P), "added": done, "files": sorted(f.name for f in adir.glob("*.jsonl*"))}
 
 
 def update_ledger(data, board, results):
