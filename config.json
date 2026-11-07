@@ -196,7 +196,7 @@
       "c": 0.012,
       "proven": false,
       "kelly_mult": 0,
-      "why": "On 6,800 Kalshi ITF matches the price moved toward our model after the open more often than away (51-53% vs 36-39%, both halves), so our ratings lead the ITF market a little. Betting our raw model at the open lost (spread + fee), but a 13% model / 90% market blend with a 6%+ edge at the early ask was positive out of sample (+4.8%, positive closing-line value) on only ~70 bets. Paper-tracked; the ledger and CLV will show whether it holds."
+      "why": "On 6,800 Kalshi ITF matches the price moved toward our model after the open more often than away (51-53% vs 36-39%, both halves), so our ratings lead the ITF market a little. Betting our raw model at the open lost (spread + fee), but a 13% model / 90% market blend with a 6%+ edge at the early ask was positive out of sample (+4.8%, positive closing-line value) on only ~70 bets. Re-test 2026-11-07 (tools/itf_early2, blend fitted on one half and tested on the other, both ways): closing-line value was zero or negative, so the drift (1-2 pts) does not beat the ~6c opening spread. Paper only; the ledger and CLV will show whether it holds."
     },
     "dog_value": {
       "label": "Underdog value (model likes a cheap underdog)",
