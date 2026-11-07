@@ -28,7 +28,7 @@ SLAMS = {"australian open": "Australian Open", "french open": "French Open", "ro
          "wimbledon": "Wimbledon Championships", "us open": "US Open"}
 SKIP = ("doubles", "qualifying", "wheelchair", "boys", "girls", "mixed", "legends", "junior")
 # Kalshi uses the city; Wikipedia often uses the event's own name
-ALIAS = {"basel": "Swiss Indoors", "halle": "Halle Open", "queen": "Queen's Club Championships", "indian wells": "Indian Wells Open",
+ALIAS = {"basel": "Swiss Indoors", "halle": "Halle Open", "queen": "Queen's Club Championships", "indian wells": "BNP Paribas Open",
          "cincinnati": "Cincinnati Open", "toronto": "Canadian Open", "montreal": "Canadian Open", "rome": "Italian Open",
          "madrid": "Madrid Open", "monte carlo": "Monte-Carlo Masters", "monte-carlo": "Monte-Carlo Masters", "shanghai": "Shanghai Masters",
          "vienna": "Vienna Open", "stockholm": "Stockholm Open", "tokyo": "Japan Open", "beijing": "China Open", "dubai": "Dubai Tennis Championships",
@@ -36,7 +36,10 @@ ALIAS = {"basel": "Swiss Indoors", "halle": "Halle Open", "queen": "Queen's Club
          "umag": "Croatia Open", "seoul": "Korea Open", "miami": "Miami Open", "barcelona": "Barcelona Open", "munich": "Bavarian International",
          "eastbourne": "Eastbourne International", "mallorca": "Mallorca Championships", "s-hertogenbosch": "Libéma Open",
          "berlin": "Berlin Tennis Open", "bad homburg": "Bad Homburg Open", "nottingham": "Nottingham Open", "riyadh": "Finals",
-         "turin": "ATP Finals", "osaka": "Japan Women's Open", "guadalajara": "Guadalajara Open", "monterrey": "Monterrey Open"}
+         "turin": "ATP Finals", "osaka": "Japan Women's Open", "guadalajara": "Guadalajara Open", "monterrey": "Monterrey Open",
+         "auckland": "ASB Classic", "brussels": "European Open", "bucharest": "Tiriac Open", "houston": "Clay Court Championships",
+         "london": "Queen's Club Championships", "montpellier": "Open Occitanie", "iasi": "Iasi Open", "rabat": "Rabat Grand Prix",
+         "metz": "Moselle Open"}
 
 
 def find_page(year, tournament, women=False):
@@ -164,15 +167,44 @@ class Draw:
         return len(self.levels[0])
 
 
-def parse_draw(text):
-    if not text:
-        return None
+def _draw_body(text):
+    """The main '== Draw ==' section only (qualifying draws and later sections are cut off)."""
     mm = re.search(r"==\s*Draw\s*==", text)
     i = mm.start() if mm else -1
     body = text[i:] if i >= 0 else text
     m = re.search(r"\n==[^=]", body[8:])           # stop at the next top-level section (qualifying, etc.)
-    if m:
-        body = body[:8 + m.start()]
+    return body[:8 + m.start()] if m else body
+
+
+ENTRY = {"Q": "Q", "WC": "WC", "LL": "LL", "PR": "PR", "SR": "PR", "SE": "SE", "ALT": "Alt"}
+ABBR = re.compile(r"\{\{\s*abbr\s*\|([^|}]+)[^}]*\}\}", re.I)
+JUNK = re.compile(r"\{\{[^}]*\}\}|<[^>]+>|'''|''|&nbsp;")
+
+
+def entries(text):
+    """Main-draw entry status from the bracket's seed column: {player name: 'Q' | 'WC' | 'LL' | 'PR' | 'SE' | 'Alt'}
+    (qualifier, wildcard, lucky loser, protected/special ranking, special exempt, alternate). Seeded and direct
+    entries are left out. Used by the qual_fav paper strategy (tools/entry_study)."""
+    if not text:
+        return {}
+    out = {}
+    for t in _templates(_draw_body(text)):
+        p = _params(t)
+        for k, v in p.items():
+            if not re.match(r"RD\d+-seed\d+$", k):
+                continue
+            tag = JUNK.sub(" ", ABBR.sub(r"\1", v)).strip().upper()
+            st = ENTRY.get(tag) or next((ENTRY[x] for x in re.split(r"[/,\s]+", tag) if x in ENTRY), None)
+            nm = _name(p.get(k.replace("seed", "team")))
+            if st and nm and nm != "BYE":
+                out.setdefault(nm, st)
+    return out
+
+
+def parse_draw(text):
+    if not text:
+        return None
+    body = _draw_body(text)
     tm = _templates(body)
     if not tm:
         return None

@@ -165,6 +165,14 @@
       "p_edge": 0.03,
       "why": "Favourites aged 32+ won about 4 pts more than Kalshi priced, in both halves of 8,000 matches: +3.7% then +3.4% ROI at the real ask after the fee (about 330 bets each). Small stakes until the live record confirms it; skipped when the match is flagged stay-away."
     },
+    "qual_fav": {
+      "label": "Qualifier favourite (paper)",
+      "min_price": 0.5,
+      "max_price": 0.93,
+      "proven": false,
+      "kelly_mult": 0,
+      "why": "ATP/WTA tour main-draw players who came through qualifying and are still the favourite. On 45,000 Pinnacle-priced matches (2010-24) they won 67.8% then 65.6% vs 62.6% / 62.2% priced (+5.7% / +2.5%, about 1,000 bets per half), probably because they have already won 2-3 matches on those courts that week. On Kalshi 2025-26 the direction held but only on 116 bets (+2.1% ± 6.8%), so paper only. Entry status comes from the Wikipedia draw."
+    },
     "lock": {
       "label": "Lock (85%+ favourite, model agrees, no flags)",
       "min_p": 0.85,

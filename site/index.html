@@ -594,6 +594,7 @@ function renderFutures() {
 }
 
 // ------------------------------------------------------------- board tab
+const entryName = { Q: "Qualifier", WC: "Wildcard", LL: "Lucky loser", PR: "Protected ranking (back from injury)", SE: "Special exempt", Alt: "Alternate" };
 function matchRow(m) {
   const md = m.model, pm = m.p_mkt;
   const p = md ? md.p : pm;
@@ -604,7 +605,7 @@ function matchRow(m) {
   return `<button class="mrow" data-open="${m.id}" aria-expanded="${S.open.has(m.id)}">
     <div class="t">${m.status === "live" ? "LIVE" : when(m.start)}<small>${esc(levelName[m.level] || m.level)}</small></div>
     <div class="who">
-      ${[0, 1].map(i => `<div class="${fav === i ? "fav" : ""}"><span class="nm">${esc(m.names[i])}</span><span class="pp" style="color:var(--${i ? "b" : "a"})">${p == null ? "" : pct(i ? 1 - p : p)}</span></div>`).join("")}
+      ${[0, 1].map(i => `<div class="${fav === i ? "fav" : ""}"><span class="nm">${esc(m.names[i])}${(m.entry || [])[i] ? ` <small class="note" title="${esc(entryName[m.entry[i]] || m.entry[i])}">(${esc(m.entry[i])})</small>` : ""}</span><span class="pp" style="color:var(--${i ? "b" : "a"})">${p == null ? "" : pct(i ? 1 - p : p)}</span></div>`).join("")}
       ${p != null ? `<div class="bar2"><i style="width:${p * 100}%"></i><i style="width:${(1 - p) * 100}%"></i></div>${pm != null ? `<div class="mk"><i style="left:calc(${pm * 100}% - 1px)" title="market"></i></div>` : ""}` : ""}
       <div class="mtags">${dot}<span class="badge">${esc(m.tourney)}${m.round ? " · " + esc(m.round) : ""}</span>${status}${m.status === "pre" ? verdictChip(m.verdict) : riskBadge(m.risk)}${sigBadges({ ...m, signals: (m.signals || []).slice(0, 2) }, null)}${(m.signals || []).length > 2 ? `<span class="badge sharp">+${m.signals.length - 2}</span>` : ""}${m.model ? "" : `<span class="badge">no model</span>`}</div>
     </div>

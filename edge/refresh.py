@@ -8,6 +8,7 @@ import argparse
 import gzip
 import json
 import math
+import re
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
@@ -365,6 +366,12 @@ def run(data, cfg, do_smart=True, verbose=True):
         notes.append(f"sportsbook lines failed: {e}")
         snap = {}
 
+    # ---- entry status from Wikipedia draws (qualifier / wildcard / lucky loser ...), ATP & WTA tour only
+    try:
+        attach_entries(board, idx, data, notes)
+    except Exception as e:  # noqa
+        notes.append(f"entries failed: {e}")
+
     # ---- bets
     strat = cfg["strategies"]
     for m in board:
@@ -470,6 +477,11 @@ def run(data, cfg, do_smart=True, verbose=True):
             if sh and fm[0] is not None and p_mkt_i is not None and p_mkt_i >= 0.5 and sh["min_price"] <= ask <= sh["max_price"]:
                 if fm[1 - i] - fm[i] >= sh["min_gap"]:        # the underdog is the hotter player: markets over-rate that
                     tags.append("hot_dog_fade")
+            sq = strat.get("qual_fav")
+            en = m.get("entry") or [None, None]
+            if (sq and en[i] == "Q" and en[1 - i] != "Q" and p_mkt_i is not None and p_mkt_i >= 0.5
+                    and sq["min_price"] <= ask <= sq["max_price"]):
+                tags.append("qual_fav")                 # paper: qualifiers who are the favourite (tools/entry_study)
             if any(f"Don't back {m['names'][i]}" in t for t in (m.get("risk") or {}).get("avoid", [])):
                 tags, u = [], 0.0                        # the board warns against backing this player: no pick from any strategy
             u = round(min(max(u, cfg["min_units"]), cfg["max_units"]) * 4) / 4 if u > 0 else 0
@@ -678,6 +690,39 @@ def deriv_prob(series, dm, D, m):
         pa = markov.prob(D, lambda *k: k[idx] == 1) / max(markov.prob(D, lambda *k: k[idx] >= 0), 1e-9)
         return (pa if w == 0 else 1 - pa), f"{m['names'][w]} wins set {n}"
     return None
+
+
+ROUND_TAIL = re.compile(r"\s+(semi|semis|semifinals?|finals?|quarter\w*|qf|sf|r\d+|round of \d+|qualif\w*)$", re.I)
+
+
+def attach_entries(board, idx, data, notes):
+    """m["entry"] = [status_a, status_b] ('Q' qualifier, 'WC', 'LL', 'PR', 'SE', 'Alt', or None = direct/seeded) from
+    the Wikipedia draw of each ATP/WTA tour event. Cached per event for 3 h in entries.json (Wikipedia is asked at most
+    once per event per 3 h). Feeds the qual_fav paper strategy and the match archive (tools/entry_study)."""
+    from . import draws
+    f = data / "entries.json"
+    C = json.loads(f.read_text()) if f.exists() else {}
+    for m in board:
+        if m["series"] not in ("KXATPMATCH", "KXWTAMATCH") or not m.get("tourney"):
+            continue
+        tname = ROUND_TAIL.sub("", m["tourney"]).strip()
+        if "king cup" in tname.lower() or "davis" in tname.lower() or "united cup" in tname.lower():
+            continue
+        year = datetime.fromtimestamp(m["start"], timezone.utc).year
+        ck = f"{m['tour']}|{year}|{tname}"
+        c = C.get(ck)
+        if not c or NOW - c["ts"] > 3 * 3600:
+            page = draws.find_page(year, tname, m["tour"] == "wta")
+            E = draws.entries(draws.wikitext(page)) if page else {}
+            ek = {}
+            for n, st in E.items():
+                k = idx.resolve(n, m["tour"])
+                if k:
+                    ek[k] = st
+            c = C[ck] = {"ts": NOW, "page": page, "e": ek}
+        if c.get("page"):
+            m["entry"] = [c["e"].get(k) for k in m["keys"]]
+    f.write_text(json.dumps({k: v for k, v in C.items() if NOW - v["ts"] < 21 * 86400}))
 
 
 def futures_board(R, model, idx, surfaces, board, cfg, t_today, notes, mr=None):
@@ -1007,7 +1052,7 @@ def update_archive(data, board, results):
             "p_close": round(m["p_mkt"], 4), "last_seen": round(NOW),
             "q": [{k: q.get(k) for k in ("bid", "ask", "vol", "vol24", "oi")} for q in m["q"]],
             "model": {k: md.get(k) for k in ("p_model", "p_elo", "p_stats", "p_mrate", "p_model_mr", "p", "p_adj", "dis", "form", "load", "h2h", "pa", "pb", "stat_w")},
-            "ctx": m.get("ctx"),
+            "ctx": m.get("ctx"), "entry": m.get("entry"),
             "risk": {k: (m.get("risk") or {}).get(k) for k in ("level", "net")} | {
                 "flags": [t.split(":")[0][:60] for k in ("stay", "warn", "good", "avoid") for t in ((m.get("risk") or {}).get(k) or [])]},
             "verdict": (m.get("verdict") or {}).get("k"),
