@@ -83,7 +83,7 @@ def one(series, et, ms, hist_cut):
     opened = ts(a["open_time"])
     is_hist = end < hist_cut               # settled before Kalshi's cutoff: data lives under /historical
     c = src.kalshi_candles(series, a["ticker"], opened - 3600, end + 3600, 60, historical=is_hist)
-    itf = "ITF" in series                  # ITF books are far thinner: smaller surge, earlier fallback
+    itf = "ITF" in series or "DOUBLES" in series   # ITF and doubles books are far thinner: smaller surge, earlier fallback
     start = start_from_candles(c, 250.0, 150.0) if itf else start_from_candles(c)
     if start is None:                      # thin market: treat the last 2 hours before close as in-play
         start = end - (2.5 if itf else 2) * 3600
@@ -103,10 +103,15 @@ def main():
     ap.add_argument("--series", nargs="*", default=None, help="limit to these series")
     ap.add_argument("--max", type=int, default=0, help="at most this many new events per series (most recent first)")
     ap.add_argument("--no-trades", action="store_true", help="skip the trade tapes (prices only; ~3x faster)")
+    ap.add_argument("--out", default=None, help="write to this file instead of work/kalshi_events.jsonl (e.g. doubles)")
+    ap.add_argument("--rate", type=float, default=6.0, help="Kalshi requests per second (ITF/doubles: 3)")
     args = ap.parse_args()
+    global OUT
+    if args.out:
+        OUT = Path(args.out)
     global NO_TRADES
     NO_TRADES = args.no_trades
-    src.KALSHI_PACE.gap = 1 / 6.0
+    src.KALSHI_PACE.gap = 1 / args.rate
     since_ts = datetime.fromisoformat(args.since).replace(tzinfo=timezone.utc).timestamp()
     cut = src.kalshi("/historical/cutoff")
     hist_cut = ts(cut.get("trades_created_ts", "2026-09-03T00:00:00Z"))
