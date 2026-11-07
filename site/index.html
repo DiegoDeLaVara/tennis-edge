@@ -954,6 +954,15 @@ function renderGuide() {
           </ul></li>
       </ul></li>
     <li><b>Rule scan</b> (tools/rule_scan, tools/rule_scan_pin). We tested about 4,000 "back this player when…" rules built from every variable: fatigue, rest, layoff, form, streaks, age, ranking, head-to-head, surface, serve/return, home crowd, money flow, line moves, model edge, reputation, upsets and scheduling, alone and combined with price bands, on Kalshi tour/Challenger, Kalshi ITF and 15 years of Pinnacle. Each rule was picked on the oldest 50% of matches, checked on the next 25% and tested on the newest 25%. As a luck check, we reran the scan on outcomes simulated from the market's own prices, where no edge can exist. The real data produced no more survivors than luck did: tour 1 vs ~3.3, tour leans (favourite 58–70%) 1 vs ~1.4, ITF 0, Pinnacle 1 vs ~1.5 and 0 vs ~1.5. Leans and toss-ups are priced right: no signal reliably picks which leans to back or fade. The rules that do work came from specific reasons tested directly: tired and veteran favourites, Locks, underdog value, line shopping.</li>
+    <li><b>Motivation and storylines</b> (tools/motivation, 47,000 Pinnacle matches 2010–24, checked on Kalshi 2025–26). We tested tipster-style stories about players with a reason to try harder, or a reason to coast:
+      <ul>
+        <li>Defending champions; first match after winning a title, losing a final or losing early.</li>
+        <li>Season openers; players at their best ranking, slumping or rising fast.</li>
+        <li>Revenge rematches; players ranked 85–115 chasing Slam entry in autumn; compatriot derbies.</li>
+        <li>Late-season small events; top-20 players at a small event the week before a Masters or Slam (look-ahead).</li>
+        <li>Each player's record against the price at this tournament and in early or late rounds; top-10 favourites by round at Slams, Masters and 250/500 events.</li>
+      </ul>
+      With luck alone, about 5 of these rules pass both halves; the real data passed 4, so storylines are already in the price. One to watch: top-10 favourites in Masters/1000 third and fourth rounds lost money in both Pinnacle halves and on Kalshi (backing their opponents returned +3%, +10% and +24%). That fits "coasting until the later rounds", but it's too few matches to bet on; it is being tracked in the match archive. Coaching changes and social-media beef can't be tested because no data on them exists.</li>
     <li><b>Tired underdogs</b> (tools/tired_dog). Unlike tired favourites (still +15.6% / +17.5% when backed on Kalshi), tired underdogs aren't over-punished by the market. Backing an underdog with 400+ min in 10 days against a fresh favourite lost 13.7% and 10.0% at Pinnacle (normal is 4–6%), and on Kalshi the results flipped or matched the usual underdog loss. The board now says "Don't back" on them.</li>
     <li><b>💰 Underdog value</b> (tools/dog_sweep, with the retuned ratings). For underdogs priced 15–30c that our model rates 10+ pts higher (20+ in ITF):
       <ul style="margin:4px 0;padding-left:16px">
