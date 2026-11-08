@@ -713,6 +713,12 @@ function matchDetail(m) {
       <div class="histx"><span>${g[0]?.[0]}</span><span>${g[g.length - 1]?.[0]}</span></div>
       <table style="margin-top:6px">${[-3, -1, 1, 3].map(d => { const L = Math.round(sm.games) + d + 0.5; const o = g.filter(x => x[0] > L).reduce((s, x) => s + x[1], 0); return `<tr><td>Over ${L}</td><td class="n">${pct(o)}</td><td>Under</td><td class="n">${pct(1 - o)}</td></tr>`; }).join("")}</table></div></div>`);
   }
+  if (m.prec) out.push(`<div><h3>Priced like this before (within 7.5 pts, Kalshi since mid-2025)</h3><div class="kv" style="grid-template-columns:1fr">${m.prec.map((r, i) => {
+      const lab = `${esc(m.names[i])} at ~${Math.round(r.p * 100)}%`;
+      if (!r.n) return `<div><span>${lab}</span><b class="num" style="color:var(--mute)">${r.all ? "never at this price" : "no history"}</b></div>`;
+      const d = r.w - r.exp;
+      return `<div><span>${lab}</span><b class="num">${r.w}-${r.n - r.w} <span class="note">(prices expected ${r.exp.toFixed(1)} wins, ${d >= 0 ? "+" : ""}${d.toFixed(1)})</span></b></div>`; }).join("")}</div>
+    <div class="note" style="margin-top:4px">History only, not a signal: on 47,000 Pinnacle and 19,000 Kalshi matches, players who beat (or fell short of) their price at a level did no better (or worse) than the price the next time.</div></div>`);
   const bets = m.bets || [];
   if (bets.length) out.push(`<div><h3>Kalshi prices vs model</h3><div class="tw"><table><tr><th>Contract</th><th class="n">Model</th><th class="n">Ask</th><th class="n">EV</th><th class="n">Take ≤</th><th></th></tr>
     ${bets.map(b => `<tr><td>${esc(b.label)}${b.tags.length ? ` <span class="badge good">${b.units}u</span>` : ""}</td><td class="n">${pct(b.p)}</td><td class="n">${cents(b.ask)}</td><td class="n ${b.ev >= 0 ? "pos" : "neg"}">${sgn(b.ev)}</td><td class="n">${b.take_at ?? "—"}¢</td><td><button class="btn small" data-log="${esc(b.ticker)}">Log</button></td></tr>`).join("")}</table></div></div>`);

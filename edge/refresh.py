@@ -533,6 +533,10 @@ def run(data, cfg, do_smart=True, verbose=True):
     except Exception as e:  # noqa
         ledger = None
         notes.append(f"ledger: {e}")
+    try:
+        update_price_history(data, board, results)
+    except Exception as e:  # noqa
+        notes.append(f"price history: {e}")
     for m in board:
         try:
             m["verdict"] = verdict(m)
@@ -1086,6 +1090,51 @@ def update_archive(data, board, results):
         raw = gzip.decompress(f.read_bytes()) if f.suffix == ".gz" else f.read_bytes()
         total += raw.count(b"\n")
     return {"archived": total, "pending": len(P), "added": done, "files": sorted(f.name for f in adir.glob("*.jsonl*"))}
+
+
+PH_BAND = 0.075
+
+
+def update_price_history(data, board, results):
+    """Each player's past pre-match Kalshi prices and results (seed: tools/price_history_seed; rolled forward here from
+    matches the board saw before they started). Attaches m["prec"] = per player {n, w, exp, p}: how often they were
+    priced within 7.5 pts of today's price, how many of those they won, and how many the prices expected. Shown as
+    history only: tools/price_record found it does not predict the next result."""
+    f = data / "price_history.json.gz"
+    src_f = f if f.exists() else ROOT / "state" / "price_history.json.gz"
+    try:
+        H = json.loads(gzip.decompress(src_f.read_bytes()))
+    except (OSError, ValueError):
+        H = {"seed_end": 0, "p": {}, "pending": {}}
+    P, pend = H["p"], H.setdefault("pending", {})
+    for m in board:
+        k = m.get("keys") or [None, None]
+        if m["status"] == "pre" and m.get("p_mkt") is not None and k[0] and k[1] and m["start"] > H.get("seed_end", 0):
+            pend[m["event"]] = [k[0], k[1], round(m["p_mkt"], 3), m["q"][0]["ticker"], round(m["start"])]
+    for ev, (ka, kb, p, tk, st_) in list(pend.items()):
+        r = results.get(tk)
+        if r in ("yes", "no"):
+            y = 1 if r == "yes" else 0
+            P.setdefault(ka, []).append([st_, p, y])
+            P.setdefault(kb, []).append([st_, round(1 - p, 3), 1 - y])
+            del pend[ev]
+        elif NOW - st_ > 10 * 86400:
+            del pend[ev]
+    for k in P:
+        if len(P[k]) > 200:
+            P[k] = P[k][-200:]
+    f.write_bytes(gzip.compress(json.dumps(H, separators=(",", ":")).encode()))
+    for m in board:
+        k = m.get("keys") or [None, None]
+        if m.get("p_mkt") is None or not (k[0] and k[1]):
+            continue
+        out = []
+        for i, key_ in enumerate(k):
+            pi = m["p_mkt"] if i == 0 else 1 - m["p_mkt"]
+            h = [x for x in P.get(key_, []) if abs(x[1] - pi) <= PH_BAND and x[0] < m["start"] - 3600]
+            out.append({"n": len(h), "w": sum(x[2] for x in h), "exp": round(sum(x[1] for x in h), 1), "p": round(pi, 3),
+                        "all": len(P.get(key_, []))})
+        m["prec"] = out
 
 
 def update_ledger(data, board, results):
