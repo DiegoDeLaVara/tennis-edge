@@ -692,7 +692,7 @@ def deriv_prob(series, dm, D, m):
     return None
 
 
-ROUND_TAIL = re.compile(r"\s+(semi|semis|semifinals?|finals?|quarter\w*|qf|sf|r\d+|round of \d+|qualif\w*)$", re.I)
+ROUND_TAIL = re.compile(r"(?:\s+(?:semi|semis|semifinals?|finals?|quarter\w*|qf|sf|r\d+|\d+/\d+|round of \d+|qualif\w*))+$", re.I)
 
 
 def attach_entries(board, idx, data, notes):
