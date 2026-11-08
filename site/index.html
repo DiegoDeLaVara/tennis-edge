@@ -345,17 +345,84 @@ function takeCard(x) {
     ${x.risk && x.risk.level === "stay" ? `<div class="row2" style="margin-top:0"><span class="note" style="color:var(--bad)">${esc(x.risk.stay[0])}</span></div>` : ""}
     <div class="row2" style="margin-top:0"><span class="note" style="flex:1">${esc(x.why)}</span><button class="btn small primary" ${x.logAttr}>I bet this</button></div></div>`;
 }
-function valueParlays(picks, now) {
-  // Parlays built ONLY from TAKE legs (each already +EV), one leg per match. Edges multiply, and so do payouts.
-  // 15-year test: favourite parlays lost 4-8% (the margin compounds); parlays of +EV legs made +9% (2 legs) / +15% (3 legs).
-  const S = B.config.strategies;
+function takeLegs(picks, now) {
+  // TAKE legs only (each already +EV), the best one per match, starting 10+ min from now. q = our win chance for the leg.
   const best = {};
   picks.filter(x => x.units > 0 && x.start > now + 600 && x.ask > 0.03 && x.ask < 0.97).forEach(x => {
     const c = x.ask + fee(x.ask), q = Math.min(0.99, (1 + x.ev) * c);
     if (!(q > c)) return;
     if (!best[x.match] || x.ev > best[x.match].ev) best[x.match] = { ...x, q, c };
   });
-  const legs = Object.values(best).sort((a, b) => b.ev - a.ev).slice(0, 10);
+  return Object.values(best).sort((a, b) => b.ev - a.ev).slice(0, 10);
+}
+function roundRobin(picks, now) {
+  // Every 2+ leg combination of 3-4 chosen TAKE legs at equal stakes (3 legs: 3 doubles + 1 treble; 4 legs: 6 + 4 + 1).
+  // Backtest (2026-11-08): lean/win favourites (58-85%) average -4.3% per leg on Kalshi -> a 3-pick round robin ~ -9.5%;
+  // +3% legs -> ~ +6.9%. So legs come only from TAKE bets.
+  const SS = B.config.strategies;
+  const legs = takeLegs(picks, now);
+  const head = `<h2 class="sec">🔄 Round robin <span>3–4 TAKE legs, every combination</span></h2>`;
+  if (legs.length < 3) return head + `<div class="card empty">A round robin needs 3 TAKE bets on different matches; there ${legs.length === 1 ? "is" : "are"} ${legs.length} right now. Round robins of ordinary lean/win favourites lose about 9–10% over time (each leg loses ~4% after the fee and the losses multiply), so this only builds from TAKE legs. Check back after the next refresh.</div>`;
+  legs.sort((a, b) => b.q - a.q);                          // most likely winners first: round robins need legs that land
+  const ids = legs.map(x => x.ticker);
+  let sel = (S.rr || []).filter(t => ids.includes(t));
+  for (const t of ids) if (sel.length < 3 && !sel.includes(t)) sel.push(t);
+  S.rr = sel;
+  const L = legs.filter(x => sel.includes(x.ticker));
+  const stake = +store.get("te_rr_stake", 0.25);
+  const combos = [];
+  const pick = (k, start, cur) => {
+    if (cur.length === k) { combos.push(cur.slice()); return; }
+    for (let i = start; i < L.length; i++) { cur.push(i); pick(k, i + 1, cur); cur.pop(); }
+  };
+  for (let k = 2; k <= L.length; k++) pick(k, 0, []);
+  const rows = combos.map(ix => {
+    const Q = ix.reduce((a, i) => a * L[i].q, 1), C = ix.reduce((a, i) => a * L[i].c, 1);
+    let take = Q / 1.03; for (let i = 0; i < 30; i++) take = Q / 1.03 - fee(take);
+    return { ix, Q, C, ev: Q / C - 1, take, pays: 1 / C };
+  });
+  // outcome distribution over the legs (independent matches)
+  let pAny = 0, pProfit = 0, pAllLose = 0;
+  const byHits = {};
+  for (let mask = 0; mask < (1 << L.length); mask++) {
+    let pr = 1, hits = 0;
+    L.forEach((x, i) => { const w = (mask >> i) & 1; pr *= w ? x.q : 1 - x.q; hits += w; });
+    const ret = rows.reduce((a, r) => a + (r.ix.every(i => (mask >> i) & 1) ? stake * r.pays : 0), 0);
+    const pnl = ret - stake * rows.length;
+    if (ret > 0) pAny += pr; if (pnl > 0) pProfit += pr; if (ret === 0) pAllLose += pr;
+    (byHits[hits] = byHits[hits] || { p: 0, pnl: [] }).p += pr; byHits[hits].pnl.push(pnl);
+  }
+  const tot = stake * rows.length, evU = rows.reduce((a, r) => a + stake * r.ev, 0);
+  const u$ = u => `${u >= 0 ? "+" : "−"}${Math.abs(u).toFixed(2)}u ($${Math.abs(u * unitVal()).toFixed(0)})`;
+  const legRow = x => { const on = sel.includes(x.ticker);
+    return `<button class="mrow" data-rr="${esc(x.ticker)}" aria-pressed="${on}" style="grid-template-columns:auto 1fr;gap:10px;opacity:${on ? 1 : 0.6}">
+      <span class="badge ${on ? "good" : ""}" style="min-width:26px;text-align:center">${on ? "✓" : "+"}</span>
+      <div><div class="what">${esc(x.label.replace(" to win", ""))} <span class="note">${cents(x.ask)} · take ≤ ${x.take_at ?? "—"}¢ (odds ≥ ${x.take_at ? (100 / x.take_at).toFixed(2) : "—"}) · wins ~${pct(x.q)} · ${sgn(x.ev)} EV</span></div>
+      <div class="note">${esc(x.names.join(" vs "))} · ${dayOf(x.start)} ${when(x.start)} · ${esc(SS[(x.tags || []).find(t => (SS[t]?.kelly_mult || 0) > 0)]?.label || "")}</div></div></button>`; };
+  const lastName = i => L[i].label.replace(" to win", "").split(" ").slice(-1)[0];
+  const hitLines = Object.keys(byHits).map(Number).sort((a, b) => b - a).filter(h => h >= 2).map(h =>
+    `${h === L.length ? "All" : h} of ${L.length} win (${pct(byHits[h].p)}): ${u$(Math.min(...byHits[h].pnl))}${Math.min(...byHits[h].pnl) !== Math.max(...byHits[h].pnl) ? " to " + u$(Math.max(...byHits[h].pnl)) : ""}`).join(" · ");
+  return head + `<div class="card list">${legs.map(legRow).join("")}</div>
+    <div class="card" style="margin-top:8px;padding:10px 12px">
+      <div class="rowc" style="flex-wrap:wrap;gap:8px"><b>${L.length} legs → ${rows.length} bets</b><span class="note">${L.length === 3 ? "3 doubles + 1 treble" : "6 doubles + 4 trebles + 1 four-fold"} · stake each</span>
+        <span class="seg2">${[0.1, 0.25, 0.5].map(v => `<button data-rrstake="${v}" aria-pressed="${stake === v}">${v}u</button>`).join("")}</span></div>
+      <div class="kv" style="margin-top:8px">
+        <div><span>Total staked</span><b class="num">${tot.toFixed(2)}u ($${(tot * unitVal()).toFixed(0)})</b></div>
+        <div><span>Expected profit</span><b class="num ${evU >= 0 ? "pos" : "neg"}">${u$(evU)} (${sgn(evU / tot)})</b></div>
+        <div><span>At least one bet pays</span><b class="num">${pct(pAny)}</b></div>
+        <div><span>Ends in profit</span><b class="num">${pct(pProfit)}</b></div>
+        <div><span>Lose everything</span><b class="num neg">${pct(pAllLose)}</b></div></div>
+      <div class="note" style="margin-top:6px">${hitLines}; fewer than 2 win: ${u$(-tot)}.</div>
+      <div class="sub" style="margin-top:8px">${rows.map(r => `<div>${r.ix.map(lastName).join(" + ")} <span class="note">pays ~${r.pays.toFixed(2)}x · hits ${pct(r.Q)} · take ≤ ${Math.floor(r.take * 100)}¢</span></div>`).join("")}</div>
+      <div class="row2"><span class="note" style="flex:1">Tap legs to swap them (3 or 4). Bet it as a round robin at a sportsbook only if every leg is at or above the odds shown, or build each combo on Kalshi at the listed price or less.</span>
+        <button class="btn small primary" data-logrr='${esc(JSON.stringify({ legs: L.map(x => x.label), names: L.map(x => x.names), n: rows.length, u: tot }))}'>I bet this</button></div></div>
+    <p class="note" style="margin:6px 2px">Why only TAKE legs: on 5,200 Kalshi favourites priced 58–85% (lean and win verdicts), each leg lost about 4% after the fee, so a 3-pick round robin of them loses about 9–10% over time, however carefully the players are picked. With +3% legs the same round robin makes about +7%. Expect plenty of losing days either way.</p>`;
+}
+function valueParlays(picks, now) {
+  // Parlays built ONLY from TAKE legs (each already +EV), one leg per match. Edges multiply, and so do payouts.
+  // 15-year test: favourite parlays lost 4-8% (the margin compounds); parlays of +EV legs made +9% (2 legs) / +15% (3 legs).
+  const S = B.config.strategies;
+  const legs = takeLegs(picks, now);
   if (legs.length < 2) return `<h2 class="sec">💥 Value parlays <span>built only from TAKE legs</span></h2><div class="card empty">Need at least two TAKE bets on different matches to build a value parlay. Check back after the next refresh.</div>`;
   const out = [];
   const pick = (k, start, cur) => {
@@ -453,6 +520,7 @@ function renderPicks() {
         <span class="note">${d.now != null && d.now > d.entry + 0.005 ? `The price went up, so the edge is gone. If you already bet it at ${cents(d.entry)}, keep it: you got the better number.`
           : d.now == null ? "No longer listed before the match." : "Same price, but it no longer meets the rule (the strategy was tightened or the fair price moved). Don't add to it."}</span></div></div>`).join("")}</div>`;
   h += valueParlays(picks, now);
+  h += roundRobin(picks, now);
   const hist = (B.history || []).filter(x => x.start < now || x.result);       // upcoming ones are in the TAKE list
   if (hist.length) {
     const done = hist.filter(x => histPnl(x) != null), tot = done.reduce((a, x) => a + histPnl(x), 0);
@@ -859,6 +927,7 @@ function renderGuide() {
     <li><b>Skip:</b> 🎲 toss-ups (unless a TAKE card shows a better price), 🚫 stay-away matches, ✋ "Don't back" players, and anything live/in play.</li>
     <li><b>Log every bet</b> with "I bet this". My bets tracks units, ROI and the ladder (if used: restake 25%, bank after 5 wins).</li>
     <li><b>Once a week:</b> check Model record and the 📒 ledger. A strategy whose CLV stays negative after ~100 bets gets dropped; one with positive CLV and ROI earns bigger stakes.</li>
+    <li><b>🔄 Round robin</b> (Picks tab, under Value parlays). Pick 3 or 4 TAKE legs (it starts with the three most likely to win) and it shows every combination (3 legs = 3 doubles + 1 treble, 4 legs = 11 bets), the total stake, expected profit, the chance at least one bet pays, the chance you end in profit, and what you win if 2, 3 or all legs land. It only uses TAKE legs: round robins of ordinary lean/win favourites (58–85%) lose about 9–10% over time, because each leg loses ~4% after the fee and the losses multiply. With +3% legs the same round robin makes about +7%. At a sportsbook, only bet it if every leg's odds are at least the "odds ≥" shown.</li>
     <li><b>💥 Value parlays</b> (Picks tab) combine only TAKE legs from different matches, so the edges multiply along with the payout. Use the stakes shown (0.5u / 0.25u / 0.1u for 2 / 3 / 4 legs), accept only at the listed price or less, and expect most to miss.</li>
     <li><b>Never:</b> raise stakes to win back losses, bet hunches, or bet "paper" picks from the watchlist.</li>
   </ol>
@@ -1037,6 +1106,14 @@ document.addEventListener("click", e => {
     betForm(pre || {}); return;
   }
   if (t.dataset.logcombo) { const c = JSON.parse(t.dataset.logcombo); betForm({ label: c.legs.join(" + "), match: Array.isArray(c.names[0]) ? c.names.map(n => n.join(" v ")).join(" & ") : c.names.join(" vs "), type: "Combo", where: "Kalshi", price: c.take ? c.take / 100 : null, units: c.legs.length === 2 ? 0.5 : c.legs.length === 3 ? 0.25 : 0.1, strategy: `${c.legs.length}-leg value parlay` }); return; }
+  if (t.dataset.rr) {
+    const sel = S.rr || [], k = t.dataset.rr;
+    if (sel.includes(k)) { if (sel.length > 3) S.rr = sel.filter(x => x !== k); }
+    else S.rr = sel.length >= 4 ? [...sel.slice(1), k] : [...sel, k];
+    render(); return;
+  }
+  if (t.dataset.rrstake) { store.set("te_rr_stake", +t.dataset.rrstake); render(); return; }
+  if (t.dataset.logrr) { const c = JSON.parse(t.dataset.logrr); betForm({ label: `Round robin (${c.n} bets): ` + c.legs.map(l => l.replace(" to win", "")).join(", "), match: c.names.map(n => n.join(" v ")).join(" & "), type: "Combo", where: "Kalshi", units: Math.round(c.u * 100) / 100, strategy: `${c.legs.length}-leg round robin (TAKE legs)` }); return; }
   if (t.dataset.logbook) { const f = JSON.parse(t.dataset.logbook); betForm({ label: f.l || `${f.n} to win (${f.b})`, match: f.m, type: f.ty || "Straight", where: "Sportsbook", odds: f.o, units: f.u || 1, ticker: f.t, strategy: f.s || "Sportsbook beats Pinnacle" }); return; }
   if (t.dataset.logfut) { const f = JSON.parse(t.dataset.logfut); betForm({ label: `${f.n} ${f.s === "yes" ? "to win" : "not to win"} ${f.tn}`, match: f.tn, type: "Futures", where: "Kalshi", price: f.s === "yes" ? f.a : 1 - f.b, units: 0.5, ticker: f.t, side: f.s, strategy: "Tournament winner (draw sim)", tour: f.tour }); return; }
   if (t.id === "addbet") return betForm();
