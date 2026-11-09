@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from . import books, context, markov, money, smart, sportsbook
+from . import books, context, markov, money, smart, sportsbook, tuner
 from .mrating import MR
 from . import sources as src
 from .model import Model, logit, sig
@@ -204,6 +204,31 @@ def run(data, cfg, do_smart=True, verbose=True):
         PRE = {}
     model = Model()
     idx = Index(R.P.keys())
+    # ---- self-learning (edge/tuner.py): blend weights per level, strategy promotion/demotion, discovered rules
+    T = tuner.load_state(data)
+    RULES = tuner.load_discovered()
+    for r_ in RULES:
+        cfg["strategies"].setdefault(r_["id"], {"label": f"Auto-found: {r_['text']} (paper)", "kelly_mult": 0, "proven": False,
+                                               "why": r_.get("why", "Found by the monthly archive scan; paper-tracked until the live record proves it.")})
+    try:
+        tuner.tune_blend(T, data, model.mkt, NOW)
+    except Exception as e:  # noqa
+        notes.append(f"tuner blend: {e}")
+    BW = tuner.blend_weights(T)
+    try:
+        log0 = json.loads((data / "log.json").read_text())
+    except (OSError, ValueError):
+        log0 = {"bets": {}}
+    try:
+        PROMO = tuner.review_strategies(T, log0, cfg["strategies"], NOW)
+        tuner.apply_overrides(cfg["strategies"], PROMO)
+    except Exception as e:  # noqa
+        PROMO = {}
+        notes.append(f"tuner strategies: {e}")
+    try:
+        OPEN = {k: v.get("open") for k, v in json.loads((data / "ledger.json").read_text()).items()}
+    except (OSError, ValueError):
+        OPEN = {}
 
     # ---- open match markets
     matches = []
@@ -315,7 +340,7 @@ def run(data, cfg, do_smart=True, verbose=True):
         f = R.features(ka, kb, tour, m["surface"], t_today, m["bo"], m["level"]) if (ka in R.P and kb in R.P) else None
         if f and R.P[ka].n >= 3 and R.P[kb].n >= 3:
             p_model, p_st = model.prob(f, tour, m["level"], m["bo"])
-            p_final = model.blend(p_model, p_mkt)
+            p_final = model.blend(p_model, p_mkt, BW.get(tuner.kind(m["series"])))
             total = f["pa"] + f["pb"] + markov.games_shift(tour, m["bo"], m["surface"])
             sd = markov.DAY_SD[tour]
             pa, pb = markov.solve_serve_mix(p_final, total, m["bo"], sd)
@@ -390,6 +415,19 @@ def run(data, cfg, do_smart=True, verbose=True):
             md_["p_adj"] = round(min(max(md_["p"] + sgn_ * w_ * rk["net"] / 100, 0.02), 0.98), 4)
         if m["status"] != "pre" or not m.get("model"):
             continue
+        hits = {}
+        if RULES and m.get("p_mkt") is not None:
+            md0 = m["model"]
+            snap = {"p_close": m["p_mkt"], "p_open": OPEN.get(m["event"]) or m["p_mkt"], "series": m["series"], "ctx": m.get("ctx"),
+                    "flow": m.get("flow"), "risk": m.get("risk"),
+                    "model": {k: md0.get(k) for k in ("p_model", "p_mrate", "dis", "form", "load")}}
+            ff = tuner.flat_features(snap)
+            if ff:
+                fi_ = 0 if m["p_mkt"] >= 0.5 else 1
+                for r_ in RULES:
+                    sd_ = tuner.rule_hits(r_, ff)
+                    if sd_ is not None:
+                        hits[r_["id"]] = fi_ if sd_ == 0 else 1 - fi_
         p = m["model"]["p"]
         nmin = min(R.P[m["keys"][0]].n, R.P[m["keys"][1]].n)
         vol = max(m["q"][0]["vol"], m["q"][1]["vol"])
@@ -482,6 +520,16 @@ def run(data, cfg, do_smart=True, verbose=True):
             if (sq and en[i] == "Q" and en[1 - i] != "Q" and p_mkt_i is not None and p_mkt_i >= 0.5
                     and sq["min_price"] <= ask <= sq["max_price"]):
                 tags.append("qual_fav")                 # paper: qualifiers who are the favourite (tools/entry_study)
+            for rid, side_ in hits.items():
+                if side_ == i and 0.05 <= ask <= 0.95:
+                    tags.append(rid)                     # paper: auto-discovered rule (state/discovered.json)
+            for t_ in tags:
+                o_ = PROMO.get(t_)
+                if o_ and o_.get("kelly_mult", 0) > 0 and o_.get("edge"):
+                    pe = min(0.97, (ask + fee(ask)) * (1 + o_["edge"]))      # sized from the LOWER bound of its live ROI
+                    if pt is None or pe > pt:
+                        pt = pe
+                    u = max(u, units(pe, ask, cfg) * o_["kelly_mult"])
             if any(f"Don't back {m['names'][i]}" in t for t in (m.get("risk") or {}).get("avoid", [])):
                 tags, u = [], 0.0                        # the board warns against backing this player: no pick from any strategy
             u = round(min(max(u, cfg["min_units"]), cfg["max_units"]) * 4) / 4 if u > 0 else 0
@@ -565,9 +613,16 @@ def run(data, cfg, do_smart=True, verbose=True):
            "config": {k: cfg[k] for k in ("bankroll", "unit_pct", "kelly_frac", "max_units")} | {"strategies": strat},
            "model_meta": {k: meta.get(k) for k in ("walk_forward", "market", "kalshi_backtest", "features", "futures_backtest")},
            "smart_wallets": len(sw), "matches": sorted(board, key=lambda m: m["start"]), "picks": picks, "combos": combos,
-           "futures": futs, "lines": lines, "dropped": dropped, "lines_meta": {k: snap.get(k) for k in ("ts", "status", "remaining", "usage", "sports")}, "record": rec, "history": pick_history(log), "results": results, "ledger": ledger, "archive": archive}
+           "futures": futs, "lines": lines, "dropped": dropped, "lines_meta": {k: snap.get(k) for k in ("ts", "status", "remaining", "usage", "sports")}, "record": rec, "history": pick_history(log), "results": results, "ledger": ledger, "archive": archive,
+           "tuner": {"blend": T.get("blend"), "prior": model.mkt, "overrides": T.get("overrides"), "log": (T.get("log") or [])[-20:],
+                     "stats": T.get("stats"), "rules": RULES, "discover": tuner.discover_meta(),
+                     "guards": {"promote": tuner.PROMOTE, "demote": tuner.DEMOTE, "min_live": tuner.MIN_LIVE, "prior_n": tuner.PRIOR_N}}}
     (data / "board.json").write_text(json.dumps(out, separators=(",", ":"), default=lambda o: None))
     save_state(data, R, surfaces, seen, st)
+    try:
+        tuner.save_state(data, T)
+    except OSError as e:
+        notes.append(f"tuner save: {e}")
     try:
         (data / "prematch.json").write_text(json.dumps({k: v for k, v in PRE.items() if NOW - v[1] < 3 * 86400}))
     except OSError as e:

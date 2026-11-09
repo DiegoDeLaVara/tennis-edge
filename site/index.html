@@ -902,10 +902,40 @@ function renderLedger() {
     <div class="note">${L.weeks.map(w => `${w.ago}w ago: ${(w.ll_model - w.ll_close >= 0 ? "+" : "")}${(w.ll_model - w.ll_close).toFixed(3)} (${w.n})`).join(" · ")}</div></div>`;
   return h;
 }
+function renderTuner() {
+  // edge/tuner.py: blend self-calibration, strategy promotion/demotion, auto-discovered rules. Every change is logged.
+  const T = B.tuner;
+  if (!T) return "";
+  const S = B.config.strategies, g = T.guards || {}, pr = T.prior || {}, st = T.stats || {}, ov = T.overrides || {};
+  let h = `<h2 class="sec">🧠 Self-learning <span>changes itself only when live results clear a fixed bar</span></h2>`;
+  h += `<div class="card tw" style="padding:6px 8px"><table><tr><th>Level</th><th class="n">Live</th><th class="n">Model</th><th class="n">Market</th></tr>
+    ${["Tour", "Challenger", "ITF"].map(l => { const b = (T.blend || {})[l] || {}, w = b.w || pr;
+      return `<tr><td>${l}</td><td class="n">${b.n_live ?? 0}</td><td class="n">${(w.a ?? 0).toFixed(3)}</td><td class="n">${(w.b ?? 0).toFixed(3)}</td></tr>
+        <tr><td colspan="4" class="note" style="white-space:normal">${esc(b.status || "not checked yet")}</td></tr>`; }).join("")}</table></div>
+    <p class="note" style="margin:6px 2px">How much the board trusts our model next to Kalshi's price, per level. Refit daily from the ledger, starting from the backtest weights (worth ${(g.prior_n || 0).toLocaleString()} matches) so it moves slowly. A refit is used only if it beat the current weights on the newest 25% of matches it never saw. Each level waits for ${g.min_live || 150} clean live matches.</p>`;
+  const P = g.promote || {}, Dm = g.demote || {};
+  const rows = Object.entries(st).filter(([k]) => S[k] && k !== "all" && k !== "combo").sort((a, b) => b[1].n - a[1].n);
+  if (rows.length) h += `<div class="card tw" style="padding:6px 8px;margin-top:8px"><table><tr><th>Strategy</th><th class="n">Bets</th><th class="n">ROI</th><th class="n">CLV</th></tr>
+    ${rows.map(([k, s]) => { const lo = s.roi - (P.z || 1.28) * s.se, hi = s.roi + (Dm.z || 1.28) * s.se, staked = (S[k].kelly_mult || 0) > 0;
+      const need = staked ? (s.n < (Dm.n || 100) ? `staked · review at ${Dm.n} bets` : hi < 0 ? "demoted" : "staked · holding up")
+        : (s.n < (P.n || 150) ? `paper · ${(P.n || 150) - s.n} more bets to qualify` : lo > 0 && s.clv > 0 ? "promoted" : "paper · not proven");
+      return `<tr><td style="white-space:normal">${esc(S[k].label || k)}</td><td class="n">${s.n}</td><td class="n ${s.roi >= 0 ? "pos" : "neg"}">${sgn(s.roi)}</td><td class="n">${(100 * s.clv).toFixed(1)}¢</td></tr>
+        <tr><td colspan="4" class="note" style="white-space:normal">90% range ${sgn(lo)} to ${sgn(hi)} · ${esc(ov[k] ? ov[k].why : need)}</td></tr>`; }).join("")}</table></div>
+    <p class="note" style="margin:6px 2px">A paper strategy gets a small stake only after ${P.n || 150}+ settled bets with the bottom of its 90% range above 0 and positive closing-line value; it's then sized from that floor, not its average. A staked strategy drops back to paper after ${Dm.n || 100}+ bets if the top of its range is below 0.</p>`;
+  const d = T.discover;
+  h += `<div class="card" style="margin-top:8px;padding:10px 12px"><b>🔎 Rule discovery</b> <span class="note">(archive scan, monthly)</span>
+    <div class="note" style="margin-top:4px">${d ? esc(d.status) + ` · last run ${ago(d.ts)}` : "Not run yet."}</div>
+    ${(T.rules || []).length ? `<div class="note" style="margin-top:4px">Paper-tracking: ${T.rules.map(r => esc(r.text)).join(" · ")}</div>` : ""}
+    <div class="note" style="margin-top:4px">Each scan repeats itself on luck runs (results re-drawn from the price). Rules are kept only when more of them held than in every luck run. Kept rules are tracked on paper and must pass the same promotion bar as any strategy.</div></div>`;
+  const lg = (T.log || []).slice().reverse();
+  if (lg.length) h += `<details class="card" style="margin-top:8px;padding:4px 12px"><summary style="padding:8px 0;font-weight:700;cursor:pointer">Change log (${lg.length})</summary>${lg.map(x => `<div class="note" style="margin:4px 0">${new Date(x.ts * 1000).toLocaleString()} · ${esc(x.what)}</div>`).join("")}</details>`;
+  return h;
+}
 function renderRecord() {
   const r = B.record || {}, by = r.by_strategy || {}, mm = B.model_meta || {};
   const rows = Object.entries(by).sort((a, b) => b[1].n - a[1].n);
   let h = renderLedger();
+  h += renderTuner();
   h += `<h2 class="sec">Paper record <span>every pick, logged automatically before the match</span></h2>`;
   h += rows.length ? `<div class="card tw" style="padding:6px 8px"><table><tr><th>Strategy</th><th class="n">Bets</th><th class="n">Won</th><th class="n">ROI flat</th><th class="n">Units</th><th class="n">CLV</th></tr>
     ${rows.map(([k, s]) => `<tr><td>${esc(k === "all" ? "All picks" : B.config.strategies[k]?.label || k)}</td><td class="n">${s.n}</td><td class="n">${pct(s.w / s.n)}</td><td class="n ${s.roi_flat >= 0 ? "pos" : "neg"}">${sgn(s.roi_flat)}</td><td class="n ${s.pnl_u >= 0 ? "pos" : "neg"}">${s.pnl_u >= 0 ? "+" : ""}${s.pnl_u}</td><td class="n ${s.clv_c >= 0 ? "pos" : "neg"}">${s.clv_c >= 0 ? "+" : ""}${s.clv_c}¢</td></tr>`).join("")}</table></div>`
@@ -933,6 +963,7 @@ function renderGuide() {
     <li><b>Skip:</b> 🎲 toss-ups (unless a TAKE card shows a better price), 🚫 stay-away matches, ✋ "Don't back" players, and anything live/in play.</li>
     <li><b>Log every bet</b> with "I bet this". My bets tracks units, ROI and the ladder (if used: restake 25%, bank after 5 wins).</li>
     <li><b>Once a week:</b> check Model record and the 📒 ledger. A strategy whose CLV stays negative after ~100 bets gets dropped; one with positive CLV and ROI earns bigger stakes.</li>
+    <li><b>🧠 Self-learning</b> (Model record tab, edge/tuner.py). Three loops that change the board only when live results clear a bar set in advance. (1) <b>Blend:</b> every day it refits how much to trust our model next to Kalshi's price, per level, from the ledger, starting from the backtest weights so it moves slowly, and keeps the new weights only if they beat the old ones on the newest matches they never saw. (2) <b>Strategies:</b> a paper strategy earns a small stake after 150+ settled bets with the bottom of its 90% range above 0 and positive closing-line value; a staked one goes back to paper after 100+ bets if the top of its range is below 0. (3) <b>Discovery:</b> once a month the cloud scans the archive for new rules, repeats the scan on luck runs, and keeps rules only if more held than in every luck run. Kept rules start on paper.</li>
     <li><b>🔄 Round robin</b> (Picks tab, under Value parlays). Pick 3 or 4 TAKE legs (it starts with the three most likely to win) and it shows every combination (3 legs = 3 doubles + 1 treble, 4 legs = 11 bets), the total stake, expected profit, the chance at least one bet pays, the chance you end in profit, and what you win if 2, 3 or all legs land. It only uses TAKE legs: round robins of ordinary lean/win favourites (58–85%) lose about 9–10% over time, because each leg loses ~4% after the fee and the losses multiply. With +3% legs the same round robin makes about +7%. At a sportsbook, only bet it if every leg's odds are at least the "odds ≥" shown.</li>
     <li><b>💥 Value parlays</b> (Picks tab) combine only TAKE legs from different matches, so the edges multiply along with the payout. Use the stakes shown (0.5u / 0.25u / 0.1u for 2 / 3 / 4 legs), accept only at the listed price or less, and expect most to miss.</li>
     <li><b>Never:</b> raise stakes to win back losses, bet hunches, or bet "paper" picks from the watchlist.</li>

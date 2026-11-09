@@ -74,8 +74,9 @@ class Model:
             d += abs(logit(f["p_elo"]) - logit(ps))
         return d
 
-    def blend(self, p_model, p_market):
+    def blend(self, p_model, p_market, w=None):
+        """w: tuned weights for this level from edge/tuner.py (None = the backtest weights)."""
         if p_market is None or not self.mkt:
             return p_model
-        m = self.mkt
+        m = w or self.mkt
         return sig(m["c"] + m["a"] * logit(p_model) + m["b"] * logit(p_market))

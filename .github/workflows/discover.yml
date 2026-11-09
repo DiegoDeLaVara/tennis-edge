@@ -1,0 +1,42 @@
+name: rule discovery (monthly scan, weekly check)
+
+# Scans the leak-free match archive for new rules (tools/discover.py) once a month and commits
+# state/discovered.json. The board paper-tracks whatever is kept; nothing is staked until the live record proves it.
+# A commit made with the workflow token does not restart the refresh loop; the next loop (within ~5.5 h) picks it up.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: discover
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -q requests numpy pandas scikit-learn
+
+      - name: Scan the archive
+        run: python -m tools.discover --luck 8
+
+      - name: Commit the result
+        run: |
+          git config user.name "tennis-edge bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state/discovered.json
+          git diff --cached --quiet || (git commit -q -m "Monthly rule discovery $(date -u +%F)" && git push -q)
