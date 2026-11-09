@@ -12,17 +12,12 @@ backing those underdogs pay?
 
   .venv\Scripts\python.exe -m tools.upset_ml [--pinnacle | --kalshi]
 
-Result (2026-11-08):
-  Pinnacle: all-features model beat the close out of sample both ways (log-loss -0.0013 / -0.0008, the first thing
-  ever to), and its "safest" 5% of favourites returned +13.0% / +6.3%. Walk-forward (train on earlier years only) kept
-  it: +8.0 / +8.7 / +8.3 / +10.7% for 2015-17 / 2018-20 / 2021-22 / 2023-24; price + both rankings alone gave
-  +14.9 / +6.9 / +22.0 / +13.1%. Picks: ~60% favourites in low-profile matches (both players ranked lower, early
-  rounds, more qualifiers). No simple rank rule reproduces it.
-  Kalshi: the all-features model was worse than the price (+0.021 / +0.003 log-loss). The Pinnacle-trained price+ranks
-  model applied to Kalshi 2025-26 tour matches LOST on its safest picks (-9.3% / -2.3% top 5%) -> a Pinnacle-close
-  habit, not a tennis fact. Not used on the board (Kalshi). Candidate for sportsbook bets only if Pinnacle 2025-26
-  closing data becomes available to confirm.
-  Upset finder (back the dogs the model likes): positive in one half only on both data sets -> no upset signal.
+Result (2026-11-08, CORRECTED same day): the first run included 189 exact 50/50 Pinnacle prices where the source
+studies label the winner as "favourite" (y always 1) - a leak the model exploited. With them dropped (pinnacle_frame
+now does): all-features model = Pinnacle close (log-loss -0.0003 / +0.0006); its "safest" 5% of favourites flip
+(+6.7% / -4.9%); walk-forward price+ranks table -0.1 / -0.2 / -5.4 / -2.5% (all periods -2.4% +- 1.8). Upset finder:
+backing its top-20% dogs +3.0% / +1.6% (+-2.2) - marginal, and it failed on Kalshi. Kalshi: worse than the price.
+Conclusion: no safe-favourite or upset model beats the market. Lesson: drop exact 50/50 prices before labelling sides.
 """
 import math
 import sys
@@ -75,6 +70,8 @@ def pinnacle_frame():
     D["lp"] = lg(D.p)
     drop = {"date", "y", "p", "ps_f", "ps_d", "tour", "series", "round", "surf", "court", "nat_f", "nat_d", "entry_f", "entry_d", "done", "max_f", "max_d"}
     feats = [c for c in D.columns if c not in drop]
+    # exact 50/50 prices: the source studies label the winner as "favourite" there, so y is always 1 (a leak) - drop them
+    D = D[np.abs(D.p.values - 0.5) > 1e-6]
     D = D.sort_values("date", kind="stable").reset_index(drop=True)
     X = D[feats].astype(float)
     return D, X, D.p.values, D.ps_f.values - 1, D.ps_d.values - 1
