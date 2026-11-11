@@ -114,20 +114,30 @@ def tune_blend(T, data, prior, now):
             st["status"] = f"waiting for {MIN_LIVE} clean live matches ({len(R)} so far); using the backtest weights"
             B[lvl] = st
             continue
+        # fixed candidates (nothing fitted on these rows, so all live rows are a fair test): the weights in use, the
+        # backtest weights, and the market alone (model weight 0). The best of them is the bar a refit must beat.
+        MKT = {"a": 0.0, "b": 1.0, "c": 0.0}
+        fixed = {"current": cur, "backtest": {k: prior[k] for k in ("a", "b", "c")}, "market only": MKT}
+        ll_all = {k: _ll(R, w) for k, w in fixed.items()}
+        best = min(ll_all, key=ll_all.get)
         cut = int(len(R) * 0.75)
         cand_old = fit_blend(R[:cut], prior)                 # fitted without the newest 25%
         hold = R[cut:]
-        ll_cur, ll_new, ll_mkt = _ll(hold, cur), _ll(hold, cand_old), _ll(hold, {"a": 0, "b": 1, "c": 0})
-        st.update({"holdout_n": len(hold), "ll_current": round(ll_cur, 4), "ll_candidate": round(ll_new, 4), "ll_market": round(ll_mkt, 4)})
-        if ll_new < ll_cur:
-            new = fit_blend(R, prior)
-            st["w"] = new
-            st["status"] = (f"updated: model weight {cur['a']:.3f} -> {new['a']:.3f}, market {cur['b']:.3f} -> {new['b']:.3f} "
-                            f"(beat the old weights on the newest {len(hold)} matches, {ll_cur:.4f} -> {ll_new:.4f})")
-            if abs(new["a"] - cur["a"]) > 0.005 or abs(new["b"] - cur["b"]) > 0.005:
-                T.setdefault("log", []).append({"ts": round(now), "what": f"Blend {lvl}: {st['status']}"})
+        ll_best_h, ll_new_h = _ll(hold, fixed[best]), _ll(hold, cand_old)
+        st.update({"holdout_n": len(hold), "ll_live": {k: round(v, 4) for k, v in ll_all.items()},
+                   "ll_candidate_holdout": round(ll_new_h, 4), "ll_best_holdout": round(ll_best_h, 4)})
+        if ll_new_h < ll_best_h:
+            new, why = fit_blend(R, prior), (f"a refit beat the {best} weights on the newest {len(hold)} matches it never saw "
+                                             f"({ll_best_h:.4f} -> {ll_new_h:.4f})")
         else:
-            st["status"] = f"kept: a refit did not beat the current weights on the newest {len(hold)} matches ({ll_new:.4f} vs {ll_cur:.4f})"
+            new, why = fixed[best], (f"best on all {len(R)} live matches: {best} (log-loss {ll_all[best]:.4f}; "
+                                     + ", ".join(f"{k} {v:.4f}" for k, v in ll_all.items() if k != best) + ")")
+        st["w"] = new
+        changed = abs(new["a"] - cur["a"]) > 0.005 or abs(new["b"] - cur["b"]) > 0.005
+        st["status"] = (f"{'updated' if changed else 'kept'}: model weight {cur['a']:.3f} -> {new['a']:.3f}, market {cur['b']:.3f} -> "
+                        f"{new['b']:.3f}; {why}") if changed else f"kept model weight {new['a']:.3f}; {why}"
+        if changed:
+            T.setdefault("log", []).append({"ts": round(now), "what": f"Blend {lvl}: {st['status']}"})
         B[lvl] = st
 
 

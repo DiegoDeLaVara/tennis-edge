@@ -1141,10 +1141,26 @@ def update_archive(data, board, results):
             (adir / (f.name + ".gz")).write_bytes(gzip.compress(f.read_bytes()))
             f.unlink()
     total = 0
+    live = {}                                            # live track record of each risk label: upsets vs what prices expected
     for f in adir.glob("*.jsonl*"):
         raw = gzip.decompress(f.read_bytes()) if f.suffix == ".gz" else f.read_bytes()
         total += raw.count(b"\n")
-    return {"archived": total, "pending": len(P), "added": done, "files": sorted(f.name for f in adir.glob("*.jsonl*"))}
+        for line in raw.splitlines():
+            try:
+                e = json.loads(line)
+            except ValueError:
+                continue
+            pc, y = e.get("p_close"), e.get("y")
+            if pc is None or y is None:
+                continue
+            fa = pc >= 0.5
+            lvl = (e.get("risk") or {}).get("level") or "normal"
+            s_ = live.setdefault(lvl, {"n": 0, "up": 0, "exp": 0.0})
+            s_["n"] += 1
+            s_["up"] += int(y != (1 if fa else 0))
+            s_["exp"] += 1 - (pc if fa else 1 - pc)
+    return {"archived": total, "pending": len(P), "added": done, "files": sorted(f.name for f in adir.glob("*.jsonl*")),
+            "risk_live": {k: {"n": v["n"], "up": v["up"], "exp": round(v["exp"], 1)} for k, v in live.items()}}
 
 
 PH_BAND = 0.075
