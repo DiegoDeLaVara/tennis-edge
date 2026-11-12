@@ -19,12 +19,13 @@ from . import books, context, markov, money, smart, sportsbook, tuner
 from .mrating import MR
 from . import sources as src
 from .model import Model, logit, sig
-from .names import Index, key
+from .names import Index, fold, key
 from .ratings import Ratings
 
 ROOT = Path(__file__).resolve().parents[1]
 SLAMS = ("australian open", "roland garros", "french open", "wimbledon", "us open")
 NOW = time.time()
+NAME_STOP = {"van", "den", "der", "del", "de", "la", "le", "da", "di", "dos", "von", "abdel", "al", "el", "bin", "ben"}
 
 
 def fee(p):
@@ -282,16 +283,32 @@ def run(data, cfg, do_smart=True, verbose=True):
             notes.append(f"smart wallet ranking failed: {e}")
     sw = {w["wallet"]: w for w in smart_db.get("wallets", [])}
     poly = {}
+    poly_events = []
     if do_smart:
         try:
-            for e in smart.match_events(False, pages=6):
+            poly_events = [e for e in smart.match_events(False, pages=6) if "/" not in e["a"]]        # singles only
+            for e in poly_events:
                 ka, kb = idx.resolve(e["a"], "atp"), idx.resolve(e["b"], "atp")
                 kwa, kwb = idx.resolve(e["a"], "wta"), idx.resolve(e["b"], "wta")
                 for x, y in ((ka, kb), (kwa, kwb)):
-                    poly[(x, y)] = (e, False)
-                    poly[(y, x)] = (e, True)
+                    if x and y:
+                        poly[(x, y)] = (e, False)
+                        poly[(y, x)] = (e, True)
         except Exception as e:
             notes.append(f"polymarket failed: {e}")
+
+    def poly_by_name(na, nb):
+        """Fallback pairing by name tokens, for players our ratings index resolves differently (name order, particles,
+        transliterations): each Kalshi player must share a 3+ letter name token with a different Polymarket player."""
+        ta, tb = ({t for t in fold(n) if len(t) >= 3 and t not in NAME_STOP} for n in (na, nb))
+        hits = []
+        for e in poly_events:
+            pa, pb = ({t for t in fold(n) if len(t) >= 3 and t not in NAME_STOP} for n in (e["a"], e["b"]))
+            if ta & pa and tb & pb:
+                hits.append((e, False))
+            elif ta & pb and tb & pa:
+                hits.append((e, True))
+        return hits[0] if len(hits) == 1 else None
 
     # ---- derivatives
     derivs = {}
@@ -359,7 +376,9 @@ def run(data, cfg, do_smart=True, verbose=True):
             m["_D"] = D
         else:
             m["model"] = None
-        pe = poly.get((ka, kb))
+        pe = poly.get((ka, kb)) if (ka and kb) else None
+        if not pe and poly_events:
+            pe = poly_by_name(*m["names"])
         if pe:
             smart_jobs.append((m, pe))
         board.append(m)
@@ -997,6 +1016,18 @@ def risk_flags(m):
         out["avoid"].append(f"Don't back {dog}: back after {g('days', sd)} days off. Underdogs returning from a month or more off lost 14-37% "
                             "when backed (Kalshi and Pinnacle); the market over-rates them.")
         net += 3
+    pl = m.get("poly") or {}
+    if m.get("status") == "pre" and pl.get("poly_price") is not None and (pl.get("poly_vol") or 0) >= 1000:   # live: prices aren't comparable
+        pp_f = pl["poly_price"] if fi == 0 else 1 - pl["poly_price"]
+        if pf - pp_f >= 0.05:
+            # tools/poly_gap (10.5k matches on both markets, Jun-Nov 2026): when Polymarket was 5+ pts less sure of the
+            # favourite than Kalshi, the favourite was upset 33.1% / 32.6% vs 25.4% / 26.6% priced (both halves);
+            # backing it lost 12.5% / 11.1% (vs 5-6% when the markets agree).
+            out["avoid"].append(f"Don't back {fav}: Polymarket gives them only {pp_f:.0%} against Kalshi's {pf:.0%}. When the two markets "
+                                "disagreed like this, favourites were upset about 7 pts more often than Kalshi priced (33% vs 26%, both halves "
+                                "of 10,000 matches) and backing them lost 11-12%.")
+            out["warn"].append(f"Polymarket is {100 * (pf - pp_f):.0f} pts less sure of {fav} than Kalshi: upset risk up about 7 pts.")
+            net -= 7
     if (g("age", sf) or 0) >= 32:
         out["good"].append(f"Veteran favourite ({g('age', sf):.0f}). Markets under-rate them: they won ~4 pts more than priced in both halves (+3.7% / +3.4% on Kalshi).")
         net += 4

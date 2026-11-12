@@ -15,6 +15,9 @@ both 0.5843 (better than either: each market knows something the other doesn't).
 below Polymarket, Poly vol >= $2k, spread <= 4c) returned +12.4% / +16.9% in the two halves (pooled n=204, +14.7% +-
 11.1%); 69% of its picks are underdogs (won 43-44% vs ~41% paid). 6 of 8 threshold variants positive in both halves.
 Consistent and mechanism-based but not yet statistically proven - keep it at its small stake and watch the record.
+Stay-away view (same data): when Polymarket was 5+ pts LESS sure of the favourite than Kalshi's mid, the favourite was
+upset 33.1% / 32.6% vs 25.4% / 26.6% priced (both halves, ~2 SE each) and backing it lost 12.5% / 11.1% (vs 5-6% when
+the markets agree) -> board "Don't back" flag on such favourites (edge/refresh.risk_flags, pre-match only).
 """
 import json
 import math
