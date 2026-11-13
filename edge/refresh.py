@@ -256,6 +256,29 @@ def run(data, cfg, do_smart=True, verbose=True):
                             "surface": surf, "surface_known": surfaces(tname, tour) is not None, "bo": bo, "start": start,
                             "names": [a["yes_sub_title"], b["yes_sub_title"]], "q": [side_quote(a), side_quote(b)]})
 
+    # ---- doubles: shown for information only (tools/doubles_study: no model or rule beat the price; nothing is staked)
+    doubles = []
+    for s in cfg.get("doubles_series", []):
+        try:
+            ms = src.kalshi_markets(s, status="open", max_pages=5)
+        except Exception as e:  # noqa
+            notes.append(f"doubles {s} failed: {e}")
+            continue
+        for et, pair in pair_markets(ms).items():
+            if len(pair) != 2:
+                continue
+            a, b = sorted(pair, key=lambda m: m["ticker"])
+            start = tsf(a.get("occurrence_datetime") or a["expected_expiration_time"])
+            if start - NOW > cfg["horizon_hours"] * 3600:
+                continue
+            qa, qb = side_quote(a), side_quote(b)
+            if market_prob(qa, qb) is None or NOW - start > 6 * 3600:      # no real two-sided price, or long finished
+                continue
+            tname, rnd = src.parse_rules(a)
+            doubles.append({"id": suffix(et), "event": et, "series": s, "tourney": tname or (a.get("title") or ""), "round": rnd,
+                            "start": start, "names": [a["yes_sub_title"], b["yes_sub_title"]], "q": [qa, qb], "p_mkt": market_prob(qa, qb),
+                            "status": "live" if NOW > start + 600 else "pre"})
+
     # ---- trade tapes (money flow) for matches with some trading
     def tape_job(m):
         itf = "ITF" in m["series"]                # ITF books are ~10x thinner: lower bars, or in-play goes unnoticed
@@ -283,10 +306,11 @@ def run(data, cfg, do_smart=True, verbose=True):
             notes.append(f"smart wallet ranking failed: {e}")
     sw = {w["wallet"]: w for w in smart_db.get("wallets", [])}
     poly = {}
-    poly_events = []
+    poly_events, poly_all = [], []
     if do_smart:
         try:
-            poly_events = [e for e in smart.match_events(False, pages=6) if "/" not in e["a"]]        # singles only
+            poly_all = smart.match_events(False, pages=6)
+            poly_events = [e for e in poly_all if "/" not in e["a"]]        # singles only
             for e in poly_events:
                 ka, kb = idx.resolve(e["a"], "atp"), idx.resolve(e["b"], "atp")
                 kwa, kwb = idx.resolve(e["a"], "wta"), idx.resolve(e["b"], "wta")
@@ -398,6 +422,26 @@ def run(data, cfg, do_smart=True, verbose=True):
                 if tot >= 200 and max(res["smart"]) >= 0.75 * tot:
                     d = 1 if res["smart"][0] > res["smart"][1] else -1
                     m["signals"].append({"k": "smart", "dir": d, "txt": f"Proven Polymarket tennis winners hold ${max(res['smart']):,.0f} on {m['names'][0 if d > 0 else 1]}"})
+
+    # ---- Polymarket price for doubles (team names: each Kalshi team must share a name token with a different Polymarket team)
+    pd_ev = [e for e in poly_all if "/" in e["a"]]
+    for d in doubles:
+        ta, tb = ({t for t in fold(n) if len(t) >= 3 and t not in NAME_STOP} for n in d["names"])
+        hits = []
+        for e in pd_ev:
+            pa, pb = ({t for t in fold(n) if len(t) >= 3 and t not in NAME_STOP} for n in (e["a"], e["b"]))
+            if len(ta & pa) >= 1 and len(tb & pb) >= 1:
+                hits.append((e, False))
+            elif len(ta & pb) >= 1 and len(tb & pa) >= 1:
+                hits.append((e, True))
+        if len(hits) == 1:
+            e, fl = hits[0]
+            pr = e["prices"][::-1] if fl else e["prices"]
+            d["poly"] = {"poly_price": round(pr[0], 3), "poly_vol": round(e["volume"])}
+    try:
+        update_doubles_log(data, doubles)
+    except Exception as e:  # noqa
+        notes.append(f"doubles log: {e}")
 
     # ---- sportsbook lines (Pinnacle fair vs US books and Kalshi)
     lines = []
@@ -633,6 +677,7 @@ def run(data, cfg, do_smart=True, verbose=True):
            "model_meta": {k: meta.get(k) for k in ("walk_forward", "market", "kalshi_backtest", "features", "futures_backtest")},
            "smart_wallets": len(sw), "matches": sorted(board, key=lambda m: m["start"]), "picks": picks, "combos": combos,
            "futures": futs, "lines": lines, "dropped": dropped, "lines_meta": {k: snap.get(k) for k in ("ts", "status", "remaining", "usage", "sports")}, "record": rec, "history": pick_history(log), "results": results, "ledger": ledger, "archive": archive,
+           "doubles": sorted(doubles, key=lambda d: d["start"])[:150], "doubles_log": doubles_summary(data),
            "tuner": {"blend": T.get("blend"), "prior": model.mkt, "overrides": T.get("overrides"), "log": (T.get("log") or [])[-20:],
                      "stats": T.get("stats"), "rules": RULES, "discover": tuner.discover_meta(),
                      "guards": {"promote": tuner.PROMOTE, "demote": tuner.DEMOTE, "min_live": tuner.MIN_LIVE, "prior_n": tuner.PRIOR_N}}}
@@ -1239,6 +1284,47 @@ def update_price_history(data, board, results):
         m["prec"] = out
 
 
+def update_doubles_log(data, doubles):
+    """Research log for doubles: last pre-match Kalshi mid and Polymarket price per match; graded later from results.
+    Lets a future study test the Kalshi-vs-Polymarket gap on doubles (only tested on singles so far)."""
+    f = data / "doubles_log.json"
+    try:
+        L = json.loads(f.read_text())
+    except (OSError, ValueError):
+        L = {}
+    for d in doubles:
+        if d["status"] == "pre" and d.get("p_mkt") is not None:
+            e = L.setdefault(d["event"], {"names": d["names"], "series": d["series"], "tk": d["q"][0]["ticker"], "y": None})
+            e.update({"start": d["start"], "close": round(d["p_mkt"], 4), "poly": (d.get("poly") or {}).get("poly_price")})
+    for k in [k for k, e in L.items() if NOW - e.get("start", NOW) > 60 * 86400]:
+        del L[k]
+    f.write_text(json.dumps(L, separators=(",", ":")))
+
+
+def doubles_summary(data):
+    """Graded doubles so far: count, favourite win rate vs Kalshi price, and the Polymarket-disagreement subset."""
+    try:
+        L = json.loads((data / "doubles_log.json").read_text())
+        R = json.loads((data / "settled.json").read_text())
+    except (OSError, ValueError):
+        return None
+    n = w = 0; exp = 0.0; dn = dw = 0; dexp = 0.0
+    for e in L.values():
+        r = (R.get(e["tk"]) or [None])[0]
+        if r not in ("yes", "no") or e.get("close") is None:
+            continue
+        e["y"] = 1 if r == "yes" else 0
+        fa = e["close"] >= 0.5
+        pf = e["close"] if fa else 1 - e["close"]
+        won = (e["y"] == 1) == fa
+        n += 1; w += won; exp += pf
+        if e.get("poly") is not None:
+            pp = e["poly"] if fa else 1 - e["poly"]
+            if pf - pp >= 0.05:
+                dn += 1; dw += won; dexp += pf
+    return {"n": n, "fav_won": w, "fav_exp": round(exp, 1), "disagree_n": dn, "disagree_won": dw, "disagree_exp": round(dexp, 1)}
+
+
 def update_ledger(data, board, results):
     """Prediction ledger: for every match we rate, keep Kalshi's first (open) and last pre-match (close) price next to
     our own numbers at those times, then grade it when the market settles. The summary is the honest scorecard:
@@ -1392,7 +1478,7 @@ def settled_map(data, cfg, notes):
     except ValueError:
         old = {}
     min_close = int(NOW - 2 * 86400) if old else int(NOW - 21 * 86400)
-    for s in cfg["match_series"] + cfg["deriv_series"] + cfg.get("futures_series", []):
+    for s in cfg["match_series"] + cfg["deriv_series"] + cfg.get("futures_series", []) + cfg.get("doubles_series", []):
         try:
             for mk in src.kalshi_markets(s, status="settled", max_pages=10, min_close_ts=min_close):
                 if mk.get("result") in ("yes", "no"):

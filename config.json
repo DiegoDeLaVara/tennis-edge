@@ -12,6 +12,13 @@
     "KXITFMATCH",
     "KXITFWMATCH"
   ],
+  "doubles_series": [
+    "KXATPDOUBLES",
+    "KXWTADOUBLES",
+    "KXATPCHALLENGERDOUBLES",
+    "KXITFDOUBLES",
+    "KXITFWDOUBLES"
+  ],
   "deriv_series": [
     "KXATPGTOTAL",
     "KXWTAGTOTAL",
