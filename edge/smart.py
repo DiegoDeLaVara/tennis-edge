@@ -14,9 +14,9 @@ from concurrent.futures import ThreadPoolExecutor
 import requests
 
 G = "https://gamma-api.polymarket.com"
-D = "https://data-api.polymarket.com"
+D = "https://data-api.polymarket.com/v2"       # v1 was retired (410) in Nov 2026
 S = requests.Session()
-S.headers["User-Agent"] = "tennis-edge/1.0"
+S.headers["User-Agent"] = "TennisEdge/1.0 (https://github.com/DiegoDeLaVara/tennis-edge)"
 VS = re.compile(r"^(?:(.+?):\s*)?(.+?)\s+vs\.?\s+(.+?)$")
 
 
@@ -25,7 +25,7 @@ def get(url, params=None):
         try:
             r = S.get(url, params=params, timeout=30)
             if r.status_code == 429:
-                time.sleep(2 * (a + 1)); continue
+                time.sleep(float(r.headers.get("Retry-After") or 2 * (a + 1))); continue
             if r.status_code == 200:
                 return r.json()
         except (requests.RequestException, ValueError):
@@ -68,12 +68,23 @@ def match_events(closed, pages=10, since_iso=None):
     return out
 
 
-def trades(cid, max_n=3000):
-    out = []
-    for off in range(0, max_n, 500):
-        t = get(D + "/trades", {"market": cid, "limit": 500, "offset": off}) or []
-        out += t
-        if len(t) < 500:
+def trades(cid, max_n=20000, taker_only=False):
+    """All fills of one market (v2, cursor-paged), in the old v1 row shape. taker_only=False also returns the maker
+    side of each fill, so every wallet's own buys and sells are there."""
+    out, cur = [], None
+    while len(out) < max_n:
+        p = {"condition": cid, "taker_only": str(taker_only).lower()}
+        if cur:
+            p["cursor"] = cur
+        else:
+            p["limit"] = 1000
+        j = get(D + "/trades", p) or {}
+        for t in j.get("data") or []:
+            out.append({"proxyWallet": t.get("proxy_wallet"), "side": t.get("side"), "size": t.get("size"), "price": t.get("price"),
+                        "outcomeIndex": t.get("outcome_index"), "timestamp": t.get("timestamp"),
+                        "name": t.get("name") or t.get("pseudonym")})
+        cur = (j.get("pagination") or {}).get("next_cursor")
+        if not cur:
             break
     return out
 
@@ -97,9 +108,10 @@ def rank_wallets(days=75, min_markets=20, top=250, max_events=900, until_days=0,
     def one(e):
         win = 0 if e["prices"][0] > 0.5 else 1
         per = {}
-        for t in trades(e["cid"]):
+        st = parse_t(e["start"]) or 0
+        for t in trades(e["cid"], max_n=8000):
             w = t.get("proxyWallet")
-            if not w:
+            if not w or (st and (t.get("timestamp") or 0) >= st):      # pre-match positions only: that's the skill we follow
                 continue
             sz, px = float(t.get("size") or 0), float(t.get("price") or 0)
             pay = sz if t.get("outcomeIndex") == win else 0.0
@@ -128,15 +140,15 @@ def rank_wallets(days=75, min_markets=20, top=250, max_events=900, until_days=0,
 
 
 def positions(cid, smart):
-    """$ value held by ranked wallets on each outcome (top-20 holders per outcome are all the API returns)."""
-    h = get(D + "/holders", {"market": cid, "limit": 20}) or []
+    """$ value held by ranked wallets on each outcome (v2 returns up to 500 holders per outcome; v1 gave only 20)."""
+    j = get(D + "/holders", {"condition": cid, "limit": 500}) or {}
     side = [0.0, 0.0]
     who = [[], []]
-    for tok in h:
+    for tok in j.get("data") or []:
         for x in tok.get("holders", []):
-            w = smart.get(x.get("proxyWallet"))
+            w = smart.get(x.get("proxy_wallet"))
             if w:
-                i = int(x.get("outcomeIndex", 0))
+                i = int(x.get("outcome_index", 0))
                 side[i] += float(x.get("amount") or 0)
                 who[i].append(f"{w['name']} ({w['n']} matches, {w['roi'] * 100:+.0f}% ROI)")
     return side, who

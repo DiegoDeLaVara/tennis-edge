@@ -421,7 +421,7 @@ def run(data, cfg, do_smart=True, verbose=True):
                 tot = sum(res["smart"])
                 if tot >= 200 and max(res["smart"]) >= 0.75 * tot:
                     d = 1 if res["smart"][0] > res["smart"][1] else -1
-                    m["signals"].append({"k": "smart", "dir": d, "txt": f"Proven Polymarket tennis winners hold ${max(res['smart']):,.0f} on {m['names'][0 if d > 0 else 1]}"})
+                    m["signals"].append({"k": "smart", "dir": d, "txt": f"Polymarket wallets with winning tennis records hold ${max(res['smart']):,.0f} on {m['names'][0 if d > 0 else 1]} (info only: following them didn't beat the price in testing)"})
 
     # ---- Polymarket price for doubles (team names: each Kalshi team must share a name token with a different Polymarket team)
     pd_ev = [e for e in poly_all if "/" in e["a"]]
