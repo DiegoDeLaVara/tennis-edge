@@ -1,0 +1,1232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1a14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tennis Edge">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Tennis Edge</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%23c8e64a'/%3E%3Cpath d='M10 20c14 6 14 18 0 24M54 20c-14 6-14 18 0 24' stroke='%23fff' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f3f5f0; --card: #ffffff; --card2: #eef1ea; --ink: #13201a; --mute: #63736a; --line: #dbe2d8;
+  --ball: #9db51f; --ball-ink: #4f5e00; --good: #17834a; --good-soft: #def2e5; --bad: #c0392b; --bad-soft: #f8e1de;
+  --warn: #a86400; --warn-soft: #fbedd5; --sharp: #6a3fc8; --sharp-soft: #ece4fb; --a: #c26a12; --b: #1f6f8b;
+  --shadow: 0 1px 2px rgba(0,0,0,.05), 0 6px 18px -10px rgba(0,0,0,.25);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1410; --card: #142019; --card2: #1a2920; --ink: #e7efe9; --mute: #8fa298; --line: #24352b;
+    --ball: #c8e64a; --ball-ink: #c8e64a; --good: #4fd18b; --good-soft: #143222; --bad: #ff7b6e; --bad-soft: #3a1a17;
+    --warn: #f2b84b; --warn-soft: #382a10; --sharp: #b79bff; --sharp-soft: #261d3f; --a: #f0a050; --b: #5fbfdf;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 22px -12px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1410; --card: #142019; --card2: #1a2920; --ink: #e7efe9; --mute: #8fa298; --line: #24352b;
+  --ball: #c8e64a; --ball-ink: #c8e64a; --good: #4fd18b; --good-soft: #143222; --bad: #ff7b6e; --bad-soft: #3a1a17;
+  --warn: #f2b84b; --warn-soft: #382a10; --sharp: #b79bff; --sharp-soft: #261d3f; --a: #f0a050; --b: #5fbfdf;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 22px -12px rgba(0,0,0,.7);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 "Inter Tight", system-ui, -apple-system, Segoe UI, sans-serif; -webkit-font-smoothing: antialiased; }
+.mono, .num { font-family: "JetBrains Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+button, input, select { font: inherit; color: inherit; }
+.wrap { max-width: 820px; margin: 0 auto; padding: 0 max(14px, env(safe-area-inset-left)) calc(84px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-right)); }
+header.top { position: sticky; top: 0; z-index: 10; background: var(--bg); padding: calc(10px + env(safe-area-inset-top)) 0 8px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.brand h1 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -.02em; display: flex; align-items: center; gap: 8px; }
+.brand h1 i { width: 18px; height: 18px; border-radius: 50%; background: var(--ball); display: inline-block; box-shadow: inset -3px -3px 0 rgba(0,0,0,.12); }
+.upd { font-size: 12px; color: var(--mute); text-align: right; }
+.upd b { color: var(--ink); font-weight: 600; }
+.filters { display: flex; gap: 6px; overflow-x: auto; margin-top: 8px; scrollbar-width: none; }
+.filters::-webkit-scrollbar { display: none; }
+.chip { flex: none; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 5px 11px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--mute); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+nav.tabs { position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; background: var(--card); border-top: 1px solid var(--line); display: flex; justify-content: center; padding-bottom: env(safe-area-inset-bottom); }
+nav.tabs button { flex: 1; max-width: 160px; background: none; border: 0; padding: 9px 4px 10px; font-size: 11.5px; font-weight: 600; color: var(--mute); display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
+nav.tabs button svg { width: 22px; height: 22px; }
+nav.tabs button[aria-selected="true"] { color: var(--ink); }
+nav.tabs button[aria-selected="true"] svg { color: var(--ball-ink); }
+h2.sec { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--mute); margin: 22px 2px 8px; font-weight: 700; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+h2.sec span { text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 12px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+.list > * + * { border-top: 1px solid var(--line); }
+.note { font-size: 12.5px; color: var(--mute); }
+.callout { background: var(--card2); border-radius: 12px; padding: 10px 12px; font-size: 13px; color: var(--ink); margin-top: 10px; }
+.callout b { font-weight: 700; }
+.empty { padding: 26px 14px; text-align: center; color: var(--mute); font-size: 14px; }
+
+/* pick cards */
+.pick { padding: 12px 13px; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 12px; }
+.pick .what { font-weight: 700; font-size: 16.5px; letter-spacing: -.01em; }
+.pick .sub { font-size: 12.5px; color: var(--mute); }
+.pick .right { text-align: right; }
+.pick.take { border-left: 4px solid var(--good); }
+.takechip { display: inline-block; font: 800 11px/1 "Inter Tight", sans-serif; letter-spacing: .06em; background: var(--good); color: var(--card); border-radius: 6px; padding: 4px 6px; margin-right: 7px; vertical-align: 2px; }
+.pick .units { font: 700 22px/1 "JetBrains Mono", monospace; color: var(--good); }
+.pick .units small { font-size: 12px; font-weight: 600; }
+.pick .ev { font-size: 12px; color: var(--good); font-weight: 600; }
+.pick .row2 { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
+.badge { font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--card2); color: var(--mute); white-space: nowrap; }
+.badge.good { background: var(--good-soft); color: var(--good); }
+.badge.bad { background: var(--bad-soft); color: var(--bad); }
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+.badge.sharp { background: var(--sharp-soft); color: var(--sharp); }
+.badge.live { background: var(--bad); color: #fff; }
+.btn { border: 1px solid var(--line); background: var(--card2); border-radius: 9px; padding: 6px 11px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.small { padding: 3px 9px; font-size: 12px; }
+.btn:disabled { opacity: .45; }
+
+/* match rows */
+.mrow { padding: 10px 12px; cursor: pointer; display: grid; grid-template-columns: 48px minmax(0, 1fr) 92px; gap: 10px; align-items: center; width: 100%; text-align: left; background: none; border: 0; }
+.mrow .t { font: 600 13px/1.15 "JetBrains Mono", monospace; color: var(--mute); }
+.mrow .t small { display: block; font-size: 10.5px; }
+.who { display: grid; gap: 1px; min-width: 0; }
+.who div { display: flex; gap: 6px; align-items: baseline; min-width: 0; }
+.who .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 0; }
+.who .fav .nm { font-weight: 700; }
+.who .pp { font: 600 12.5px "JetBrains Mono", monospace; flex: none; }
+.mtags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+.mtags .badge { font-size: 10.5px; padding: 1px 6px; }
+.edgecol { text-align: right; }
+.edgecol b { display: block; font: 700 15px "JetBrains Mono", monospace; }
+.edgecol span { font-size: 11px; color: var(--mute); }
+.bar2 { display: flex; height: 5px; border-radius: 3px; overflow: hidden; margin-top: 5px; background: var(--card2); }
+.bar2 i:first-child { background: var(--a); } .bar2 i:last-child { background: var(--b); }
+.mk { position: relative; height: 0; }
+.mk i { position: absolute; top: -8px; width: 2px; height: 11px; background: var(--ink); border-radius: 1px; }
+.detail { padding: 2px 12px 14px; display: grid; gap: 14px; border-top: 1px dashed var(--line); }
+.detail h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--mute); margin: 10px 0 6px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 520px) { .two { grid-template-columns: 1fr; } }
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 4px 14px; }
+.kv div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); padding: 3px 0; font-size: 13.5px; }
+.kv span { color: var(--mute); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { text-align: left; font-size: 11px; color: var(--mute); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 4px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.n, th.n { text-align: right; font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tw { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.pos { color: var(--good); font-weight: 700; } .neg { color: var(--bad); }
+.form { display: flex; gap: 3px; flex-wrap: wrap; }
+.form i { width: 18px; height: 18px; border-radius: 4px; font: 700 10.5px/18px "JetBrains Mono", monospace; text-align: center; color: #fff; font-style: normal; }
+.form i.W { background: var(--good); } .form i.L { background: var(--bad); }
+.pcard { background: var(--card2); border-radius: 10px; padding: 10px; }
+.pcard h4 { margin: 0 0 6px; font-size: 15px; }
+.pcard.a h4 { color: var(--a); } .pcard.b h4 { color: var(--b); }
+.sig { border-left: 3px solid var(--sharp); background: var(--sharp-soft); border-radius: 0 8px 8px 0; padding: 6px 10px; font-size: 13px; }
+.sig + .sig { margin-top: 6px; }
+.hist { display: flex; align-items: flex-end; gap: 2px; height: 70px; }
+.hist div { flex: 1; background: var(--ball); border-radius: 2px 2px 0 0; min-height: 1px; position: relative; }
+.hist div.line { background: var(--warn); }
+.histx { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--mute); font-family: "JetBrains Mono", monospace; }
+
+/* live calc */
+.calc { display: grid; gap: 8px; }
+.calc .rowc { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.calc .rowc label { min-width: 74px; color: var(--mute); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+.step { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.step button { border: 0; background: var(--card2); width: 30px; height: 30px; font-size: 16px; cursor: pointer; }
+.step span { min-width: 30px; text-align: center; font-family: "JetBrains Mono", monospace; font-weight: 600; }
+.seg2 { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg2 button { border: 0; background: var(--card); padding: 5px 10px; font-size: 12.5px; font-weight: 600; cursor: pointer; color: var(--mute); }
+.seg2 button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.bigp { font: 800 30px/1 "JetBrains Mono", monospace; }
+
+/* tracker */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.stat small { display: block; font-size: 11px; color: var(--mute); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+.stat b { font: 700 21px/1.2 "JetBrains Mono", monospace; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; padding: 12px; }
+.form-grid label { display: grid; gap: 3px; font-size: 11.5px; color: var(--mute); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.form-grid input, .form-grid select { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 7px 9px; font-size: 15px; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--ink); width: 100%; }
+.bet { padding: 10px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; }
+.bet .what { font-weight: 700; }
+.bet .sub { font-size: 12px; color: var(--mute); }
+.bet .res { text-align: right; font-family: "JetBrains Mono", monospace; font-weight: 700; }
+.bet .acts { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+svg.chart { width: 100%; height: 140px; display: block; }
+dialog { border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--ink); padding: 0; width: min(520px, calc(100vw - 24px)); box-shadow: var(--shadow); }
+dialog::backdrop { background: rgba(0,0,0,.45); }
+dialog header { padding: 12px 14px; border-bottom: 1px solid var(--line); font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+.search { width: 100%; border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 8px 11px; margin-top: 8px; font-size: 15px; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--ball-ink); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap" style="padding-bottom:0">
+  <div class="brand"><h1><i></i>Tennis Edge</h1><div class="upd" id="upd">Loading&hellip;</div></div>
+  <div class="filters" id="filters"></div>
+</div></header>
+<main class="wrap" id="main"></main>
+<nav class="tabs" role="tablist">
+  <button data-tab="picks" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 6.5 7 .8-5.2 4.8 1.5 7L12 17.6 5.7 21l1.5-7L2 9.3l7-.8z"/></svg>Picks</button>
+  <button data-tab="board" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M4.5 7.5c5 2.5 5 6.5 0 9M19.5 7.5c-5 2.5-5 6.5 0 9"/></svg>Matches</button>
+  <button data-tab="books" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 4v16"/></svg>Books</button>
+  <button data-tab="tracker" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>My bets</button>
+  <button data-tab="record" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>Model record</button>
+  <button data-tab="guide" role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>How</button>
+</nav>
+
+<dialog id="dlg"><header><span id="dlg-title">Log a bet</span><button class="btn small" id="dlg-x">Close</button></header><div id="dlg-body"></div></dialog>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pct = (p, d = 0) => p == null ? "—" : (p * 100).toFixed(d) + "%";
+const cents = p => p == null ? "—" : Math.round(p * 100) + "¢";
+const sgn = (x, d = 1) => x == null ? "—" : (x >= 0 ? "+" : "") + (x * 100).toFixed(d) + "%";
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+const fee = p => 0.07 * p * (1 - p);
+let B = null;                         // board.json
+let SB = null;                        // sportsbook.json (all-sports line shopping)
+const S = { tab: store.get("te_tab", "picks"), f: store.get("te_filter", "all"), q: "", open: new Set() };
+
+// ------------------------------------------------------------- tennis maths (same as the Python engine)
+function hold(p) { const q = 1 - p, deuce = p * p / (p * p + q * q); return p ** 4 * (1 + 4 * q + 10 * q * q) + 20 * p ** 3 * q ** 3 * deuce; }
+function gameFrom(p, a, b) {           // server wins game from a-b points (0..)
+  if (a >= 4 && a - b >= 2) return 1; if (b >= 4 && b - a >= 2) return 0;
+  if (a >= 3 && b >= 3) { const q = 1 - p, d = p * p / (p * p + q * q); if (a === b) return d; return a > b ? p + (1 - p) * d : p * d; }
+  return p * gameFrom(p, a + 1, b) + (1 - p) * gameFrom(p, a, b + 1);
+}
+function tbFrom(pa, pb, a, b, aServing) {   // A wins tiebreak from a-b with A serving the next point
+  const memo = new Map();
+  function f(a, b, aSrv, k) {               // k: points served so far by current server in this turn (0/1)
+    if (a >= 7 && a - b >= 2) return 1; if (b >= 7 && b - a >= 2) return 0;
+    if (a >= 6 && b >= 6 && a === b) { const w = pa * (1 - pb), l = (1 - pa) * pb; return w / (w + l); }
+    const key = a + "," + b + "," + aSrv + "," + k; if (memo.has(key)) return memo.get(key);
+    const p = aSrv ? pa : 1 - pb;
+    const nk = k + 1, swap = nk >= 2;
+    const ns = swap ? !aSrv : aSrv, nk2 = swap ? 0 : nk;
+    const v = p * f(a + 1, b, ns, nk2) + (1 - p) * f(a, b + 1, ns, nk2);
+    memo.set(key, v); return v;
+  }
+  const n = a + b, k0 = n === 0 ? 1 : ((n - 1) % 2);  // first point is a single serve, then pairs
+  return f(a, b, aServing, n === 0 ? 1 : k0);
+}
+function setFrom(pa, pb, ga, gb, aServing, memo = new Map()) {   // A wins set from ga-gb, A serving next game
+  if (ga >= 6 && ga - gb >= 2 || ga === 7) return 1; if (gb >= 6 && gb - ga >= 2 || gb === 7) return 0;
+  if (ga === 6 && gb === 6) return tbFrom(pa, pb, 0, 0, aServing);
+  const key = ga + "," + gb + "," + aServing; if (memo.has(key)) return memo.get(key);
+  const w = aServing ? hold(pa) : 1 - hold(pb);
+  const v = w * setFrom(pa, pb, ga + 1, gb, !aServing, memo) + (1 - w) * setFrom(pa, pb, ga, gb + 1, !aServing, memo);
+  memo.set(key, v); return v;
+}
+function matchFrom(pa, pb, bo, sa, sb, s) {   // s: probability A wins any future set (averaged over serve)
+  const need = Math.ceil(bo / 2);
+  if (sa >= need) return 1; if (sb >= need) return 0;
+  return s * matchFrom(pa, pb, bo, sa + 1, sb, s) + (1 - s) * matchFrom(pa, pb, bo, sa, sb + 1, s);
+}
+function liveProb(pa, pb, bo, st) {
+  // st: {sa, sb, ga, gb, pa_, pb_ (points), srv: 0 = A serving, tb: bool}
+  const sFuture = (setFrom(pa, pb, 0, 0, true) + setFrom(pa, pb, 0, 0, false)) / 2;
+  const aSrv = st.srv === 0;
+  let pSet;
+  if (st.tb) pSet = tbFrom(pa, pb, st.pa_, st.pb_, aSrv);
+  else {
+    const g = aSrv ? gameFrom(pa, st.pa_, st.pb_) : 1 - gameFrom(pb, st.pb_, st.pa_);
+    pSet = g * setFrom(pa, pb, st.ga + 1, st.gb, !aSrv) + (1 - g) * setFrom(pa, pb, st.ga, st.gb + 1, !aSrv);
+  }
+  return pSet * matchFrom(pa, pb, bo, st.sa + 1, st.sb, sFuture) + (1 - pSet) * matchFrom(pa, pb, bo, st.sa, st.sb + 1, sFuture);
+}
+
+// ------------------------------------------------------------- helpers
+const when = t => { const d = new Date(t * 1000); return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); };
+const dayOf = t => { const d = new Date(t * 1000), n = new Date(); const dd = Math.round((new Date(d.toDateString()) - new Date(n.toDateString())) / 864e5);
+  return dd === 0 ? "Today" : dd === 1 ? "Tomorrow" : dd === -1 ? "Yesterday" : d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }); };
+const ago = t => { const m = Math.round((Date.now() / 1000 - t) / 60); return m < 1 ? "just now" : m < 60 ? m + " min ago" : Math.round(m / 60) + " h ago"; };
+const levelName = { G: "Slam", M: "1000", A: "Tour", F: "Finals", C: "Chall", S: "ITF", Q: "Qual" };
+const surfColor = { Hard: "#3b6ea8", Clay: "#c0602c", Grass: "#3d8a4e", Carpet: "#7a5c8c" };
+const unitVal = () => { const t = tsettings(); return t.bankroll * t.unit_pct / 100; };
+function tsettings() { return store.get("te_settings", { bankroll: B?.config?.bankroll ?? 1000, unit_pct: (B?.config?.unit_pct ?? 0.01) * 100 }); }
+function sigBadges(m, side) {
+  return (m.signals || []).map(s => {
+    const toward = s.dir > 0 ? 0 : 1;
+    const agree = side == null ? null : toward === side;
+    const nm = m.names[toward].split(" ").slice(-1)[0];
+    const lab = { sharp: "Sharp $", steam: "Steam", drift: "Line move", flow: "Money flow", smart: "Smart $" }[s.k] || s.k;
+    return `<span class="badge ${agree === false ? "bad" : "sharp"}" title="${esc(s.txt)}">${lab} → ${esc(nm)}</span>`;
+  }).join("");
+}
+
+// ------------------------------------------------------------- filters
+const FILTERS = [["all", "All"], ["value", "+EV only"], ["atp", "ATP"], ["wta", "WTA"], ["C", "Challengers"], ["S", "ITF"], ["money", "Sharp/smart $"], ["live", "Live"], ["doubles", "Doubles"]];
+function renderFilters() {
+  const show = S.tab === "board";
+  $("#filters").hidden = !show;
+  if (!show) return;
+  $("#filters").innerHTML = FILTERS.map(([k, l]) => `<button class="chip" data-f="${k}" aria-pressed="${S.f === k}">${l}</button>`).join("");
+}
+function passes(m) {
+  const f = S.f;
+  if (S.q && !(m.names.join(" ") + " " + m.tourney).toLowerCase().includes(S.q.toLowerCase())) return false;
+  if (f === "all") return true;
+  if (f === "atp" || f === "wta") return m.tour === f && !["C", "S"].includes(m.level);
+  if (f === "C" || f === "S") return m.level === f;
+  if (f === "value") return (m.bets || []).some(b => b.ev >= 0.03 && b.kind === "match");
+  if (f === "money") return (m.signals || []).length > 0;
+  if (f === "live") return m.status === "live";
+  return true;
+}
+
+// ------------------------------------------------------------- picks tab
+const VK = { lock: ["🔒", "good", "LOCK"], win: ["✅", "good", "WINS"], lean: ["👍", "", "LEAN"], toss: ["🎲", "", "TOSS-UP"], risk: ["⚠", "warn", "UPSET RISK"], stay: ["🚫", "bad", "STAY AWAY"] };
+function verdictChip(v) {
+  if (!v) return "";
+  const [ic, cl, word] = VK[v.k] || ["", "", ""];
+  const nm = v.k === "toss" || v.k === "stay" ? "" : " " + esc(v.who.split(" ").slice(-1)[0]);
+  return `<span class="badge ${cl}" title="${esc(v.txt)}">${ic} ${word}${nm}</span>` + (v.value ? `<span class="badge good">💰 VALUE ${esc(v.value.split(" ").slice(-1)[0])}</span>` : "");
+}
+function verdictBox(v, live) {
+  if (!v) return "";
+  if (live) return `<div class="card" style="padding:8px 12px;margin:8px 0;border-left:4px solid var(--line)"><b>Pre-match verdict</b><div class="note" style="margin-top:3px">${esc(v.txt)}</div></div>`;
+  const [ic, cl] = VK[v.k] || ["", ""];
+  return `<div class="card" style="padding:8px 12px;margin:8px 0;border-left:4px solid var(--${cl || "line"})"><b>${ic} Verdict</b><div class="note" style="margin-top:3px">${esc(v.txt)}</div></div>`;
+}
+function riskLive(level) {
+  // live track record of a risk label from the match archive (edge/refresh.update_archive "risk_live")
+  const L = (B && B.archive && B.archive.risk_live || {})[level];
+  if (!L || L.n < 30) return "";
+  const up = L.up / L.n, ex = L.exp / L.n, se = Math.sqrt(ex * (1 - ex) / L.n), d = up - ex;
+  const verdict = Math.abs(d) < 2 * se ? "no different from the price so far" : d > 0 ? "more upsets than priced" : "fewer upsets than priced";
+  return `Live record: ${L.n} matches with this label, upsets ${pct(up)} vs ${pct(ex)} priced (${verdict}).`;
+}
+function riskBadge(r) {
+  if (!r) return "";
+  const t = lv => esc(riskLive(lv) || "Based on historical tests; not yet proven on live matches.");
+  if (r.level === "stay") return `<span class="badge bad" title="${t("stay")}">🚫 Stay away</span>`;
+  if (r.level === "warn") return `<span class="badge warn" title="${t("warn")}">⚠ Upset risk</span>`;
+  if (r.level === "good") return `<span class="badge good" title="${t("good")}">🛡 Steadier than priced</span>`;
+  return "";
+}
+function riskBox(r) {
+  if (!r || !(r.stay.length + r.warn.length + r.good.length + (r.avoid || []).length)) return "";
+  const li = (arr, ic) => arr.map(t => `<div class="note" style="margin:3px 0">${ic} ${esc(t)}</div>`).join("");
+  return `<div class="card" style="padding:8px 12px;margin:8px 0;border-left:4px solid var(--${r.level === "stay" ? "bad" : r.level === "warn" ? "warn" : "good"})">
+    <b>${r.level === "stay" ? "🚫 Stay away from this match" : r.level === "warn" ? "⚠ Upset risk" : r.level === "good" ? "🛡 Favourite steadier than priced" : "Signals"}</b>
+    ${r.summary ? `<div style="margin:3px 0"><b style="font-size:13px">${esc(r.summary)}</b></div>` : ""}
+    ${li(r.stay, "🚫")}${li(r.warn, "⚠ against the favourite:")}${li(r.good, "🛡 for the favourite:")}${li(r.avoid || [], "✋")}</div>`;
+}
+const matchOf = id => (B.matches || []).find(x => x.id === id) || {};
+function histPnl(h) {
+  if (h.result !== "yes" && h.result !== "no") return null;
+  if (h.kind === "book") return h.result === "yes" ? h.units * (h.odds - 1) : -h.units;
+  const c = h.entry + fee(h.entry);
+  return h.result === "yes" ? h.units * (1 - c) / c : -h.units;
+}
+function pickCard(p, i) {
+  const m = B.matches.find(x => x.id === p.match) || {};
+  const side = p.ticker === m.q?.[0]?.ticker ? 0 : p.ticker === m.q?.[1]?.ticker ? 1 : null;
+  const tagNames = p.tags.map(t => B.config.strategies[t]?.label || t);
+  const usd = (p.units * unitVal()).toFixed(0);
+  return `<div class="pick">
+    <div><div class="what">${esc(p.label)}</div>
+      <div class="sub">${esc(p.names.join(" vs "))} · ${esc(p.tourney)} · ${dayOf(p.start)} ${when(p.start)}</div></div>
+    <div class="right">${p.units ? `<div class="units">${p.units}<small>u</small></div><div class="note">$${usd}</div>` : `<div class="units" style="color:var(--mute);font-size:15px">paper</div><div class="note">tracking only</div>`}</div>
+    <div class="row2">
+      ${p.poly != null ? `<span class="badge good">Polymarket ${cents(p.poly)}</span>` : ""}${p.pin != null ? `<span class="badge good">Pinnacle ${pct(p.pin)}</span>` : ""}<span class="badge good">Fair ${pct(p.p)}</span>${p.p_model != null && Math.abs(p.p_model - p.p) >= 0.01 ? `<span class="badge">Ratings alone ${pct(p.p_model)}</span>` : ""}<span class="badge">Ask ${cents(p.ask)}</span>
+      <span class="badge good">${sgn(p.ev)} EV</span><span class="badge warn">Take ≤ ${p.take_at ?? "—"}¢</span>
+      ${tagNames.map(t => `<span class="badge">${esc(t)}</span>`).join("")}${riskBadge(m.risk)}
+      ${m.signals ? sigBadges(m, side) : ""}
+      <span style="flex:1"></span><button class="btn small primary" data-log="${esc(p.ticker)}">I bet this</button>
+    </div></div>`;
+}
+function takeCard(x) {
+  // x: {what, sub, where, price, max, units, why, strategy, logAttr}
+  return `<div class="pick take">
+    <div><div class="what"><span class="takechip">TAKE</span>${esc(x.what)}</div><div class="sub">${x.sub}</div></div>
+    <div class="right"><div class="units">${x.units}<small>u</small></div><div class="note">$${(x.units * unitVal()).toFixed(0)}</div></div>
+    <div class="row2"><span class="badge good">${esc(x.where)}</span><span class="badge warn">${esc(x.max)}</span><span class="badge good">${esc(x.edge)}</span>${riskBadge(x.risk)}</div>
+    ${x.risk && x.risk.level === "stay" ? `<div class="row2" style="margin-top:0"><span class="note" style="color:var(--bad)">${esc(x.risk.stay[0])}</span></div>` : ""}
+    <div class="row2" style="margin-top:0"><span class="note" style="flex:1">${esc(x.why)}</span><button class="btn small primary" ${x.logAttr}>I bet this</button></div></div>`;
+}
+function takeLegs(picks, now) {
+  // TAKE legs only (each already +EV), the best one per match, starting 10+ min from now. q = our win chance for the leg.
+  const best = {};
+  picks.filter(x => x.units > 0 && x.start > now + 600 && x.ask > 0.03 && x.ask < 0.97).forEach(x => {
+    const c = x.ask + fee(x.ask), q = Math.min(0.99, (1 + x.ev) * c);
+    if (!(q > c)) return;
+    if (!best[x.match] || x.ev > best[x.match].ev) best[x.match] = { ...x, q, c };
+  });
+  return Object.values(best).sort((a, b) => b.ev - a.ev).slice(0, 10);
+}
+function roundRobin(picks, now) {
+  // Every 2+ leg combination of 3-4 chosen TAKE legs at equal stakes (3 legs: 3 doubles + 1 treble; 4 legs: 6 + 4 + 1).
+  // Backtest (2026-11-08): lean/win favourites (58-85%) average -4.3% per leg on Kalshi -> a 3-pick round robin ~ -9.5%;
+  // +3% legs -> ~ +6.9%. So legs come only from TAKE bets.
+  const SS = B.config.strategies;
+  const legs = takeLegs(picks, now);
+  const head = `<h2 class="sec">🔄 Round robin <span>3–4 TAKE legs, every combination</span></h2>`;
+  if (legs.length < 3) return head + `<div class="card empty">A round robin needs 3 TAKE bets on different matches; there ${legs.length === 1 ? "is" : "are"} ${legs.length} right now. Round robins of ordinary lean/win favourites lose about 9–10% over time (each leg loses ~4% after the fee and the losses multiply), so this only builds from TAKE legs. Check back after the next refresh.</div>`;
+  legs.sort((a, b) => b.q - a.q);                          // most likely winners first: round robins need legs that land
+  const ids = legs.map(x => x.ticker);
+  let sel = (S.rr || []).filter(t => ids.includes(t));
+  for (const t of ids) if (sel.length < 3 && !sel.includes(t)) sel.push(t);
+  S.rr = sel;
+  const L = legs.filter(x => sel.includes(x.ticker));
+  const stake = +store.get("te_rr_stake", 0.25);
+  const combos = [];
+  const pick = (k, start, cur) => {
+    if (cur.length === k) { combos.push(cur.slice()); return; }
+    for (let i = start; i < L.length; i++) { cur.push(i); pick(k, i + 1, cur); cur.pop(); }
+  };
+  for (let k = 2; k <= L.length; k++) pick(k, 0, []);
+  const rows = combos.map(ix => {
+    const Q = ix.reduce((a, i) => a * L[i].q, 1), C = ix.reduce((a, i) => a * L[i].c, 1);
+    let take = Q / 1.03; for (let i = 0; i < 30; i++) take = Q / 1.03 - fee(take);
+    return { ix, Q, C, ev: Q / C - 1, take, pays: 1 / C };
+  });
+  // outcome distribution over the legs (independent matches)
+  let pAny = 0, pProfit = 0, pAllLose = 0;
+  const byHits = {};
+  for (let mask = 0; mask < (1 << L.length); mask++) {
+    let pr = 1, hits = 0;
+    L.forEach((x, i) => { const w = (mask >> i) & 1; pr *= w ? x.q : 1 - x.q; hits += w; });
+    const ret = rows.reduce((a, r) => a + (r.ix.every(i => (mask >> i) & 1) ? stake * r.pays : 0), 0);
+    const pnl = ret - stake * rows.length;
+    if (ret > 0) pAny += pr; if (pnl > 0) pProfit += pr; if (ret === 0) pAllLose += pr;
+    (byHits[hits] = byHits[hits] || { p: 0, pnl: [] }).p += pr; byHits[hits].pnl.push(pnl);
+  }
+  const tot = stake * rows.length, evU = rows.reduce((a, r) => a + stake * r.ev, 0);
+  const u$ = u => `${u >= 0 ? "+" : "−"}${Math.abs(u).toFixed(2)}u ($${Math.abs(u * unitVal()).toFixed(0)})`;
+  const legRow = x => { const on = sel.includes(x.ticker);
+    return `<button class="mrow" data-rr="${esc(x.ticker)}" aria-pressed="${on}" style="grid-template-columns:auto 1fr;gap:10px;opacity:${on ? 1 : 0.6}">
+      <span class="badge ${on ? "good" : ""}" style="min-width:26px;text-align:center">${on ? "✓" : "+"}</span>
+      <div><div class="what">${esc(x.label.replace(" to win", ""))} <span class="note">${cents(x.ask)} · take ≤ ${x.take_at ?? "—"}¢ (odds ≥ ${x.take_at ? (100 / x.take_at).toFixed(2) : "—"}) · wins ~${pct(x.q)} · ${sgn(x.ev)} EV</span></div>
+      <div class="note">${esc(x.names.join(" vs "))} · ${dayOf(x.start)} ${when(x.start)} · ${esc(SS[(x.tags || []).find(t => (SS[t]?.kelly_mult || 0) > 0)]?.label || "")}</div></div></button>`; };
+  const lastName = i => L[i].label.replace(" to win", "").split(" ").slice(-1)[0];
+  const hitLines = Object.keys(byHits).map(Number).sort((a, b) => b - a).filter(h => h >= 2).map(h =>
+    `${h === L.length ? "All" : h} of ${L.length} win (${pct(byHits[h].p)}): ${u$(Math.min(...byHits[h].pnl))}${Math.min(...byHits[h].pnl) !== Math.max(...byHits[h].pnl) ? " to " + u$(Math.max(...byHits[h].pnl)) : ""}`).join(" · ");
+  return head + `<div class="card list">${legs.map(legRow).join("")}</div>
+    <div class="card" style="margin-top:8px;padding:10px 12px">
+      <div class="rowc" style="flex-wrap:wrap;gap:8px"><b>${L.length} legs → ${rows.length} bets</b><span class="note">${L.length === 3 ? "3 doubles + 1 treble" : "6 doubles + 4 trebles + 1 four-fold"} · stake each</span>
+        <span class="seg2">${[0.1, 0.25, 0.5].map(v => `<button data-rrstake="${v}" aria-pressed="${stake === v}">${v}u</button>`).join("")}</span></div>
+      <div class="kv" style="margin-top:8px">
+        <div><span>Total staked</span><b class="num">${tot.toFixed(2)}u ($${(tot * unitVal()).toFixed(0)})</b></div>
+        <div><span>Expected profit</span><b class="num ${evU >= 0 ? "pos" : "neg"}">${u$(evU)} (${sgn(evU / tot)})</b></div>
+        <div><span>At least one bet pays</span><b class="num">${pct(pAny)}</b></div>
+        <div><span>Ends in profit</span><b class="num">${pct(pProfit)}</b></div>
+        <div><span>Lose everything</span><b class="num neg">${pct(pAllLose)}</b></div></div>
+      <div class="note" style="margin-top:6px">${hitLines}; fewer than 2 win: ${u$(-tot)}.</div>
+      <div class="sub" style="margin-top:8px">${rows.map(r => `<div>${r.ix.map(lastName).join(" + ")} <span class="note">pays ~${r.pays.toFixed(2)}x · hits ${pct(r.Q)} · take ≤ ${Math.floor(r.take * 100)}¢</span></div>`).join("")}</div>
+      <div class="row2"><span class="note" style="flex:1">Tap legs to swap them (3 or 4). Bet it as a round robin at a sportsbook only if every leg is at or above the odds shown, or build each combo on Kalshi at the listed price or less.</span>
+        <button class="btn small primary" data-logrr='${esc(JSON.stringify({ legs: L.map(x => x.label), names: L.map(x => x.names), n: rows.length, u: tot }))}'>I bet this</button></div></div>
+    <p class="note" style="margin:6px 2px">Why only TAKE legs: on 5,200 Kalshi favourites priced 58–85% (lean and win verdicts), each leg lost about 4% after the fee, so a 3-pick round robin of them loses about 9–10% over time, however carefully the players are picked. With +3% legs the same round robin makes about +7%. Expect plenty of losing days either way.</p>`;
+}
+function valueParlays(picks, now) {
+  // Parlays built ONLY from TAKE legs (each already +EV), one leg per match. Edges multiply, and so do payouts.
+  // 15-year test: favourite parlays lost 4-8% (the margin compounds); parlays of +EV legs made +9% (2 legs) / +15% (3 legs).
+  const S = B.config.strategies;
+  const legs = takeLegs(picks, now);
+  if (legs.length < 2) return `<h2 class="sec">💥 Value parlays <span>built only from TAKE legs</span></h2><div class="card empty">Need at least two TAKE bets on different matches to build a value parlay. Check back after the next refresh.</div>`;
+  const out = [];
+  const pick = (k, start, cur) => {
+    if (cur.length === k) { out.push(cur.slice()); return; }
+    for (let i = start; i < legs.length; i++) { cur.push(legs[i]); pick(k, i + 1, cur); cur.pop(); }
+  };
+  [2, 3, 4].forEach(k => pick(k, 0, []));
+  const rows = out.map(L => {
+    const Q = L.reduce((a, x) => a * x.q, 1), C = L.reduce((a, x) => a * x.c, 1);
+    let take = Q / 1.03;                                   // highest combo price that still leaves a 3% edge after the fee
+    for (let i = 0; i < 30; i++) take = Q / 1.03 - fee(take);
+    return { L, Q, C, ev: Q / C - 1, take, pays: 1 / (take + fee(take)) };
+  }).filter(r => r.ev > 0.03 && r.take > 0.02);
+  if (!rows.length) return "";
+  const byEV = rows.slice().sort((a, b) => b.ev - a.ev).slice(0, 4);
+  const byPay = rows.filter(r => !byEV.includes(r)).sort((a, b) => b.pays - a.pays).slice(0, 3);
+  const units = n => n === 2 ? 0.5 : n === 3 ? 0.25 : 0.1;
+  const card = r => `<div class="pick">
+      <div><div class="what">${r.L.length}-leg parlay · pays ~${r.pays.toFixed(1)}x</div>
+        <div class="sub">${r.L.map(x => `${esc(x.label.replace(" to win", ""))} <span class="note">(${cents(x.ask)}, ${esc(S[(x.tags || []).find(t => (S[t]?.kelly_mult || 0) > 0)]?.label || "")})</span>`).join(" + ")}</div></div>
+      <div class="right"><div class="units">${units(r.L.length)}<small>u</small></div><div class="note">$${(units(r.L.length) * unitVal()).toFixed(0)}</div></div>
+      <div class="row2"><span class="badge good">${sgn(r.ev)} EV</span><span class="badge">hits ${pct(r.Q, 1)}</span><span class="badge warn">take ≤ ${Math.floor(r.take * 100)}¢</span>
+        <span style="flex:1"></span><button class="btn small" data-logcombo='${esc(JSON.stringify({ legs: r.L.map(x => x.label), names: r.L.map(x => x.names), p: r.Q, take: Math.floor(r.take * 100), start: Math.min(...r.L.map(x => x.start)) }))}'>I bet this</button></div></div>`;
+  return `<h2 class="sec">💥 Value parlays <span>built only from TAKE legs</span></h2>
+    <div class="card list">${byEV.map(card).join("")}</div>
+    ${byPay.length ? `<h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--mute);margin:12px 2px 6px">Bigger payouts (still +EV, hit less often)</h3><div class="card list">${byPay.map(card).join("")}</div>` : ""}
+    <p class="note" style="margin:6px 2px">Every leg is a current TAKE bet, so its edge carries into the parlay. Build it on Kalshi as a combo (request a quote) and accept only at the listed price or less; each leg must still be at or under its own price. Legs are different matches, treated as independent. Over 15 years, parlays of favourites lost 4–8% while parlays of +EV legs made +9% (2 legs) to +15% (3 legs). Most of these still lose: a 3-leg parlay with underdog legs might hit 1 time in 15–30. Keep them at the small stakes shown, and never chase a missed parlay.</p>`;
+}
+function renderPicks() {
+  const now = Date.now() / 1000;
+  const S = B.config.strategies;
+  const picks = (B.picks || []).filter(p => p.start > now - 600);
+  const tag = p => p.tags.find(t => (S[t]?.kelly_mult || 0) > 0) || p.tags[0];
+  const takes = [];
+  picks.filter(p => p.units > 0).forEach(p => {
+    const t = tag(p);
+    takes.push({ score: p.units * p.ev, what: p.label, sub: `${esc(p.names.join(" vs "))} · ${esc(p.tourney)} · ${dayOf(p.start)} ${when(p.start)}`,
+      where: `Kalshi · ask ${cents(p.ask)}`, max: `only at ${p.take_at ?? "—"}¢ or less`, edge: `${sgn(p.ev)} EV`,
+      units: p.units, why: S[t]?.why || S[t]?.label || "", logAttr: `data-log="${esc(p.ticker)}"`, risk: matchOf(p.match).risk });
+  });
+  (B.futures || []).forEach(t => t.players.forEach(p => {
+    if (!p.tags.length || !(p.units > 0)) return;
+    const yes = p.side === "yes", price = yes ? p.ask : 1 - p.bid;
+    takes.push({ score: p.units * ((yes ? p.ev_yes : p.ev_no) || 0), what: `${p.name} ${yes ? "to win" : "NOT to win"} ${t.tourney}`, sub: `Tournament winner market`,
+      where: `Kalshi · ${yes ? "Yes" : "No"} at ${cents(price)}`, max: `fair ${pct(yes ? p.fair : 1 - p.fair)}`, edge: `${sgn(yes ? p.ev_yes : p.ev_no)} EV`,
+      units: p.units, why: S.futures?.why || "", logAttr: `data-logfut='${esc(JSON.stringify({ t: p.ticker, n: p.name, s: p.side, b: p.bid, a: p.ask, tn: t.tourney, tour: t.tour }))}'` });
+  }));
+  const kf = B.config.kelly_frac || 0.25, maxU = B.config.max_units || 3, ts_ = tsettings();
+  const seenLS = {};
+  const linesFresh = B.lines_meta?.ts && now - B.lines_meta.ts < 3 * 3600;
+  (linesFresh ? (B.lines || []) : []).filter(ln => Date.parse(ln.start) / 1000 > now + 300).forEach(ln => (ln.value || []).forEach(o => {
+    const key = ln.names.join("|") + "|" + o.player;
+    if (seenLS[key]) { if (!seenLS[key].where.includes(o.book)) seenLS[key].where = seenLS[key].where.replace(/ ([+-]\d+)$/, `, ${o.book} $1`); return; }
+    const p = ln.fair[o.player], k = (p * o.price - 1) / (o.price - 1);
+    const u = k > 0 ? Math.round(Math.min(Math.max(k * kf * (S.line_shop?.kelly_mult ?? 1) / (ts_.unit_pct / 100), 0.25), maxU) * 4) / 4 : 0;
+    if (!u) return;
+    takes.push({ score: u * o.ev, what: `${o.player} to win`, sub: `${esc(ln.names.join(" vs "))} · ${dayOf(Date.parse(ln.start) / 1000)} ${when(Date.parse(ln.start) / 1000)}`,
+      where: `${o.book} ${o.us}`, max: `fair ${pct(p)} (Pinnacle)`, edge: `${sgn(o.ev)} EV`, units: u, why: (S.line_shop?.why || "") + ` Prices checked ${B.lines_meta?.ts ? ago(B.lines_meta.ts) : "—"}; confirm the price before betting.`,
+      logAttr: `data-logbook='${esc(JSON.stringify({ n: o.player, b: o.book, o: o.price, m: ln.names.join(" vs "), t: (ln.tickers || {})[o.player] || null, u }))}'` });
+    seenLS[key] = takes[takes.length - 1];
+  }));
+  takes.sort((a, b) => b.score - a.score);
+  const watch = picks.filter(p => !(p.units > 0));
+  const staking = Object.entries(S).filter(([, s]) => (s.kelly_mult || 0) > 0).map(([, s]) => s.label);
+  const soon = (B.matches || []).filter(m => m.status === "pre" && m.risk && m.start < now + 36 * 3600);
+  const stayL = soon.filter(m => m.risk.level === "stay"), warnL = soon.filter(m => m.risk.warn.some(t => !t.startsWith("Coin flip")) && m.risk.level !== "stay"),
+        goodL = soon.filter(m => m.risk.level === "good");
+  const sbOpen = (SB && SB.open) ? SB.open.filter(b => b.start > now) : [];
+  const tU = takes.reduce((a, x) => a + x.units, 0) + sbOpen.reduce((a, b) => a + b.units, 0);
+  let h = `<div class="card" style="margin-top:14px;padding:10px 12px"><b>📋 Today's playbook</b>
+    <div class="note" style="margin-top:4px">✅ <b>${takes.length}</b> tennis bet${takes.length === 1 ? "" : "s"} below · 📚 <b>${sbOpen.length}</b> on the Books tab · total ${tU.toFixed(1)}u ($${(tU * unitVal()).toFixed(0)}) if you take them all<br>
+    🚫 <b>${stayL.length}</b> matches to stay away from · ⚠ <b>${warnL.length}</b> upset alerts · 🛡 <b>${goodL.length}</b> favourites steadier than priced (next 36 h)</div>
+    <div class="note" style="margin-top:4px">Rules that make money long-term: bet only TAKE cards, only at the listed price or better, at the units shown. Skip stay-away matches. Never chase a loss with a bigger stake.</div></div>`;
+  // 🔒 Locks: yes/no picks. Market 85%+, our model within 10 pts, no risk flags, not ITF (tools/locks: won 93-96%)
+  const locks = (B.matches || []).filter(m => m.status === "pre" && m.p_mkt != null && m.model && !String(m.series).includes("ITF") && m.start < now + 36 * 3600)
+    .map(m => { const fi = m.p_mkt >= 0.5 ? 0 : 1, pf = fi ? 1 - m.p_mkt : m.p_mkt, pm = fi ? 1 - m.model.p_model : m.model.p_model;
+      return { m, fi, pf, pm, ask: m.q?.[fi]?.ask, bet: (m.bets || []).find(b => (b.tags || []).includes("lock")) }; })
+    .filter(x => x.pf >= 0.85 && Math.abs(x.pm - x.pf) < 0.10 && !["stay", "warn"].includes(x.m.risk?.level) && (x.m.model.dis ?? 0) < 0.6)
+    .sort((a, b) => b.pf - a.pf);
+  if (locks.length) h += `<h2 class="sec">🔒 Locks <span>yes/no picks · ${locks.length} in the next 36 h</span></h2><div class="card list">${locks.map(x => {
+      const top = x.pf >= 0.9 && x.pm >= 0.9;
+      return `<button class="mrow" data-goto="${x.m.id}" style="grid-template-columns:1fr"><div>
+        <div class="what"><span class="takechip" style="background:var(--good)">YES</span> ${esc(x.m.names[x.fi])} beats ${esc(x.m.names[1 - x.fi])}</div>
+        <div class="note">${esc(x.m.tourney)} · ${dayOf(x.m.start)} ${when(x.m.start)} · market ${pct(x.pf)}, our model ${pct(x.pm)} · ${top ? "picks like this won 95–96% (about 1 loss in 25)" : "picks like this won 94–95% (about 1 loss in 18)"} · model confidence ${x.m.model.dis < 0.3 ? "high" : "medium"}</div>
+        <div class="note" style="margin-top:2px">${x.bet && x.bet.units ? `<b class="pos">Bet ${x.bet.units}u on Kalshi at ${x.bet.take_at ?? "—"}¢ or less</b> (now ${cents(x.ask)})` : x.ask > 0.95 ? "Too expensive to bet on its own at " + cents(x.ask) + ": one loss wipes out about 20 wins." : "Not a bet right now: the price has no edge after the fee."}</div></div></button>`; }).join("")}</div>
+    <p class="note" style="margin:6px 2px">Near-certain, not certain. On 8,000 Kalshi matches this filter won 93–94% of the time (95–96% at 90%+) and made a small profit (+1.4% / +2.0%) at the real price. That's because big favourites are slightly under-priced. Djokovic at 90% lost today, so keep stakes small and never chain them into a big parlay.</p>`;
+  h += `<h2 class="sec">✅ Bets to take now <span>${takes.length ? takes.length + " right now" : "none right now"}</span></h2>`;
+  h += takes.length ? `<div class="card list">${takes.map(takeCard).join("")}</div>`
+    : `<div class="card empty">Nothing to take right now — that's the normal state. Bets only appear here when a price is clearly off; the board checks every ~20 minutes.</div>`;
+  const dropped = (B.dropped || []).filter(d => d.start > now);
+  if (dropped.length) h += `<h2 class="sec">⛔ No longer a bet <span>was a TAKE earlier, not any more</span></h2><div class="card list">${dropped.map(d => `<div class="pick">
+      <div><div class="what" style="color:var(--mute)">${esc(d.label)}</div><div class="sub">${esc(d.names.join(" vs "))} · ${esc(d.tourney)} · ${dayOf(d.start)} ${when(d.start)}</div></div>
+      <div class="right"><div class="units" style="color:var(--mute);font-size:15px">skip</div></div>
+      <div class="row2"><span class="badge">was ${d.units}u at ${cents(d.entry)}</span><span class="badge bad">now ${d.now == null ? "off the board" : cents(d.now)}</span>
+        <span class="note">${d.now != null && d.now > d.entry + 0.005 ? `The price went up, so the edge is gone. If you already bet it at ${cents(d.entry)}, keep it: you got the better number.`
+          : d.now == null ? "No longer listed before the match." : "Same price, but it no longer meets the rule (the strategy was tightened or the fair price moved). Don't add to it."}</span></div></div>`).join("")}</div>`;
+  h += valueParlays(picks, now);
+  h += roundRobin(picks, now);
+  const hist = (B.history || []).filter(x => x.start < now || x.result);       // upcoming ones are in the TAKE list
+  if (hist.length) {
+    const done = hist.filter(x => histPnl(x) != null), tot = done.reduce((a, x) => a + histPnl(x), 0);
+    h += `<h2 class="sec">🕘 Earlier picks <span>last 48 h · ${done.length ? `${done.filter(x => x.result === "yes").length}-${done.filter(x => x.result === "no").length}, ${tot >= 0 ? "+" : ""}${tot.toFixed(2)}u` : "none settled yet"}</span></h2>
+      <div class="card list">${hist.map(x => { const v = histPnl(x), st = x.result === "yes" ? "WON" : x.result === "no" ? "LOST" : x.result === "void" ? "void" : x.start < now ? "in play" : "upcoming";
+        return `<div class="bet"><div><div class="what">${esc(x.label)}</div><div class="sub">${esc((x.names || []).join(" vs "))} · ${dayOf(x.start)} ${when(x.start)} · ${x.units}u at ${x.kind === "book" ? x.odds?.toFixed(2) : cents(x.entry)} · ${esc((x.tags || []).map(t => S[t]?.label || t).join(", "))}</div></div>
+        <div class="res ${v > 0 ? "pos" : v < 0 ? "neg" : ""}">${st}${v != null ? `<div class="note">${v >= 0 ? "+" : ""}${v.toFixed(2)}u</div>` : ""}</div></div>`; }).join("")}</div>
+      <p class="note" style="margin:6px 2px">Every pick that carried a stake, kept after its match starts so you can see how it went. Paper-only picks are graded on the Model record tab.</p>`;
+  }
+  const mini = (L, f) => `<div class="card list">${L.slice(0, 12).map(m => `<button class="mrow" data-goto="${m.id}" style="grid-template-columns:1fr"><div><b>${esc(m.names.join(" vs "))}</b> <span class="note">${dayOf(m.start)} ${when(m.start)} · ${esc(m.tourney)}</span><div class="note">${esc(f(m))}</div></div></button>`).join("")}</div>`;
+  if (stayL.length) h += `<h2 class="sec">🚫 Stay away <span>${stayL.length} · unpredictable, don't bet either side</span></h2>` + mini(stayL, m => m.risk.stay[0]);
+  if (warnL.length) h += `<details class="card" style="margin-top:12px;padding:4px 12px"><summary style="padding:8px 0;font-weight:700;cursor:pointer">⚠ Upset alerts (${warnL.length}): be careful backing these favourites</summary>${riskLive("warn") ? `<p class="note">${esc(riskLive("warn"))} Upsets happen at about the price's rate; the surest way to avoid them is a bigger favourite and fewer legs.</p>` : ""}${mini(warnL, m => m.risk.warn.filter(t => !t.startsWith("Coin flip")).join(" "))}</details>`;
+  if (goodL.length) h += `<details class="card" style="margin-top:12px;padding:4px 12px"><summary style="padding:8px 0;font-weight:700;cursor:pointer">🛡 Steadier favourites (${goodL.length}): not bets by themselves</summary>${riskLive("good") ? `<p class="note">${esc(riskLive("good"))}</p>` : ""}
+    <p class="note">Situations where favourites won more often than their price said, in both halves of the data. They become bets only when a TAKE card appears (e.g. veteran favourite).</p>${mini(goodL, m => m.risk.fav + ": " + m.risk.good[0])}</details>`;
+  h += `<div class="callout"><b>How to use this:</b> only the green <b>TAKE</b> cards above are bets. Stake the units shown (1u = $${unitVal().toFixed(0)}) and only at the price shown or better.
+    These come from the strategies with a real basis — ${staking.map(esc).join(", ")} — and none is proven on tennis yet, so stakes are small. Everything in the watchlist below is tracked on paper only: <b>don't bet it</b>; the Model record tab shows if it ever earns a stake.</div>`;
+  h += `<details class="card" style="margin-top:14px;padding:4px 12px"><summary style="padding:8px 0;font-weight:700;cursor:pointer">👀 Watchlist — paper only, don't bet (${watch.length})</summary>
+    <p class="note">Model-based picks that failed the Kalshi backtests. They're logged and graded automatically so we find out for sure; if one strategy keeps winning over 100+ picks, it gets promoted to a TAKE.</p>
+    ${watch.length ? `<div class="list">${watch.map(pickCard).join("")}</div>` : `<div class="empty">Nothing on the watchlist.</div>`}</details>`;
+  h += `<h2 class="sec">Tools <span>reference prices, not bets on their own</span></h2>`;
+  h += renderLines();
+  h += renderFutures();
+  const combos = (B.combos || []).filter(c => c.start > Date.now() / 1000 - 600);
+  h += `<h2 class="sec">Combos <span>request a quote on Kalshi, take it at or below the price</span></h2>`;
+  h += combos.length ? `<div class="card list">${combos.map(c => `<div class="pick">
+      <div><div class="what">${c.legs.map(esc).join(" + ")}</div>
+        <div class="sub">${c.kind === "same" ? esc(c.names.join(" vs ")) + " · same match" : c.names.map(n => esc(n.join(" v "))).join(" & ")} · ${dayOf(c.start)} ${when(c.start)}</div></div>
+      <div class="right"><div class="units" style="color:var(--ink)">${c.fair_c}¢</div><div class="note">fair</div></div>
+      <div class="row2"><span class="badge">${pct(c.p, 1)} chance</span><span class="badge warn">Take ≤ ${c.take_at ?? "—"}¢</span>
+        ${c.kind === "same" ? `<span class="badge ${c.lift > 0 ? "good" : "bad"}">${c.lift > 0 ? "legs go together" : "legs pull apart"} ${sgn(c.lift, 0)}</span>` : `<span class="badge good">${sgn(c.ev_at_asks)} at current asks</span>`}
+        <span style="flex:1"></span><button class="btn small" data-logcombo='${esc(JSON.stringify({ legs: c.legs, names: c.names, p: c.p, take: c.take_at, start: c.start }))}'>I bet this</button></div></div>`).join("")}</div>`
+    : `<div class="card empty">No combos worth requesting right now.</div>`;
+  h += `<p class="note" style="margin:12px 2px">Same-match combos price exactly from the model's set-by-set simulation, so "fav wins + under" is priced with the correlation a sportsbook parlay ignores. Two-match combos multiply two independent value bets; keep combos to 2 legs.</p>`;
+  return h;
+}
+
+// ------------------------------------------------------------- sportsbook line shopping
+function renderLines() {
+  const L = B.lines || [], meta = B.lines_meta || {};
+  let h = `<h2 class="sec">Sportsbook value <span>US books paying more than Pinnacle's fair line</span></h2>`;
+  if (meta.status === "no key") return h + `<div class="card empty">Waiting for the Odds API key to be added to the cloud job.</div>`;
+  const age = meta.ts ? ago(meta.ts) : "never";
+  const offers = [];
+  L.filter(ln => Date.parse(ln.start) / 1000 > Date.now() / 1000 + 300).forEach(ln => (ln.value || []).forEach(o => offers.push({ ...o, ln })));
+  if (meta.ts && Date.now() / 1000 - meta.ts > 3 * 3600) h += `<div class="callout">⚠ These sportsbook prices were checked ${age}. They're too old to bet as-is, so they aren't TAKE cards. The scanner rechecks as its daily Odds API budget allows.</div>`;
+  offers.sort((a, b) => b.ev - a.ev);
+  const t = tsettings(), kf = B.config.kelly_frac || 0.25, maxU = B.config.max_units || 3;
+  const unitsFor = (p, o) => { const k = (p * o - 1) / (o - 1); if (k <= 0) return 0; return Math.round(Math.min(Math.max(k * kf / (t.unit_pct / 100), 0.25), maxU) * 4) / 4; };
+  const note = `<p class="note" style="margin:6px 2px">Prices checked ${age} (the free Odds API plan allows a few scans a day; ${meta.remaining ?? "?"} credits left this month). Books move fast: confirm the price is still there before betting. This line-shopping approach tested +1.4% to +3.1% per bet across sports; it hasn't been proven on tennis yet.</p>`;
+  if (!offers.length) return h + `<div class="card empty">No US sportsbook price beats Pinnacle by 2%+ in the last scan${L.length ? ` (${L.length} matches checked)` : ""}.</div>` + note;
+  h += `<div class="card list">${offers.slice(0, 12).map(o => { const p = o.ln.fair[o.player], u = unitsFor(p, o.price); return `<div class="pick">
+    <div><div class="what">${esc(o.player)} <span class="note">to win</span></div><div class="sub">${esc(o.ln.names.join(" vs "))} · ${dayOf(Date.parse(o.ln.start) / 1000)} ${when(Date.parse(o.ln.start) / 1000)}</div></div>
+    <div class="right"><div class="units">${u}<small>u</small></div><div class="note">$${(u * unitVal()).toFixed(0)}</div></div>
+    <div class="row2"><span class="badge good">${esc(o.book)} ${esc(o.us)}</span><span class="badge">Pinnacle fair ${pct(p)}</span><span class="badge good">${sgn(o.ev)} EV</span>
+      <span style="flex:1"></span><button class="btn small primary" data-logbook='${esc(JSON.stringify({ n: o.player, b: o.book, o: o.price, m: o.ln.names.join(" vs "), t: (o.ln.tickers || {})[o.player] || null, u }))}'>I bet this</button></div></div>`; }).join("")}</div>` + note;
+  return h;
+}
+
+// ------------------------------------------------------------- all-sports sportsbook board
+const SPORT = { americanfootball_nfl: "NFL", americanfootball_ncaaf: "College football", basketball_nba: "NBA", basketball_ncaab: "College basketball",
+  icehockey_nhl: "NHL", baseball_mlb: "MLB", basketball_wnba: "WNBA", mma_mixed_martial_arts: "MMA", boxing_boxing: "Boxing" };
+const sportName = s => SPORT[s] || s.replace("soccer_", "Soccer: ").replace("tennis_", "Tennis: ").split("_").join(" ");
+const betText = b => { const o = String(b.outcome).split("|")[0], g = String(b.sport || "").startsWith("tennis") ? " games" : "";
+  return b.market === "spreads" ? `${o} ${b.point > 0 ? "+" : ""}${b.point}${g}` : b.market === "totals" ? `${o} ${b.point}${g}` : `${o} to win`; };
+function bookCombos(open) {
+  // Parlays only of +EV legs, all at the same book and from different games: each leg's edge multiplies.
+  // 15-year test: parlays of plain favourites lost 4-8% at Bet365, while 2-3 leg parlays of line-shopping legs made +9% to +15% (wide error bars).
+  const byBook = {};
+  open.filter(b => b.start > Date.now() / 1000 + 600 && b.price <= 3.5 && !b.flag).forEach(b => (byBook[b.book] = byBook[b.book] || []).push(b));
+  const out = [];
+  for (const [book, L] of Object.entries(byBook)) {
+    for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {
+      if (L[i].game === L[j].game) continue;
+      out.push([book, [L[i], L[j]]]);
+      for (let k = j + 1; k < L.length; k++) if (L[k].game !== L[i].game && L[k].game !== L[j].game) out.push([book, [L[i], L[j], L[k]]]);
+    }
+  }
+  if (!out.length) return "";
+  const rows = out.map(([book, legs]) => { const odds = legs.reduce((a, b) => a * b.price, 1), p = legs.reduce((a, b) => a * b.fair, 1); return { book, legs, odds, p, ev: p * odds - 1 }; })
+    .sort((a, b) => b.ev - a.ev).slice(0, 4);
+  const us = d => d >= 2 ? `+${Math.round((d - 1) * 100)}` : `${Math.round(-100 / (d - 1))}`;
+  return `<h2 class="sec">🔗 Combos from these bets <span>same book, +EV legs only</span></h2><div class="card list">${rows.map(r => `<div class="pick">
+      <div><div class="what">${r.legs.length}-leg parlay at ${esc(r.book)} · ${esc(us(r.odds))}</div><div class="sub">${r.legs.map(b => esc(betText(b))).join(" + ")}</div></div>
+      <div class="right"><div class="units">0.5<small>u</small></div></div>
+      <div class="row2"><span class="badge good">${sgn(r.ev)} EV</span><span class="badge">hits ${pct(r.p)}</span><span style="flex:1"></span>
+      <button class="btn small" data-logbook='${esc(JSON.stringify({ l: `Parlay: ${r.legs.map(b => betText(b)).join(" + ")} (${r.book})`, b: r.book, o: Math.round(r.odds * 1000) / 1000, m: r.legs.map(b => b.game).join(" | "), t: null, u: 0.5, ty: "Combo", s: "+EV parlay (books)" }))}'>I bet this</button></div></div>`).join("")}</div>
+    <p class="note" style="margin:6px 2px">Every leg must still be at its listed price. Combos multiply the edge and the swings. Over 15 years, parlays of plain favourites lost 4–8%, while parlays of +EV legs made +9% (2 legs) to +15% (3 legs), but with wide error bars. So keep them at 0.5u.</p>`;
+}
+function renderBooks() {
+  if (!SB) return `<div class="card empty" style="margin-top:14px">The sportsbook board hasn't been generated yet.</div>`;
+  const r = SB.record, c = SB.clv_all || {}, uv = unitVal();
+  const sbOld = SB.last_scan && Date.now() / 1000 - SB.last_scan > 3 * 3600;
+  SB.open = (SB.open || []).filter(b => b.start > Date.now() / 1000 + 300);
+  let h = `<h2 class="sec" style="margin-top:14px">✅ Sportsbook bets to take <span>${SB.open.length || "none"} open</span></h2>`;
+  if (sbOld) h += `<div class="callout">⚠ Prices last checked ${ago(SB.last_scan)}. Books move fast: only bet if the book still shows the listed price or better. The free Odds API plan allows a few scans a day, now spread across the day.</div>`;
+  if (!SB.has_key) h += `<div class="callout">Waiting for the Odds API key to be added to the cloud job (one command on your PC; see our chat).</div>`;
+  h += SB.open.length ? `<div class="card list">${SB.open.map(b => `<div class="pick take">
+      <div><div class="what"><span class="takechip">TAKE</span>${esc(betText(b))}</div><div class="sub">${esc(sportName(b.sport))} · ${esc(b.game)} · ${dayOf(b.start)} ${when(b.start)}</div></div>
+      <div class="right"><div class="units">${b.units}<small>u</small></div><div class="note">$${(b.units * uv).toFixed(0)}</div></div>
+      <div class="row2"><span class="badge good">${esc(b.book)} ${esc(b.us)}</span><span class="badge warn">only at ${esc(b.min_us)} or better</span><span class="badge good">${sgn(b.ev)} EV</span><span class="badge">fair ${pct(b.fair)}</span>
+        <span style="flex:1"></span><button class="btn small primary" data-logbook='${esc(JSON.stringify({ l: `${betText(b)} (${b.book})`, b: b.book, o: b.price, m: b.game, t: null, u: b.units }))}'>I bet this</button></div>
+      ${b.flag ? `<div class="row2" style="margin-top:0"><span class="badge bad">${esc(b.flag)}</span></div>` : ""}</div>`).join("")}</div>`
+    : `<div class="card empty">No sportsbook price beats Pinnacle's fair line right now. They appear for short windows when a book lags Pinnacle.</div>`;
+  h += bookCombos(SB.open);
+  h += `<div class="callout">US sportsbook prices that pay more than <b>Pinnacle's no-vig line</b> (the sharpest book), all sports. This is the approach that tested +1.4% to +3.1% per bet. Bet the units shown at the listed book, only if the price is still there. Bets without a Pinnacle line are no longer taken (they had −4% closing-line value).</div>`;
+  h += `<h2 class="sec">Record <span>cloud scanner, since it went live</span></h2><div class="stats">
+    <div class="stat"><small>Record</small><b>${r.w}-${r.l}</b></div>
+    <div class="stat"><small>Units</small><b class="${r.pnl >= 0 ? "pos" : "neg"}">${r.pnl >= 0 ? "+" : ""}${r.pnl}u</b></div>
+    <div class="stat"><small>ROI</small><b class="${r.roi >= 0 ? "pos" : "neg"}">${sgn(r.roi)}</b></div>
+    <div class="stat"><small>Beat the close</small><b>${c.beat == null ? "—" : pct(c.beat)}</b></div>
+    <div class="stat"><small>Avg CLV</small><b class="${(c.avg || 0) >= 0 ? "pos" : "neg"}">${c.avg == null ? "—" : sgn(c.avg)}</b></div></div>
+    <p class="note" style="margin:6px 2px">Closing-line value (did the fair price move your way before the start) is the fast, honest test: positive on average means real edge, long before ROI settles down.</p>`;
+  const tbl = (title, o) => Object.keys(o).length ? `<div class="card tw" style="padding:6px 8px;margin-top:10px"><table><tr><th>${title}</th><th class="n">Bets</th><th class="n">W-L</th><th class="n">Units</th><th class="n">CLV</th></tr>
+    ${Object.entries(o).sort((a, b) => b[1].n - a[1].n).map(([k, v]) => `<tr><td>${esc(title === "Sport" ? sportName(k) : k)}</td><td class="n">${v.n}</td><td class="n">${v.w}-${v.l}</td><td class="n ${v.pnl >= 0 ? "pos" : "neg"}">${v.pnl >= 0 ? "+" : ""}${v.pnl}</td><td class="n">${v.clv == null ? "—" : sgn(v.clv)}</td></tr>`).join("")}</table></div>` : "";
+  h += tbl("Sport", SB.by_sport || {}) + tbl("Book", SB.by_book || {});
+  if ((SB.recent || []).length) h += `<h2 class="sec">Recently settled</h2><div class="card list">${SB.recent.slice(0, 20).map(b => `<div class="bet"><div><div class="what">${esc(betText(b))}</div><div class="sub">${esc(sportName(b.sport))} · ${esc(b.game)} · ${esc(b.book)} ${esc(b.us)} · ${b.units}u${b.clv != null ? ` · CLV ${sgn(b.clv)}` : ""}</div></div><div class="res ${b.result === "win" ? "pos" : b.result === "loss" ? "neg" : ""}">${b.result === "push" ? "push" : (b.pnl_units >= 0 ? "+" : "") + (b.pnl_units || 0).toFixed(2) + "u"}</div></div>`).join("")}</div>`;
+  h += `<p class="note" style="margin:10px 2px">Last scan ${SB.last_scan ? ago(SB.last_scan) : "—"} · Odds API credits left ≈ ${SB.credits_left} · used today ${SB.spent_today}/${SB.daily_budget}. The free plan allows a few scans a day; the $30/month plan would let it rescan every 15–20 minutes and catch far more of these short windows.</p>`;
+  return h;
+}
+
+// ------------------------------------------------------------- tournament winners (draw simulation)
+function renderFutures() {
+  const F = B.futures || [];
+  if (!F.length) return "";
+  const fb = (B.model_meta && B.model_meta.futures_backtest) || null;
+  let h = `<h2 class="sec">Tournament winners <span>exact draw odds vs Kalshi</span></h2>
+    <div class="callout" style="margin-top:0">Every remaining match path in the draw is priced: matches already on Kalshi use Kalshi's own live price, later rounds use the model shifted by what Kalshi says about each player now. "Win" is the pure draw simulation; "Value" uses a 50/50 mix of that and Kalshi's mid (when there is a real book) and must beat the ask (or, for a "No", the bid) after the fee.${fb ? ` Backtest: ${esc(fb.summary)}` : " Tracked on paper until the backtest and live record back it."}</div>`;
+  for (const t of F) {
+    const rows = t.players.filter(p => p.alive !== false).slice(0, 12);
+    const keys = rows.length ? Object.keys(rows[0].reach).slice(-4) : [];
+    h += `<div class="card" style="margin-top:10px;padding:8px 10px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b>${esc(t.tourney)}</b><span class="note">${esc(t.surface)} · ${t.nudged ? t.nudged + " players priced off Kalshi" : "model only"}</span></div>
+      <div class="tw"><table><tr><th>Player</th>${keys.slice(0, -1).map(k => `<th class="n">${k}</th>`).join("")}<th class="n">Win</th><th class="n">Kalshi</th><th class="n">Value</th><th></th></tr>
+      ${rows.map(p => { const ev = p.side === "yes" ? p.ev_yes : p.ev_no; return `<tr><td>${esc(p.name)}</td>${keys.slice(0, -1).map(k => `<td class="n">${pct(p.reach[k])}</td>`).join("")}
+        <td class="n"><b>${pct(p.sim ?? p.fair, 1)}</b></td><td class="n">${cents(p.bid)}/${cents(p.ask)}</td>
+        <td class="n ${ev != null && ev > 0 ? "pos" : ""}">${ev != null && ev > 0 ? (p.side === "yes" ? "Yes " : "No ") + sgn(ev, 0) : "—"}</td>
+        <td>${p.tags.length ? `<button class="btn small" data-logfut='${esc(JSON.stringify({ t: p.ticker, n: p.name, s: p.side, b: p.bid, a: p.ask, tn: t.tourney, tour: t.tour }))}'>Log</button>` : ""}</td></tr>`; }).join("")}</table></div></div>`;
+  }
+  return h;
+}
+
+// ------------------------------------------------------------- board tab
+const entryName = { Q: "Qualifier", WC: "Wildcard", LL: "Lucky loser", PR: "Protected ranking (back from injury)", SE: "Special exempt", Alt: "Alternate" };
+function matchRow(m) {
+  const md = m.model, pm = m.p_mkt;
+  const p = md ? md.p : pm;
+  const fav = p == null ? null : p >= 0.5 ? 0 : 1;
+  const best = (m.bets || []).filter(b => b.kind === "match").sort((a, b) => b.ev - a.ev)[0];
+  const status = m.status === "live" ? `<span class="badge live">LIVE</span>` : "";
+  const dot = `<span title="${esc(m.surface)}" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${surfColor[m.surface] || "#888"}"></span>`;
+  return `<button class="mrow" data-open="${m.id}" aria-expanded="${S.open.has(m.id)}">
+    <div class="t">${m.status === "live" ? "LIVE" : when(m.start)}<small>${esc(levelName[m.level] || m.level)}</small></div>
+    <div class="who">
+      ${[0, 1].map(i => `<div class="${fav === i ? "fav" : ""}"><span class="nm">${esc(m.names[i])}${(m.entry || [])[i] ? ` <small class="note" title="${esc(entryName[m.entry[i]] || m.entry[i])}">(${esc(m.entry[i])})</small>` : ""}</span><span class="pp" style="color:var(--${i ? "b" : "a"})">${p == null ? "" : pct(i ? 1 - p : p)}</span></div>`).join("")}
+      ${p != null ? `<div class="bar2"><i style="width:${p * 100}%"></i><i style="width:${(1 - p) * 100}%"></i></div>${pm != null ? `<div class="mk"><i style="left:calc(${pm * 100}% - 1px)" title="market"></i></div>` : ""}` : ""}
+      <div class="mtags">${dot}<span class="badge">${esc(m.tourney)}${m.round ? " · " + esc(m.round) : ""}</span>${status}${m.status === "pre" ? verdictChip(m.verdict) : riskBadge(m.risk)}${sigBadges({ ...m, signals: (m.signals || []).slice(0, 2) }, null)}${(m.signals || []).length > 2 ? `<span class="badge sharp">+${m.signals.length - 2}</span>` : ""}${m.model ? "" : `<span class="badge">no model</span>`}</div>
+    </div>
+    <div class="edgecol">${best && best.ev > 0 ? `<b class="pos">${sgn(best.ev)}</b><span>${esc(best.label.replace(" to win", ""))}</span>` : (m.p_live != null ? `<b style="color:var(--mute)">${cents(m.p_live)}</b><span>live · was ${cents(pm)}</span>` : `<b style="color:var(--mute)">${pm == null ? "—" : cents(pm)}</b><span>market</span>`)}</div>
+  </button>${S.open.has(m.id) ? matchDetail(m) : ""}`;
+}
+function matchDetail(m) {
+  const md = m.model, sm = m.sum, out = [];
+  const pc = (i) => { const P = m.players[i]; if (!P || !P.known) return `<div class="pcard ${i ? "b" : "a"}"><h4>${esc(m.names[i])}</h4><div class="note">Not enough match history to rate.</div></div>`;
+    return `<div class="pcard ${i ? "b" : "a"}"><h4>${esc(m.names[i])}</h4>
+      <div class="kv"><div><span>Elo</span><b class="num">${P.elo}</b></div><div><span>${esc(m.surface)} Elo</span><b class="num">${P.selo?.[m.surface] ?? "—"}</b></div>
+      <div><span>Rank</span><b class="num">${P.rank ?? "—"}</b></div><div><span>Age</span><b class="num">${P.age ?? "—"}</b></div>
+      <div><span>Matches rated</span><b class="num">${P.n}</b></div><div><span>Days since last</span><b class="num">${P.days_off ?? "—"}</b></div>
+      ${md ? `<div><span>Hold % (proj.)</span><b class="num">${pct(sm.hold[i])}</b></div><div><span>Mins last 10 days</span><b class="num">${md.load[i]}</b></div>` : ""}</div>
+      <h3>Last ${P.form.length}</h3><div class="form">${P.form.map(f => `<i class="${f.w ? "W" : "L"}" title="${esc((f.w ? "W " : "L ") + f.opp + " " + f.s + " (" + f.d + ")")}">${f.w ? "W" : "L"}</i>`).join("")}</div>
+      <div class="note" style="margin-top:4px">${P.form.slice(0, 3).map(f => `${f.w ? "beat" : "lost to"} ${esc(f.opp)} ${esc(f.s)}`).join("; ")}</div></div>`; };
+  out.push(verdictBox(m.verdict, m.status !== "pre") + riskBox(m.risk) + `<div class="two">${pc(0)}${pc(1)}</div>`);
+  if (md) {
+    out.push(`<div><h3>Why the model says ${pct(md.p)} for ${esc(m.names[0])}</h3><div class="kv">
+      <div><span>Elo (surface-blended)</span><b class="num">${pct(md.p_elo)}</b></div>
+      <div><span>Serve/return model</span><b class="num">${md.p_stats == null ? "thin data" : pct(md.p_stats)}</b></div>
+      <div><span>Full model</span><b class="num">${pct(md.p_model)}</b></div>
+      ${md.dis != null ? `<div><span>Model confidence</span><b class="num" title="How much our overall Elo, surface Elo and serve/return ratings agree. It's about our model, not who wins. Low = they disagree, so the model is pulled toward 50/50; Locks need high or medium.">${md.dis < 0.3 ? "high" : md.dis < 0.6 ? "medium" : "low (sub-ratings disagree)"}</b></div>` : ""}
+      ${md.p_mrate != null ? `<div><span>Market rating (past prices)</span><b class="num">${pct(md.p_mrate)}</b></div><div><span>Model + market rating</span><b class="num">${pct(md.p_model_mr)}</b></div>` : ""}
+      <div><span>Kalshi ${m.p_live != null ? "pre-match" : "market"}</span><b class="num">${pct(m.p_mkt)}</b></div>
+      ${m.p_live != null ? `<div><span>Kalshi live (in play)</span><b class="num">${pct(m.p_live)}</b></div>` : ""}
+      <div><span>Final (model + market)</span><b class="num">${pct(md.p)}</b></div>
+      ${md.p_adj != null ? `<div><span>Final + signals</span><b class="num">${pct(md.p_adj)}</b></div>` : ""}
+      <div><span>Head to head</span><b class="num">${md.h2h[0]}–${md.h2h[1]}</b></div></div>
+      <p class="note">Final blends the model with the market because the market knows things ratings can't (injuries, motivation). An edge only exists where they still disagree after that.</p></div>`);
+    const sets = Object.entries(sm.sets).sort((a, b) => b[1] - a[1]);
+    const g = Object.entries(sm.gdist).map(([k, v]) => [+k, v]).sort((a, b) => a[0] - b[0]);
+    const gmax = Math.max(...g.map(x => x[1]));
+    out.push(`<div class="two"><div><h3>Set scores</h3><table>${sets.map(([k, v]) => `<tr><td>${esc(m.names[+k.split("-")[0] > +k.split("-")[1] ? 0 : 1])} ${k.split("-").sort().reverse().join("-")}</td><td class="n">${pct(v, 1)}</td><td class="n">${Math.round(100 / Math.max(v * 100, .01) * 100) / 100}x</td></tr>`).join("")}</table>
+      <div class="kv" style="margin-top:6px"><div><span>Tiebreak in match</span><b class="num">${pct(sm.tb)}</b></div><div><span>${esc(m.names[0].split(" ").slice(-1)[0])} wins set 1</span><b class="num">${pct(sm.set1)}</b></div></div></div>
+      <div><h3>Total games · avg ${sm.games}</h3><div class="hist">${g.map(([k, v]) => `<div style="height:${v / gmax * 100}%" title="${k} games: ${pct(v, 1)}"></div>`).join("")}</div>
+      <div class="histx"><span>${g[0]?.[0]}</span><span>${g[g.length - 1]?.[0]}</span></div>
+      <table style="margin-top:6px">${[-3, -1, 1, 3].map(d => { const L = Math.round(sm.games) + d + 0.5; const o = g.filter(x => x[0] > L).reduce((s, x) => s + x[1], 0); return `<tr><td>Over ${L}</td><td class="n">${pct(o)}</td><td>Under</td><td class="n">${pct(1 - o)}</td></tr>`; }).join("")}</table></div></div>`);
+  }
+  if (m.prec) out.push(`<div><h3>Priced like this before (within 7.5 pts, Kalshi since mid-2025)</h3><div class="kv" style="grid-template-columns:1fr">${m.prec.map((r, i) => {
+      const lab = `${esc(m.names[i])} at ~${Math.round(r.p * 100)}%`;
+      if (!r.n) return `<div><span>${lab}</span><b class="num" style="color:var(--mute)">${r.all ? "never at this price" : "no history"}</b></div>`;
+      const d = r.w - r.exp;
+      return `<div><span>${lab}</span><b class="num">${r.w}-${r.n - r.w} <span class="note">(prices expected ${r.exp.toFixed(1)} wins, ${d >= 0 ? "+" : ""}${d.toFixed(1)})</span></b></div>`; }).join("")}</div>
+    <div class="note" style="margin-top:4px">History only, not a signal: on 47,000 Pinnacle and 19,000 Kalshi matches, players who beat (or fell short of) their price at a level did no better (or worse) than the price the next time.</div></div>`);
+  const bets = m.bets || [];
+  if (bets.length) out.push(`<div><h3>Kalshi prices vs model</h3><div class="tw"><table><tr><th>Contract</th><th class="n">Model</th><th class="n">Ask</th><th class="n">EV</th><th class="n">Take ≤</th><th></th></tr>
+    ${bets.map(b => `<tr><td>${esc(b.label)}${b.tags.length ? ` <span class="badge good">${b.units}u</span>` : ""}</td><td class="n">${pct(b.p)}</td><td class="n">${cents(b.ask)}</td><td class="n ${b.ev >= 0 ? "pos" : "neg"}">${sgn(b.ev)}</td><td class="n">${b.take_at ?? "—"}¢</td><td><button class="btn small" data-log="${esc(b.ticker)}">Log</button></td></tr>`).join("")}</table></div></div>`);
+  else if (m.q) out.push(`<div><h3>Kalshi</h3><div class="kv">${[0, 1].map(i => `<div><span>${esc(m.names[i])}</span><b class="num">${cents(m.q[i].bid)} / ${cents(m.q[i].ask)}</b></div>`).join("")}</div></div>`);
+  const fl = m.flow;
+  if (fl && fl.n) out.push(`<div><h3>Money flow (Kalshi tape, pre-match)</h3>${(m.signals || []).map(s => `<div class="sig">${esc(s.txt)} → <b>${esc(m.names[s.dir > 0 ? 0 : 1])}</b></div>`).join("") || `<div class="note">No strong one-way money.</div>`}
+    <div class="kv" style="margin-top:8px"><div><span>Traded</span><b class="num">$${Math.round(fl.vol).toLocaleString()}</b></div>
+    <div><span>Net toward ${esc(m.names[0].split(" ").slice(-1)[0])}</span><b class="num ${fl.net >= 0 ? "pos" : "neg"}">$${Math.round(fl.net).toLocaleString()}</b></div>
+    <div><span>Big tickets ($250+)</span><b class="num">${fl.big_n} · $${Math.round(fl.big_net).toLocaleString()} net</b></div>
+    <div><span>Opened → now</span><b class="num">${cents(fl.px_first)} → ${cents(fl.px_last)}</b></div>
+    <div><span>Biggest single bet</span><b class="num">$${Math.round(fl.whale).toLocaleString()} on ${esc(m.names[fl.whale_dir > 0 ? 0 : 1].split(" ").slice(-1)[0])}</b></div></div></div>`);
+  if (m.poly) out.push(`<div><h3>Polymarket smart money</h3><div class="kv"><div><span>Polymarket price</span><b class="num">${cents(m.poly.poly_price)}</b></div><div><span>Volume</span><b class="num">$${m.poly.poly_vol.toLocaleString()}</b></div>
+    ${[0, 1].map(i => `<div><span>Proven winners on ${esc(m.names[i].split(" ").slice(-1)[0])}</span><b class="num">$${m.poly.smart[i].toLocaleString()}</b></div>`).join("")}</div>
+    ${m.poly.who.flat().length ? `<div class="note" style="margin-top:4px">${m.poly.who.map((w, i) => w.length ? `${esc(m.names[i])}: ${w.map(esc).join(", ")}` : "").filter(Boolean).join("<br>")}</div>` : ""}</div>`);
+  if (md) out.push(liveCalc(m));
+  return `<div class="detail">${out.join("")}</div>`;
+}
+function liveCalc(m) {
+  const st = m._live || (m._live = { sa: 0, sb: 0, ga: 0, gb: 0, pa_: 0, pb_: 0, srv: 0, tb: false });
+  const pts = ["0", "15", "30", "40", "Ad"];
+  const p = liveProb(m.model.pa, m.model.pb, m.bo, st);
+  const ka = m.q?.[0]?.ask;
+  const step = (k, v) => `<span class="step"><button data-lc="${m.id}" data-k="${k}" data-d="-1">−</button><span>${st.tb && (k === "pa_" || k === "pb_") ? v : (k === "pa_" || k === "pb_") ? pts[Math.min(v, 4)] : v}</span><button data-lc="${m.id}" data-k="${k}" data-d="1">+</button></span>`;
+  return `<div class="calc"><h3>Live calculator · type in the score</h3>
+    <div class="rowc"><label>Sets</label>${step("sa", st.sa)}<span class="note">–</span>${step("sb", st.sb)}</div>
+    <div class="rowc"><label>Games</label>${step("ga", st.ga)}<span class="note">–</span>${step("gb", st.gb)}
+      <span class="seg2"><button data-lc="${m.id}" data-k="tb" aria-pressed="${st.tb}">Tiebreak</button></span></div>
+    <div class="rowc"><label>Points</label>${step("pa_", st.pa_)}<span class="note">–</span>${step("pb_", st.pb_)}</div>
+    <div class="rowc"><label>Serving</label><span class="seg2"><button data-lc="${m.id}" data-k="srv" data-v="0" aria-pressed="${st.srv === 0}">${esc(m.names[0].split(" ").slice(-1)[0])}</button><button data-lc="${m.id}" data-k="srv" data-v="1" aria-pressed="${st.srv === 1}">${esc(m.names[1].split(" ").slice(-1)[0])}</button></span></div>
+    <div class="rowc" style="align-items:baseline"><span class="bigp" style="color:var(--a)">${pct(p, 1)}</span><span class="note">${esc(m.names[0])} wins from here · fair ${Math.round(p * 100)}¢ · buy ${esc(m.names[0].split(" ").slice(-1)[0])} at ≤ ${Math.max(1, Math.floor((p - 0.04) * 100))}¢ or ${esc(m.names[1].split(" ").slice(-1)[0])} at ≤ ${Math.max(1, Math.floor((1 - p - 0.04) * 100))}¢</span></div>
+    <p class="note">Uses each player's projected serve-point rate from this match's pre-match numbers. In-play the market reacts to momentum and injuries this can't see — use it to spot overreactions, not as gospel.</p></div>`;
+}
+function doublesRow(d) {
+  // doubles: market prices only (tools/doubles_study: nothing beat the price, so no model, picks or stakes)
+  const p = d.p_mkt, fi = p == null ? null : p >= 0.5 ? 0 : 1, pf = fi == null ? null : fi ? 1 - p : p;
+  const word = pf == null ? "" : pf >= 0.85 ? "big favourite" : pf >= 0.70 ? "favourite" : pf >= 0.58 ? "lean" : "toss-up";
+  const pl = d.poly, pp = pl && fi != null ? (fi ? 1 - pl.poly_price : pl.poly_price) : null;
+  const dis = d.status === "pre" && pp != null && pf - pp >= 0.05;
+  const lvl = { KXATPDOUBLES: "ATP", KXWTADOUBLES: "WTA", KXATPCHALLENGERDOUBLES: "Challenger", KXITFDOUBLES: "ITF men", KXITFWDOUBLES: "ITF women" }[d.series] || "";
+  return `<div class="mrow" style="grid-template-columns:auto 1fr auto;cursor:default">
+    <div class="t">${d.status === "live" ? "LIVE" : when(d.start)}<small>${esc(lvl)}</small></div>
+    <div class="who">${[0, 1].map(i => `<div class="${fi === i ? "fav" : ""}"><span class="nm">${esc(d.names[i])}</span><span class="pp" style="color:var(--${i ? "b" : "a"})">${p == null ? "" : pct(i ? 1 - p : p)}</span></div>`).join("")}
+      <div class="mtags"><span class="badge">${esc(d.tourney)}${d.round ? " · " + esc(d.round) : ""}</span>${word ? `<span class="badge">${word}</span>` : ""}${pp != null ? `<span class="badge">Polymarket ${pct(pp)}</span>` : ""}${dis ? `<span class="badge warn" title="In singles, favourites Polymarket rated 5+ pts lower than Kalshi were upset about 7 pts more often. Not yet tested in doubles.">⚠ markets disagree</span>` : ""}</div></div>
+    <div class="edgecol"><b style="color:var(--mute)">${cents(d.q[fi ?? 0].ask)}</b><span>ask ${esc((d.names[fi ?? 0] || "").split("/")[0].trim().split(" ").slice(-1)[0])}</span></div></div>`;
+}
+function renderDoubles() {
+  const L = (B.doubles || []).filter(d => !S.q || (d.names.join(" ") + " " + d.tourney).toLowerCase().includes(S.q.toLowerCase()));
+  const sm = B.doubles_log;
+  let h = `<input class="search" id="q" type="search" placeholder="Player or tournament" value="${esc(S.q)}">`;
+  h += `<div class="callout" style="margin-top:10px">Doubles are shown for information: Kalshi's prices, the market favourite and Polymarket's price where it lists the match. On 2,032 Kalshi doubles matches no model or rule beat the price (favourites won about what they were priced), so there are no picks or stakes here.${sm && sm.n ? ` Logged so far: ${sm.n} graded, favourites won ${sm.fav_won} vs ${sm.fav_exp} expected${sm.disagree_n ? `; when Polymarket was 5+ pts less sure of the favourite: ${sm.disagree_won} of ${sm.disagree_n} won vs ${sm.disagree_exp} expected` : ""}.` : ""}</div>`;
+  if (!L.length) return h + `<div class="card empty" style="margin-top:12px">No doubles on Kalshi in the next 40 hours.</div>`;
+  const groups = {};
+  L.forEach(d => { const k = d.status === "live" ? "Live now" : dayOf(d.start); (groups[k] = groups[k] || []).push(d); });
+  for (const [k, list] of Object.entries(groups)) h += `<h2 class="sec">${esc(k)} <span>${list.length} doubles</span></h2><div class="card list">${list.map(doublesRow).join("")}</div>`;
+  return h;
+}
+function renderBoard() {
+  if (S.f === "doubles") return renderDoubles();
+  const ms = (B.matches || []).filter(passes);
+  let h = `<input class="search" id="q" type="search" placeholder="Player or tournament" value="${esc(S.q)}">`;
+  if (!ms.length) return h + `<div class="card empty" style="margin-top:12px">No matches for this filter.</div>`;
+  const groups = {};
+  ms.forEach(m => { const k = m.status === "live" ? "Live now" : dayOf(m.start); (groups[k] = groups[k] || []).push(m); });
+  for (const [k, list] of Object.entries(groups)) {
+    const byT = {};
+    list.forEach(m => (byT[m.tourney] = byT[m.tourney] || []).push(m));
+    h += `<h2 class="sec">${esc(k)} <span>${list.length} matches</span></h2><div class="card list">${list.map(matchRow).join("")}</div>`;
+  }
+  return h;
+}
+
+// ------------------------------------------------------------- tracker tab
+function bets() { return store.get("te_bets", []); }
+function saveBets(b) { store.set("te_bets", b); }
+function autoSettle() {
+  const R = B?.results || {}; let ch = false; const bs = bets();
+  bs.forEach(b => { if (b.status === "open" && b.ticker && R[b.ticker]) { b.status = R[b.ticker] === (b.side || "yes") ? "won" : "lost"; b.settled = Date.now(); ch = true; } });
+  if (ch) saveBets(bs);
+}
+function pnl(b) {
+  if (b.status === "won") return b.units * (b.odds - 1);
+  if (b.status === "lost") return -b.units;
+  return 0;
+}
+function trackerStats(bs) {
+  const done = bs.filter(b => b.status === "won" || b.status === "lost");
+  const risk = done.reduce((s, b) => s + b.units, 0), u = done.reduce((s, b) => s + pnl(b), 0);
+  return { n: done.length, w: done.filter(b => b.status === "won").length, risk, u, roi: risk ? u / risk : 0, open: bs.filter(b => b.status === "open").length };
+}
+function ladderCfg() { return store.get("te_ladder", { on: false, base: 1, restake: 25, bank: 5 }); }
+function ladderState(done) {
+  // Walk settled bets in order: a win adds its profit to the run, a loss ends the run, N wins in a row banks it.
+  const L = ladderCfg(); let run = 0, k = 0, runs = 0;
+  done.filter(b => b.status === "won" || b.status === "lost").forEach(b => {
+    if (b.status === "won") { run += pnl(b); k++; if (k >= L.bank) { run = 0; k = 0; runs++; } }
+    else { run = 0; k = 0; }
+  });
+  return { L, run, k, runs, next: Math.round((L.base + L.restake / 100 * Math.max(0, run)) * 100) / 100 };
+}
+function ladderCard(done) {
+  const s = ladderState(done), L = s.L;
+  if (!L.on) return `<div class="card" style="margin-top:10px;padding:10px 12px"><b>🪜 Ladder</b> <span class="note">off</span> · restake part of a winning run's profit on the next bet.
+    <button class="btn small" id="ladder" style="margin-left:6px">Set up</button></div>`;
+  return `<div class="card" style="margin-top:10px;padding:10px 12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+    <div><b>🪜 Ladder</b> · win ${s.k} of ${L.bank} · run profit <b class="${s.run >= 0 ? "pos" : "neg"}">${s.run >= 0 ? "+" : ""}${s.run.toFixed(2)}u</b> · runs banked ${s.runs}</div>
+    <div>Next stake <b style="font-size:18px">${s.next}u</b> <span class="note">($${(s.next * unitVal()).toFixed(2)})</span> <button class="btn small" id="ladder">Settings</button></div></div>
+    <p class="note" style="margin:6px 0 0">Next stake = ${L.base}u + ${L.restake}% of this run's profit. A loss resets to ${L.base}u; ${L.bank} straight wins banks the run. Only ladder bets with an edge (Books tab, TAKE picks). In 15 years of prices, a ladder never turned a losing bet type into a winner. It just lost faster.</p></div>`;
+}
+function ladderForm() {
+  const L = ladderCfg();
+  openDialog("Ladder", `<div class="form-grid">
+    <label>On<select id="l-on"><option value="1" ${L.on ? "selected" : ""}>On</option><option value="0" ${L.on ? "" : "selected"}>Off</option></select></label>
+    <label>Base stake (units)<input id="l-base" inputmode="decimal" value="${L.base}"></label>
+    <label>Restake % of run profit<input id="l-re" inputmode="decimal" value="${L.restake}"></label>
+    <label>Bank the run after N wins<input id="l-bank" inputmode="numeric" value="${L.bank}"></label></div>
+    <p class="note" style="padding:0 12px">Tested on 2,753 line-shopping bets (2018-24). Flat 1u made +209u with a worst drawdown of 19u. Restaking 25% made +249u (40u drawdown). Letting it ride and banking after 5 wins made +427u but drew down 171u. Letting it ride without ever banking lost 1,301u. Recommended: restake 25%, bank after 5 wins.</p>
+    <div style="padding:0 12px 14px"><button class="btn primary" id="l-save">Save</button></div>`, () => {
+    $("#l-save").onclick = () => { store.set("te_ladder", { on: $("#l-on").value === "1", base: parseFloat($("#l-base").value) || 1, restake: Math.min(100, Math.max(0, parseFloat($("#l-re").value) || 0)), bank: Math.max(1, parseInt($("#l-bank").value) || 5) }); $("#dlg").close(); render(); };
+  });
+}
+function renderTracker() {
+  autoSettle();
+  const bs = bets().sort((a, b) => b.ts - a.ts), st = trackerStats(bs), t = tsettings(), uv = unitVal();
+  const done = bs.filter(b => b.status !== "open" && b.status !== "void").sort((a, b) => (a.settled || a.ts) - (b.settled || b.ts));
+  let cum = 0; const pts = [0, ...done.map(b => cum += pnl(b))];
+  const lo = Math.min(0, ...pts), hi = Math.max(0.5, ...pts), W = 600, H = 140;
+  const xy = pts.map((v, i) => [i / Math.max(1, pts.length - 1) * W, H - 8 - (v - lo) / (hi - lo || 1) * (H - 16)]);
+  const chart = pts.length > 1 ? `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><line x1="0" x2="${W}" y1="${xy[0][1]}" y2="${xy[0][1]}" stroke="var(--line)" stroke-dasharray="4 4"/><polyline fill="none" stroke="${cum >= 0 ? "var(--good)" : "var(--bad)"}" stroke-width="2.5" vector-effect="non-scaling-stroke" points="${xy.map(p => p.join(",")).join(" ")}"/></svg>` : `<div class="empty">Your units curve appears after your first settled bet.</div>`;
+  const by = (f) => { const o = {}; done.forEach(b => { const k = f(b); const s = o[k] || (o[k] = { n: 0, w: 0, risk: 0, u: 0 }); s.n++; s.w += b.status === "won"; s.risk += b.units; s.u += pnl(b); }); return o; };
+  const tbl = (title, o) => Object.keys(o).length ? `<div><h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--mute);margin:12px 0 6px">${title}</h3><table><tr><th></th><th class="n">Bets</th><th class="n">Won</th><th class="n">Units</th><th class="n">ROI</th></tr>${Object.entries(o).map(([k, s]) => `<tr><td>${esc(k)}</td><td class="n">${s.n}</td><td class="n">${pct(s.w / s.n)}</td><td class="n ${s.u >= 0 ? "pos" : "neg"}">${s.u >= 0 ? "+" : ""}${s.u.toFixed(2)}</td><td class="n ${s.u >= 0 ? "pos" : "neg"}">${sgn(s.u / s.risk)}</td></tr>`).join("")}</table></div>` : "";
+  let h = `<h2 class="sec">My bets <span>saved on this device</span></h2>
+  <div class="stats">
+    <div class="stat"><small>Units</small><b class="${st.u >= 0 ? "pos" : "neg"}">${st.u >= 0 ? "+" : ""}${st.u.toFixed(2)}u</b></div>
+    <div class="stat"><small>Profit</small><b class="${st.u >= 0 ? "pos" : "neg"}">${st.u >= 0 ? "+" : "−"}$${Math.abs(st.u * uv).toFixed(0)}</b></div>
+    <div class="stat"><small>Record</small><b>${st.w}-${st.n - st.w}</b></div>
+    <div class="stat"><small>ROI</small><b class="${st.roi >= 0 ? "pos" : "neg"}">${sgn(st.roi)}</b></div>
+    <div class="stat"><small>Open</small><b>${st.open}</b></div>
+  </div>
+  <div class="card" style="margin-top:10px;padding:8px 10px">${chart}</div>
+  ${ladderCard(done)}
+  <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn primary" id="addbet">+ Add a bet</button><button class="btn" id="settings">Bankroll &amp; units</button><button class="btn" id="export">Back up</button><button class="btn" id="import">Restore</button></div>
+  <p class="note">1 unit = ${t.unit_pct}% of $${(+t.bankroll).toLocaleString()} = <b>$${uv.toFixed(2)}</b>. Kalshi bets logged from a pick settle themselves when the market settles.</p>`;
+  const open = bs.filter(b => b.status === "open"), settled = bs.filter(b => b.status !== "open");
+  const row = b => `<div class="bet"><div><div class="what">${esc(b.label)}</div><div class="sub">${esc(b.match || "")} · ${b.units}u at ${b.price ? cents(b.price) : b.odds.toFixed(2)} (${b.odds.toFixed(2)}) · ${esc(b.type)}${b.strategy ? " · " + esc(b.strategy) : ""} · ${new Date(b.ts).toLocaleDateString()}</div></div>
+    <div class="res ${b.status === "won" ? "pos" : b.status === "lost" ? "neg" : ""}">${b.status === "open" ? "open" : b.status === "void" ? "void" : (pnl(b) >= 0 ? "+" : "") + pnl(b).toFixed(2) + "u"}</div>
+    <div class="acts">${b.status === "open" ? `<button class="btn small" data-set="${b.id}" data-st="won">Won</button><button class="btn small" data-set="${b.id}" data-st="lost">Lost</button><button class="btn small" data-set="${b.id}" data-st="void">Void</button>` : `<button class="btn small" data-set="${b.id}" data-st="open">Reopen</button>`}<button class="btn small" data-del="${b.id}">Delete</button></div></div>`;
+  h += `<h2 class="sec">Open <span>${open.length}</span></h2>` + (open.length ? `<div class="card list">${open.map(row).join("")}</div>` : `<div class="card empty">No open bets.</div>`);
+  h += `<div class="card" style="padding:4px 12px 12px;margin-top:14px">${tbl("By bet type", by(b => b.type))}${tbl("By strategy", by(b => b.strategy || "My own pick"))}${tbl("By tour", by(b => b.tour || "—"))}${tbl("By price", by(b => (1 / b.odds) >= .6 ? "Favourite (60%+)" : (1 / b.odds) >= .4 ? "Coin flip (40-60%)" : "Underdog (<40%)"))}</div>`;
+  h += `<h2 class="sec">Settled <span>${settled.length}</span></h2>` + (settled.length ? `<div class="card list">${settled.slice(0, 60).map(row).join("")}</div>` : `<div class="card empty">Nothing settled yet.</div>`);
+  return h;
+}
+function openDialog(title, html, onReady) { $("#dlg-title").textContent = title; $("#dlg-body").innerHTML = html; $("#dlg").showModal(); onReady && onReady(); }
+function betForm(pre = {}) {
+  const t = tsettings();
+  const units = pre.units ?? 1;
+  openDialog(pre.label ? "Log this bet" : "Add a bet", `<div class="form-grid">
+    <label style="grid-column:1/-1">Bet<input id="f-label" value="${esc(pre.label || "")}" placeholder="e.g. Sinner to win"></label>
+    <label style="grid-column:1/-1">Match<input id="f-match" value="${esc(pre.match || "")}" placeholder="Sinner vs Alcaraz"></label>
+    <label>Type<select id="f-type">${["Straight", "Combo", "Sets/games", "Futures", "Live"].map(x => `<option ${pre.type === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>
+    <label>Where<select id="f-where">${["Kalshi", "Sportsbook", "Polymarket"].map(x => `<option ${pre.where === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>
+    <label>Price ¢ (Kalshi)<input id="f-price" inputmode="decimal" value="${pre.price ? Math.round(pre.price * 100) : ""}" placeholder="e.g. 42"></label>
+    <label>…or odds<input id="f-odds" inputmode="decimal" placeholder="+150 or 2.50" value="${pre.odds ? pre.odds : ""}"></label>
+    <label>Units<input id="f-units" inputmode="decimal" value="${units}"></label>
+    <label>Strategy<input id="f-strat" value="${esc(pre.strategy || "")}" placeholder="optional"></label>
+  </div><div style="padding:0 12px 14px;display:flex;gap:8px;align-items:center"><button class="btn primary" id="f-save">Save</button><span class="note" id="f-note">1u = $${unitVal().toFixed(2)}</span></div>`, () => {
+    $("#f-save").onclick = () => {
+      const c = parseFloat($("#f-price").value), o = $("#f-odds").value.trim();
+      let odds = null, price = null;
+      if (c > 0 && c < 100) { price = c / 100; odds = 1 / (price + fee(price)); }
+      else if (o) { const x = parseFloat(o); odds = Math.abs(x) >= 100 ? (x > 0 ? 1 + x / 100 : 1 + 100 / -x) : x; }
+      const u = parseFloat($("#f-units").value);
+      if (!odds || !(odds > 1) || !(u > 0)) { $("#f-note").textContent = "Enter a price or odds, and units."; return; }
+      const bs = bets();
+      bs.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ts: Date.now(), label: $("#f-label").value || "Bet", match: $("#f-match").value,
+        type: $("#f-type").value, where: $("#f-where").value, price, odds, units: u, strategy: $("#f-strat").value, ticker: pre.ticker || null, side: pre.side || "yes", tour: pre.tour || null, status: "open" });
+      saveBets(bs); $("#dlg").close(); render();
+    };
+  });
+}
+function settingsForm() {
+  const t = tsettings();
+  openDialog("Bankroll & units", `<div class="form-grid"><label>Bankroll $<input id="s-br" inputmode="decimal" value="${t.bankroll}"></label><label>1 unit = % of bankroll<input id="s-up" inputmode="decimal" value="${t.unit_pct}"></label></div>
+    <p class="note" style="padding:0 12px">Standard is 1%: a 3u bet risks 3% of your bankroll. The picks' unit sizes are quarter-Kelly, capped at ${B.config.max_units}u, so they stay small even when the model is confident.</p>
+    <div style="padding:0 12px 14px"><button class="btn primary" id="s-save">Save</button></div>`, () => {
+    $("#s-save").onclick = () => { store.set("te_settings", { bankroll: parseFloat($("#s-br").value) || 1000, unit_pct: parseFloat($("#s-up").value) || 1 }); $("#dlg").close(); render(); };
+  });
+}
+
+// ------------------------------------------------------------- model record tab
+function renderLedger() {
+  // The honest scorecard: our numbers vs Kalshi's opening and closing prices on every match we rate.
+  const L = B.ledger, A = B.archive;
+  let h = `<h2 class="sec" style="margin-top:14px">📒 Prediction ledger <span>are we getting closer to predicting the future?</span></h2>`;
+  if (A) h += `<div class="callout" style="margin-top:0">🗄 <b>Match archive:</b> ${A.archived.toLocaleString()} matches logged with a full pre-match snapshot and result, ${A.pending} waiting for results. Every rated match is saved: prices at open and close, every model part, player context, risk flags, money flow and verdict. That makes it a clean dataset for finding new signals (tools/archive_study), growing by a few hundred matches a day.</div>`;
+  if (!L || !L.all) return h + `<div class="card empty">Scored from 5 Nov 2026 (after the ITF in-play fix). Every rated match is logged with Kalshi's opening and closing prices and our numbers; the scorecard appears as matches settle (${L?.pending ?? 0} waiting).</div>`;
+  const cell = (g, k, ref) => g && g["ll_" + k] != null ? `<td class="n ${g["ll_" + k] <= g["ll_" + ref] ? "pos" : ""}">${g["ll_" + k].toFixed(3)}</td>` : `<td class="n">—</td>`;
+  const row = (name, g) => g ? `<tr><td>${esc(name)}</td><td class="n">${g.n}</td>${cell(g, "open", "close")}${cell(g, "model", "close")}${cell(g, "final", "close")}${cell(g, "adj", "close")}<td class="n"><b>${g.ll_close.toFixed(3)}</b></td>
+    <td class="n">${g.lead_n ? `${pct(g.lead_toward, 0)} / ${pct(g.lead_away, 0)}` : "—"}</td></tr>` : "";
+  const a = L.all;
+  const gapMr = a.ll_mr != null ? `With market ratings our model scored ${a.ll_mr.toFixed(3)} against the close's ${a.ll_close_mr.toFixed(3)} on the same ${a.n_mr} matches.` : "";
+  h += `<div class="card tw" style="padding:6px 8px"><table><tr><th></th><th class="n">Matches</th><th class="n">Kalshi open</th><th class="n">Our model</th><th class="n">Model + market</th><th class="n">+ signals</th><th class="n">Kalshi close</th><th class="n">Price moved toward / away from us</th></tr>
+    ${row("All", a)}${row("Last 7 days", L.last7)}${Object.entries(L.by_level || {}).map(([k, g]) => row(k, g)).join("")}</table></div>
+    <p class="note" style="margin:6px 2px">Log-loss: lower is better, 0.693 is a coin flip. <b>Kalshi close</b> is the bar to beat. "Toward / away" covers matches where our model disagreed with the opening price by 3+ pts: how often the price then moved our way before the start (and by ${a.lead_move ?? "—"} pts on average).
+    If "toward" stays well above "away", our model knows things before the market does: that's what predicting the future looks like. ${gapMr}</p>`;
+  if ((L.weeks || []).length > 1) h += `<div class="card" style="padding:6px 10px;margin-top:8px"><b style="font-size:13px">Weekly gap to the close</b> <span class="note">(our model minus close; closer to 0 = better)</span>
+    <div class="note">${L.weeks.map(w => `${w.ago}w ago: ${(w.ll_model - w.ll_close >= 0 ? "+" : "")}${(w.ll_model - w.ll_close).toFixed(3)} (${w.n})`).join(" · ")}</div></div>`;
+  return h;
+}
+function renderTuner() {
+  // edge/tuner.py: blend self-calibration, strategy promotion/demotion, auto-discovered rules. Every change is logged.
+  const T = B.tuner;
+  if (!T) return "";
+  const S = B.config.strategies, g = T.guards || {}, pr = T.prior || {}, st = T.stats || {}, ov = T.overrides || {};
+  let h = `<h2 class="sec">🧠 Self-learning <span>changes itself only when live results clear a fixed bar</span></h2>`;
+  h += `<div class="card tw" style="padding:6px 8px"><table><tr><th>Level</th><th class="n">Live</th><th class="n">Model</th><th class="n">Market</th></tr>
+    ${["Tour", "Challenger", "ITF"].map(l => { const b = (T.blend || {})[l] || {}, w = b.w || pr;
+      return `<tr><td>${l}</td><td class="n">${b.n_live ?? 0}</td><td class="n">${(w.a ?? 0).toFixed(3)}</td><td class="n">${(w.b ?? 0).toFixed(3)}</td></tr>
+        <tr><td colspan="4" class="note" style="white-space:normal">${esc(b.status || "not checked yet")}</td></tr>`; }).join("")}</table></div>
+    <p class="note" style="margin:6px 2px">How much the board trusts our model next to Kalshi's price, per level. Refit daily from the ledger, starting from the backtest weights (worth ${(g.prior_n || 0).toLocaleString()} matches) so it moves slowly. A refit is used only if it beat the current weights on the newest 25% of matches it never saw. Each level waits for ${g.min_live || 150} clean live matches.</p>`;
+  const P = g.promote || {}, Dm = g.demote || {};
+  const rows = Object.entries(st).filter(([k]) => S[k] && k !== "all" && k !== "combo").sort((a, b) => b[1].n - a[1].n);
+  if (rows.length) h += `<div class="card tw" style="padding:6px 8px;margin-top:8px"><table><tr><th>Strategy</th><th class="n">Bets</th><th class="n">ROI</th><th class="n">CLV</th></tr>
+    ${rows.map(([k, s]) => { const lo = s.roi - (P.z || 1.28) * s.se, hi = s.roi + (Dm.z || 1.28) * s.se, staked = (S[k].kelly_mult || 0) > 0;
+      const need = staked ? (s.n < (Dm.n || 100) ? `staked · review at ${Dm.n} bets` : hi < 0 ? "demoted" : "staked · holding up")
+        : (s.n < (P.n || 150) ? `paper · ${(P.n || 150) - s.n} more bets to qualify` : lo > 0 && s.clv > 0 ? "promoted" : "paper · not proven");
+      return `<tr><td style="white-space:normal">${esc(S[k].label || k)}</td><td class="n">${s.n}</td><td class="n ${s.roi >= 0 ? "pos" : "neg"}">${sgn(s.roi)}</td><td class="n">${(100 * s.clv).toFixed(1)}¢</td></tr>
+        <tr><td colspan="4" class="note" style="white-space:normal">90% range ${sgn(lo)} to ${sgn(hi)} · ${esc(ov[k] ? ov[k].why : need)}</td></tr>`; }).join("")}</table></div>
+    <p class="note" style="margin:6px 2px">A paper strategy gets a small stake only after ${P.n || 150}+ settled bets with the bottom of its 90% range above 0 and positive closing-line value; it's then sized from that floor, not its average. A staked strategy drops back to paper after ${Dm.n || 100}+ bets if the top of its range is below 0.</p>`;
+  const d = T.discover;
+  h += `<div class="card" style="margin-top:8px;padding:10px 12px"><b>🔎 Rule discovery</b> <span class="note">(archive scan, monthly)</span>
+    <div class="note" style="margin-top:4px">${d ? esc(d.status) + ` · last run ${ago(d.ts)}` : "Not run yet."}</div>
+    ${(T.rules || []).length ? `<div class="note" style="margin-top:4px">Paper-tracking: ${T.rules.map(r => esc(r.text)).join(" · ")}</div>` : ""}
+    <div class="note" style="margin-top:4px">Each scan repeats itself on luck runs (results re-drawn from the price). Rules are kept only when more of them held than in every luck run. Kept rules are tracked on paper and must pass the same promotion bar as any strategy.</div></div>`;
+  const lg = (T.log || []).slice().reverse();
+  if (lg.length) h += `<details class="card" style="margin-top:8px;padding:4px 12px"><summary style="padding:8px 0;font-weight:700;cursor:pointer">Change log (${lg.length})</summary>${lg.map(x => `<div class="note" style="margin:4px 0">${new Date(x.ts * 1000).toLocaleString()} · ${esc(x.what)}</div>`).join("")}</details>`;
+  return h;
+}
+function renderRecord() {
+  const r = B.record || {}, by = r.by_strategy || {}, mm = B.model_meta || {};
+  const rows = Object.entries(by).sort((a, b) => b[1].n - a[1].n);
+  let h = renderLedger();
+  h += renderTuner();
+  h += `<h2 class="sec">Paper record <span>every pick, logged automatically before the match</span></h2>`;
+  h += rows.length ? `<div class="card tw" style="padding:6px 8px"><table><tr><th>Strategy</th><th class="n">Bets</th><th class="n">Won</th><th class="n">ROI flat</th><th class="n">Units</th><th class="n">CLV</th></tr>
+    ${rows.map(([k, s]) => `<tr><td>${esc(k === "all" ? "All picks" : B.config.strategies[k]?.label || k)}</td><td class="n">${s.n}</td><td class="n">${pct(s.w / s.n)}</td><td class="n ${s.roi_flat >= 0 ? "pos" : "neg"}">${sgn(s.roi_flat)}</td><td class="n ${s.pnl_u >= 0 ? "pos" : "neg"}">${s.pnl_u >= 0 ? "+" : ""}${s.pnl_u}</td><td class="n ${s.clv_c >= 0 ? "pos" : "neg"}">${s.clv_c >= 0 ? "+" : ""}${s.clv_c}¢</td></tr>`).join("")}</table></div>`
+    : `<div class="card empty">The record starts with today's picks; results appear as matches settle.</div>`;
+  h += `<p class="note" style="margin:8px 2px">${r.pending || 0} picks waiting to settle. <b>CLV</b> = how much the price moved toward the pick between when it was flagged and the start. Positive CLV over many bets is the quickest honest sign a strategy is real; ROI needs hundreds of bets to mean much.</p>`;
+  const kb = mm.kalshi_backtest;
+  if (kb) h += `<h2 class="sec">Backtest vs real Kalshi prices <span>${esc(kb.period || "")}</span></h2><div class="card tw" style="padding:6px 8px"><table><tr><th>Rule</th><th class="n">Bets</th><th class="n">Won</th><th class="n">ROI</th></tr>${kb.rows.map(x => `<tr><td>${esc(x.rule)}</td><td class="n">${x.n}</td><td class="n">${pct(x.win)}</td><td class="n ${x.roi >= 0 ? "pos" : "neg"}">${sgn(x.roi)}</td></tr>`).join("")}</table></div><p class="note" style="margin:8px 2px">${esc(kb.note || "")}</p>`;
+  const wf = mm.walk_forward || [];
+  if (wf.length) h += `<h2 class="sec">Prediction accuracy by year <span>walk-forward, never trained on the year it predicts</span></h2><div class="card tw" style="padding:6px 8px"><table><tr><th>Year</th><th class="n">Matches</th><th class="n">Elo only</th><th class="n">Model</th><th class="n">Log-loss</th></tr>${wf.map(x => `<tr><td>${x.year}</td><td class="n">${x.n.toLocaleString()}</td><td class="n">${pct(x.acc_elo, 1)}</td><td class="n">${pct(x.acc_model, 1)}</td><td class="n">${x.ll_model.toFixed(3)}</td></tr>`).join("")}</table></div>`;
+  const rec = r.recent || [];
+  if (rec.length) h += `<h2 class="sec">Recently settled picks</h2><div class="card list">${rec.map(e => `<div class="bet"><div><div class="what">${esc(e.label)}</div><div class="sub">${esc(e.names.join(" vs "))} · ${esc(e.tags.map(t => B.config.strategies[t]?.label || t).join(", "))} · in at ${cents(e.entry)}, closed ${cents(e.close)}</div></div><div class="res ${e.result === "yes" ? "pos" : "neg"}">${e.result === "yes" ? "WON" : "LOST"}<div class="note">${e.units}u</div></div></div>`).join("")}</div>`;
+  return h;
+}
+
+// ------------------------------------------------------------- guide tab
+function renderGuide() {
+  const s = B.config.strategies;
+  return `<h2 class="sec">How to bet with this board</h2><div class="card" style="padding:12px 14px;font-size:14px">
+  <ol style="margin:0;padding-left:18px">
+    <li><b>Set your unit:</b> My bets → Bankroll &amp; units. Use money you can afford to lose; 1 unit = 1% of it.</li>
+    <li><b>Check Picks 2–3 times a day</b> (prices change; the board refreshes every ~20 min). Bet only green <b>TAKE</b> cards, only at the price shown <b>or better</b>, and only the units shown.</li>
+    <li><b>Books tab:</b> sportsbook prices that beat Pinnacle are the best-proven edge. Bet them at that book if the price is still there.</li>
+    <li><b>🔒 Locks:</b> win ~94% but pay little. Bet them as singles at the listed price; never chain several into a parlay.</li>
+    <li><b>💰 Underdog value:</b> lose about 3 in 4 and still profit over time. Keep them small and judge them after 100+ bets, not 5.</li>
+    <li><b>Skip:</b> 🎲 toss-ups (unless a TAKE card shows a better price), 🚫 stay-away matches, ✋ "Don't back" players, and anything live/in play.</li>
+    <li><b>Log every bet</b> with "I bet this". My bets tracks units, ROI and the ladder (if used: restake 25%, bank after 5 wins).</li>
+    <li><b>Once a week:</b> check Model record and the 📒 ledger. A strategy whose CLV stays negative after ~100 bets gets dropped; one with positive CLV and ROI earns bigger stakes.</li>
+    <li><b>🧠 Self-learning</b> (Model record tab, edge/tuner.py). Three loops that change the board only when live results clear a bar set in advance. (1) <b>Blend:</b> every day it refits how much to trust our model next to Kalshi's price, per level, from the ledger, starting from the backtest weights so it moves slowly, and keeps the new weights only if they beat the old ones on the newest matches they never saw. (2) <b>Strategies:</b> a paper strategy earns a small stake after 150+ settled bets with the bottom of its 90% range above 0 and positive closing-line value; a staked one goes back to paper after 100+ bets if the top of its range is below 0. (3) <b>Discovery:</b> once a month the cloud scans the archive for new rules, repeats the scan on luck runs, and keeps rules only if more held than in every luck run. Kept rules start on paper.</li>
+    <li><b>🔄 Round robin</b> (Picks tab, under Value parlays). Pick 3 or 4 TAKE legs (it starts with the three most likely to win) and it shows every combination (3 legs = 3 doubles + 1 treble, 4 legs = 11 bets), the total stake, expected profit, the chance at least one bet pays, the chance you end in profit, and what you win if 2, 3 or all legs land. It only uses TAKE legs: round robins of ordinary lean/win favourites (58–85%) lose about 9–10% over time, because each leg loses ~4% after the fee and the losses multiply. With +3% legs the same round robin makes about +7%. At a sportsbook, only bet it if every leg's odds are at least the "odds ≥" shown.</li>
+    <li><b>💥 Value parlays</b> (Picks tab) combine only TAKE legs from different matches, so the edges multiply along with the payout. Use the stakes shown (0.5u / 0.25u / 0.1u for 2 / 3 / 4 legs), accept only at the listed price or less, and expect most to miss.</li>
+    <li><b>Never:</b> raise stakes to win back losses, bet hunches, or bet "paper" picks from the watchlist.</li>
+  </ol>
+  <p class="note" style="margin-top:8px">Realistic expectations: the edges are a few % per bet. With ~10–20 bets a week at 0.25–2u, a good month is a few units, and losing weeks are normal. Over hundreds of bets, following the rules is what wins.</p></div>
+  <h2 class="sec">How it works</h2><div class="card" style="padding:12px 14px;font-size:14px">
+  <p><b>Ratings.</b> Every pro match since 1985 (tour, Challenger, ITF, ATP and WTA) is replayed to build Elo ratings per surface, weighted by how dominant each win was, plus each player's serve and return strength adjusted for opponents, recent form, fatigue (minutes in the last 10 days), layoffs and head-to-head. New results are added every refresh from TennisMyLife, ESPN and Kalshi settlements.</p>
+  <p><b>Match maths.</b> Each player's chance of winning a point on serve feeds an exact simulation of games, tiebreaks and sets. That gives the win probability and also set scores, total games, game spreads and set winners — all consistent, so combos are priced with real correlation.</p>
+  <p><b>Market.</b> The final number blends the model with Kalshi's price (weights fitted on settled Kalshi matches). A bet is only flagged when the model still beats the ask after Kalshi's fee by enough margin.</p>
+  <p><b>Sharp money.</b> Kalshi's trade tape is public: big tickets ($250+) moving one way, fast "steam" moves, and line movement since open. <b>Smart money:</b> Polymarket wallets are public, so wallets with a proven profit across many tennis matches are tracked and their current positions shown.</p>
+  <p><b>What the tests found</b> (5,500 Kalshi ATP, WTA and Challenger matches, June 2025 – Nov 2026, priced at the real ask an hour before the start):</p>
+  <ul style="margin:0 0 10px;padding-left:18px">
+    <li>Kalshi's price was <b>more accurate</b> than the ratings model (log-loss 0.594 vs 0.612). Fitted together, the market gets ~90% of the weight. Betting the model's "edges" broke even (about 0% ROI).</li>
+    <li>Tailing big tickets or one-way flow <b>lost 3%</b> after fees; line moves and steam broke even. Following the best Polymarket tennis wallets also broke even out of sample.</li>
+    <li>Also tested and failed at real prices: early lines right after markets open (as sharp as the close), games totals and spreads (Kalshi's own prices beat the model; gaps lost 11–15%), in-play gaps vs the score model (−6 to −19%), fading big in-play swings (−19%), following them (−1%), and resting limit orders (makers broke even per match).</li>
+    <li>Sets: Kalshi's set-1, set-2 and exact-set-score markets are priced almost exactly as our model derives them from the match price (gaps of 3%+ are rare and didn't pay). Backing the set-1 loser to win set 2 lost 8.5% over 2,176 matches (−11.7% when that loser was the favourite).</li>
+    <li>Combos: Kalshi only offers tennis legs inside multi-sport parlays, priced by market makers; there's too little history to test, and combining legs that aren't individually +EV just compounds the fee.</li>
+    <li>Upsets (7,450 Kalshi matches, 12 situational factors: home crowd, win streaks, schedule and minutes played, coming off a retirement, surface switch, layoffs, title runs, lefties, age, ranking, late season): none predicts upsets beyond the price. The market tends to <i>over</i>-react instead: home underdogs lost 16–20%, and favourites who played 200+ minutes in the last 3 days against a fresh opponent won more than priced (+17% then +14%, 95 matches) — now a small-stake TAKE rule, graded live.</li>
+    <li>Form, head-to-head and style matchups (820k matches, then 7,200 Kalshi matches): form is real — favourites in much better recent form than their opponent win ~2.5 pts more than ratings say, and much colder ones ~4.4 pts less — and the model already uses the best form measure (results beyond expectation). But Kalshi prices form too: adding it to the market barely changed anything, and backing hot underdogs broke even. Head-to-head and record against similar playing styles help even less (+0.0002 log-loss) and backing the better style matchup on Kalshi lost 8–10%.</li>
+    <li>Cheap longshots look overpriced, but that's mostly the spread and fee being large next to a 5–15¢ price; nobody collects it after costs.</li>
+    <li>So the board's fair prices lean on the market, and every strategy is tracked on paper until its own record proves it. Ideas still open: <b>price gaps between venues</b> (Kalshi vs Polymarket, tracked live here), <b>sportsbook line shopping</b> against Pinnacle, and <b>tournament-winner / reach-a-round markets</b> priced by simulating the draw.</li>
+  </ul>
+  <p><b>15 years of sportsbook prices</b> (27,300 ATP 2010–24 and WTA 2020–24 matches with Pinnacle's closing odds and the best price across books, from tennis-data.co.uk; rules picked on 2010–17 and checked on 2018–24):</p>
+  <ul style="margin:0 0 10px;padding-left:18px">
+    <li><b>Pinnacle beats every model.</b> Pinnacle's closing line had a log-loss of 0.576, against 0.596 for our model. Fitted together, the model's weight is slightly <i>negative</i>. So on sportsbooks the fair price is Pinnacle's, which is what the Books tab uses.</li>
+    <li><b>Line shopping works</b>, in both halves: when the best book price beat Pinnacle's no-vig fair odds by 2%+, it returned +3% to +8% at odds of 1.0–3.0. Above 3.0 the result was mixed, and longshots above 5.0 lost even at the best price. So tennis sportsbook bets are now capped at 3.0 odds. Odds come from a historical database, so some "best prices" may have been brief, and real results will be a bit lower.</li>
+    <li><b>Ladders</b> (restake part of a winning run's profit). They don't change the edge per dollar staked; they just stake more. On favourites at Pinnacle (−1.1%), every ladder lost more than flat betting. "Let it ride" with no bank point lost 1,466u on 5,587 bets. On +EV line-shopping bets (2,753 bets, flat +209u, worst drawdown 19u), restaking 25% made +249u (40u drawdown), and letting it ride while banking after 5 wins made +427u (171u drawdown). Never-banking let-it-ride lost 1,301u even there. Kalshi favourites (3,386 bets, −2.9%) lost under every ladder. Use the ladder in My bets only on bets with an edge.</li>
+    <li><b>Combos.</b> Parlays of the day's biggest favourites lost 4–8% at Bet365 (the margin compounds). Parlays of +EV line-shopping legs made +9% (2 legs) and +15% (3 legs), with wide error bars. The Books tab now builds these from its open bets, at one book.</li>
+    <li><b>Form.</b> Markets <i>over</i>-rate a hot underdog. When the underdog's recent form beat the favourite's, the favourite won 1–2 points more than Pinnacle priced. Backing that favourite returned +1.7% / +2.6% at the best price in the two halves, about 0% at Pinnacle, and break-even on Kalshi after the fee. It is tracked as a paper strategy. Backing hot underdogs lost 12.8% at Pinnacle.</li>
+    <li><b>Tired favourite</b> (10-day minutes): +1.4% / +3.7% at Pinnacle and +3.3% / +6.1% at the best price. That supports the live 3-day rule, although the 10-day version lost on Kalshi's smaller sample.</li>
+    <li><b>Favourites vs longshots:</b> at Pinnacle, odds under 1.25 lost only 0.3%, while odds above 5.0 lost 22%. Big underdogs are the worst bet in tennis.</li>
+    <li><b>Challengers aren't upset city.</b> Over 2015–26, rating favourites won 64.6% at Challengers, 64.8% at ATP/WTA 250–500 and 65.4% at Masters, against 70.8% at Slams and 70.7% at ITFs. Masters events had the most upsets relative to ratings (−3.4 pts). On Kalshi Challengers, backing underdogs lost 9% and big underdogs 22%: people overpay for upsets there.</li>
+    <li><b>Predicting upsets</b> (tools/upset_risk: 8,000 Kalshi and 27,000 Pinnacle-priced matches, every signal checked in both halves). Nothing reliably predicts upsets beyond the price; the market already prices most of what you'd think of. What did show up:
+      <ul style="margin:4px 0;padding-left:16px">
+        <li><b>Favourites under-priced:</b> veterans aged 32+ (won +3.8 and +4.3 pts above price), heavy favourites at 80%+, best-of-5, and when the underdog is the hotter player. Veteran favourites returned +3.7% and +3.4% at Kalshi's real ask, so they are now a small-stake TAKE rule.</li>
+        <li><b>Stay away:</b> when our ratings and the market disagree by 20+ pts, the price was least reliable (the favourite beat its price by 6 pts in one half and missed it by 8 in the other). Also stay away right after a player retired injured.</li>
+        <li><b>Upset alerts:</b> favourites who played 4+ matches in 7 days ran about 1.4 pts under their price in both halves, and favourites back from 45+ days off have more uncertain results. These are minor effects, so treat them as reasons to skip, not to bet the underdog.</li>
+      </ul></li>
+    <li><b>Using past matches and past upsets</b> (tools/rules_lab, 27,300 Pinnacle-priced matches, each idea fitted on 2010–17 and checked on 2018–24). None of these beat the closing price in both halves:
+      <ul style="margin:4px 0;padding-left:16px">
+        <li>players who beat or missed their odds before (no carry-over);</li>
+        <li>a player's record at the same tournament;</li>
+        <li>the match after an upset win or upset loss (it flipped sign between the halves);</li>
+        <li>last match's scoreline;</li>
+        <li>qualifiers;</li>
+        <li>ranking vs rating;</li>
+        <li>surface specialists;</li>
+        <li><b>effort by event tier</b>: favourites who had "coasted" at 250s, 500s or Masters didn't keep doing it, and backing their underdogs lost 8.5% and 9.7%;</li>
+        <li>the week before a Slam;</li>
+        <li>the first event after a deep Slam run.</li>
+      </ul>
+      The market prices motivation better than any record of it. Favourites at Slams did beat their price, by 1.6 pts.</li>
+    <li><b>Market ratings (new).</b> Each player's strength is now also learned from their past pre-match prices: Pinnacle 2010–24, then every Kalshi match. That predicts matches the market hasn't priced yet better than results alone. Log-loss went from 0.608 to 0.602 on 2018–24, and from 0.630 to 0.625 on 5,263 Kalshi matches. It is now used to price later rounds in the tournament-winner simulation, and it shows in each match's details.</li>
+    <li><b>Underdog days aren't real</b> (tools/day_effects). On Pinnacle prices, upsets per day were spread exactly as if every match were independent. On Kalshi, an upset-heavy morning didn't predict the afternoon (correlation −0.01). Backing underdogs after upset-heavy days lost 6–10%, and after favourite-heavy days 9–17%. Post-mortem of 4 Nov 2026 (tools/postmortem): 59 upsets against 62.8 expected across 250 matches, a normal day. Paris had 8 upsets, and our model agreed with the market on every one.</li>
+    <li><b>Weather</b> (tools/weather_study: 39,400 outdoor matches with Pinnacle odds, each joined to that day's weather at the venue).
+      <ul style="margin:4px 0;padding-left:16px">
+        <li><b>Who wins:</b> heat, wind, gusts, humidity and rain didn't move it beyond the price consistently. No condition held in both halves, and no fav/dog bet by weather made money.</li>
+        <li><b>Total games:</b> wind cuts them, about 0.2 games per +10 km/h in both halves (more breaks of serve). Cold, windy days ran 0.2–0.6 games short; warm, calm days 0.1–0.4 long.</li>
+      </ul>
+      That's real, but too small to beat a bookmaker's margin on its own.</li>
+    <li><b>📒 Prediction ledger</b> (Model record tab, from 4 Nov 2026): every rated match logs Kalshi's opening and closing prices next to our numbers. It shows whether we're as sharp as the close, and whether the price moves toward our number before the start.</li>
+    <li><b>Uncertainty-aware ratings</b> (tools/uncertainty, tools/uncertainty_disagree: 551,000 walk-forward predictions). Pulling predictions toward 50/50 for newcomers or players back from layoffs didn't help, because the model already handles those. What did work: when our own sub-models disagree (overall Elo vs surface Elo vs serve/return), the model was 2–3 pts overconfident, so it now shrinks those predictions. Log-loss improved from 0.5727 to 0.5723 on unseen 2021–26 matches, and from 0.6115 to 0.6097 on Kalshi matches. Next to the market it changes nothing (Kalshi already prices those matches right). It sharpens the model where it works alone: tournament odds, unpriced matches and the ledger. Match details show "Model confidence".</li>
+    <li><b>Verdicts</b> on every match, using the final market-blended chance:
+      <ul style="margin:4px 0;padding-left:16px">
+        <li>🔒 <b>Lock</b>: 85%+, the model agrees, no flags, confidence not low.</li>
+        <li>✅ <b>Should win</b>: 70%+.</li>
+        <li>👍 <b>Lean</b>: 58–70%.</li>
+        <li>🎲 <b>Toss-up</b>: under 58%.</li>
+        <li>⚠ <b>Upset risk</b> and 🚫 <b>Stay away</b>: from the risk flags.</li>
+      </ul>
+      <b>Close matches</b> (tools/close_matches, tools/close_books): on 1,700 Kalshi and 5,500 Pinnacle matches with the favourite at 50–58%, no signal picked winners better than the price in both halves. That covers our model, serve/return stats, form, rest, minutes played, money flow, big tickets, steam, line moves, ranking, age, streaks, home crowd, head-to-head, reputation and surface. All of them combined did worse than the market. The price is well calibrated there (favourites won 54–55% at 54%). In-form players actually won a bit less than 50% of close matches. The only thing that made money on close matches was a better price (line shopping).
+      <b>Model confidence</b> is how much our three sub-ratings agree, not who wins. Locks with low confidence won only 90–93% (about break-even), against 94–95% (+3.7% / +4.8%) with high or medium confidence, so Locks now need high or medium confidence.</li>
+    <li><b>Layoffs</b> (tools/layoff_study: Kalshi tour+Challenger, Kalshi ITF, Pinnacle 2016–24).
+      <ul style="margin:4px 0;padding-left:16px">
+        <li><b>Underdogs coming back from a month or more off are over-rated.</b> Backing them lost 17–37% at Pinnacle and 14–30% on Kalshi (normal is 3–8%). The board now says "Don't back X" on those matches.</li>
+        <li><b>Favourites returning from a layoff weren't an upset risk.</b> At Pinnacle they beat their price by 4–6 pts (rust gets over-priced); on Kalshi it was mixed, so it isn't a bet. The old "favourite hasn't played in 45+ days" warning was removed.</li>
+      </ul></li>
+    <li><b>ITF</b> (tools/itf_study, 6,900 Kalshi ITF matches, Aug–Nov 2026). The market is sharper than our ratings (log-loss 0.533 vs 0.585); fitted together our model gets 13% weight.
+      <ul style="margin:4px 0;padding-left:16px">
+        <li><b>Close matches where our model picks the underdog</b> (the Tanasie case: about 60/40 before the start, our ratings preferred her, she won): +2% in one half, −12% in the other. That's not a rule.</li>
+        <li><b>Model 30+ pts below the market on the favourite:</b> the favourite won ~71% against 76–77% priced in both halves, and backing the underdog returned +15% and +14%, but with wide error bars. It's now a paper strategy.</li>
+        <li><b>Teen favourites (18 or under):</b> backing their underdogs lost 42% and 25%. The board now says "Don't back".</li>
+      </ul></li>
+    <li><b>Signals in the shown chance</b> (tools/net_adjust). The net signal score now nudges each match's displayed chance and verdict, at half strength on tour/Challenger and a quarter on ITF. That made the price slightly more accurate than Kalshi's own in both halves (newer half log-loss 0.58384 → 0.58324 tour, 0.52202 → 0.52161 ITF). At full strength it over-corrected, and betting the disagreements didn't pay (+0.9% then −5.5%), so no stakes depend on it.</li>
+    <li><b>Thinking like the market</b> (tools/market_mind). We tested 10 public habits on toss-ups, leans and confident matches, measuring both the public side and the contrarian side: fame (better-ranked), high-attention matches, crowd money, big tickets, hot streaks, home crowd, youth hype, chasing price moves and big stages.
+      <ul style="margin:4px 0;padding-left:16px">
+        <li>Two habits clearly cost the public: <b>home players</b> (backing them lost 14–20% in most ranges, both halves) and <b>much younger players</b> (−5% to −11%).</li>
+        <li>No contrarian side made money in both halves after Kalshi's fee. The market charges the public for its habits, but not enough to pay the other side.</li>
+        <li>The board now says "Don't back" on home players (tour and Challenger).</li>
+        <li><b>Round 2</b> (tools/market_mind2, habits of Kalshi's US public):
+          <ul style="margin:2px 0;padding-left:14px">
+            <li>American players: overbet at home (−22% / −10%), but abroad only −3% / −18%. That's the home effect, already flagged.</li>
+            <li>US prime time, weekends and left-handers: flip between bands or halves.</li>
+            <li>Fallen stars and giant-killers: our match history dates some matches by the tournament's start, which can leak a match's own result, so those couldn't be tested reliably.</li>
+          </ul></li>
+      </ul></li>
+    <li><b>Rule scan</b> (tools/rule_scan, tools/rule_scan_pin). We tested about 4,000 "back this player when…" rules built from every variable: fatigue, rest, layoff, form, streaks, age, ranking, head-to-head, surface, serve/return, home crowd, money flow, line moves, model edge, reputation, upsets and scheduling, alone and combined with price bands, on Kalshi tour/Challenger, Kalshi ITF and 15 years of Pinnacle. Each rule was picked on the oldest 50% of matches, checked on the next 25% and tested on the newest 25%. As a luck check, we reran the scan on outcomes simulated from the market's own prices, where no edge can exist. The real data produced no more survivors than luck did: tour 1 vs ~3.3, tour leans (favourite 58–70%) 1 vs ~1.4, ITF 0, Pinnacle 1 vs ~1.5 and 0 vs ~1.5. Leans and toss-ups are priced right: no signal reliably picks which leans to back or fade. The rules that do work came from specific reasons tested directly: tired and veteran favourites, Locks, underdog value, line shopping.</li>
+    <li><b>Motivation and storylines</b> (tools/motivation, 47,000 Pinnacle matches 2010–24, checked on Kalshi 2025–26). We tested tipster-style stories about players with a reason to try harder, or a reason to coast:
+      <ul>
+        <li>Defending champions; first match after winning a title, losing a final or losing early.</li>
+        <li>Season openers; players at their best ranking, slumping or rising fast.</li>
+        <li>Revenge rematches; players ranked 85–115 chasing Slam entry in autumn; compatriot derbies.</li>
+        <li>Late-season small events; top-20 players at a small event the week before a Masters or Slam (look-ahead).</li>
+        <li>Each player's record against the price at this tournament and in early or late rounds; top-10 favourites by round at Slams, Masters and 250/500 events.</li>
+      </ul>
+      With luck alone, about 5 of these rules pass both halves; the real data passed 4, so storylines are already in the price. One to watch: top-10 favourites in Masters/1000 third and fourth rounds lost money in both Pinnacle halves and on Kalshi (backing their opponents returned +3%, +10% and +24%). That fits "coasting until the later rounds", but it's too few matches to bet on; it is being tracked in the match archive. Coaching changes and social-media beef can't be tested because no data on them exists.</li>
+    <li><b>Is the line real? Will they show up?</b> (tools/trap_study, 47,000 Pinnacle matches, split into toss-ups, leans and favourites).
+      <ul>
+        <li>Players who retired injured or withdrew recently, or who retire often, won about what their price said (underdogs who retired in their last match: 31.2% vs 31.7% priced, and 32.8% vs 33.3%). The market already marks them down.</li>
+        <li>When the average bookmaker or Bet365 disagreed with Pinnacle, siding with them didn't win more than Pinnacle's price said, so Pinnacle's line is the real one.</li>
+        <li>The useful move is the opposite: when your book or Kalshi pays more than Pinnacle's fair price, take it. That works on leans too (+3% to +8% at odds of 1–3).</li>
+        <li>Pinnacle prices only reach this board for big events (Slams, Masters, WTA 1000s, Finals).</li>
+      </ul></li>
+    <li><b>Buying the dip</b> (tools/dip_test, tools/dip_validate). Tested on 733 live matches recorded tick by tick, then 581 fresh Challenger matches, at the real ask and bid with fees both ways. Buying at a random live moment lost 19%, and buying dips of 10–40c lost 9–23%. Selling into the bounce was worse, because you cross the spread twice. Buying after a lost set, or a set and a break down, lost 17–57%. The week's one standout (Challenger favourites dropping 15c+) made +12%, then −12% on fresh matches. Our model's 70%+ favourites dipping 15–30c came out between break-even and slightly positive, but the error bars are too wide to bet on.</li>
+    <li><b>Doubles</b> (tools/doubles_study, 2,032 Kalshi doubles matches with a usable pre-match price: tour, Challenger, ITF). Favourites won about what they were priced (tour 65.9% vs 67.3%, ITF 70.8% vs 71.8%). Backing every favourite lost 5–8% and every underdog 7–20% after spread and fee. A team rating from the players' singles ratings, or one learned only from earlier doubles results, made the price less accurate, not more. Regular partnerships, singles stars, same-country pairs, hot or cold doubles form and later rounds: no rule held in both halves. Doubles aren't on the board.</li>
+    <li><b>Travel and jet lag</b> (tools/travel_study, 47,294 tour matches with Pinnacle closing odds, every venue mapped with its altitude and time zone). Tested in the player's first match after the trip: 5,000+ and 8,000+ km trips, 5+ and 8+ hour time-zone jumps, flying east vs west, little vs lots of time to adjust, back-to-back weeks, short hops, first match on a new surface, indoor/outdoor switches, coming down from altitude, and altitude venues (Bogotá, Quito, Gstaad, Guadalajara) for players with no altitude experience. No rule held in both halves (0, vs 2.3 per luck run). Long-haul travellers actually won about 1 pt more than priced in both halves, so the market worries a little too much about jet lag, but not by enough to beat the margin.</li>
+    <li><b>ITF early lines, round 2</b> (tools/itf_early2, 6,637 Kalshi ITF matches). Our model is much worse than the market on newcomers. The accuracy gap is 0.11 log-loss when a player has fewer than 10 known matches, but only 0.02–0.03 when both have 30+, because the market knows junior and college results we don't have. ITF prices still move toward our model after the open (55% toward vs 36% away when we know both players, both halves). But the move averages only 1–2 pts, and the opening spread is about 6c, so buying at the ask gives it back: closing-line value was zero or negative once the blend was fitted on one half and tested on the other. Adding the ranking helps the model alone on newcomers but adds nothing once the price is known. ITF early stays on paper.</li>
+    <li><b>ITF limit orders</b> (tools/itf_limits, 6,637 ITF matches, hourly prices from the open to the start). Instead of paying the ask, post a buy order at our price when the market opens and wait (ITF orders that rest in the book pay no Kalshi fee). Every version lost in both halves. Bids 1c above the best bid filled 16–29% of the time and lost 4–21%. Deeper bids (our price minus 3–10%) filled 11–26% and lost 7–14%. The price at the close was 1–3c worse than what we paid. That's the catch with limit orders: you get filled when the price is about to move against you, and the matches that drift our way never come down to our order.</li>
+    <li><b>Late news: lucky losers, wildcards, injury returns</b> (tools/entry_study, 44,949 Pinnacle matches joined to each player's entry status). Lucky losers (got in hours before), wildcards, players back from injury on a protected ranking, special exempts and alternates are all priced about right. The one interesting result: qualifiers who are the <i>favourite</i> won 67.8% / 65.6% vs 62.6% / 62.2% priced (+5.7% / +2.5% in the two halves, about 1,000 bets each), probably because they've already won two or three matches on those courts that week. On fresh Kalshi matches (2025–26) it pointed the same way but proved nothing: 116 bets, won 67.2% vs 63.7% priced, +2.1% ± 6.8%, while all favourites lost 3.3%. A watch item, not a bet. Medical timeouts: no free data source (the live score feed only marks retirements, which are already priced).</li>
+    <li><b>Kalshi vs Polymarket backtest</b> (tools/poly_gap, 12,265 matches on both markets, Jun–Nov 2026). The two markets are equally sharp (log-loss 0.5854 vs 0.5859), but their average (0.5843) beats both, so when they disagree each one knows something. The staked "Kalshi cheaper than Polymarket" rule (Kalshi ask + fee 3c+ below Polymarket) returned +12.4% and +16.9% in the two halves (204 bets, pooled +14.7% ± 11%). 69% of its picks were underdogs, which won 43–44% vs about 41% paid. This is the one "upset finder" with support: not a fact about the players, but another market rating the underdog higher than Kalshi does. Not yet proven, so it stays at its small stake.</li>
+    <li><b>Pro wallets on Polymarket</b> (tools/wallet_study). Every pre-match trade on 11,634 Polymarket tennis markets (Jul–Nov 2026), 33,651 wallets. Wallets were ranked only on earlier months, then their pre-match positions were followed in later months. They did no better than random, equally active wallets: −0.5% vs −0.9% at Polymarket's price, −2.6% vs −2.1% at Kalshi's. Stricter "pro" definitions (top 25, 40+ matches with 10–20% profit, $5k+ positions, fading the worst) flipped between halves or stayed within luck. The purple "proven winners hold $X" note is shown as information, not a reason to bet. Polymarket retired the old API it used; the board now uses the new one and watches up to 500 holders per player instead of 20.</li>
+    <li><b>Doubles on the board</b> (Matches tab → Doubles). Kalshi doubles (ATP, WTA, Challenger, ITF) with the market favourite, a price-based label and Polymarket's price where it lists the match, plus a "markets disagree" warning when Polymarket is 5+ pts less sure of the favourite (tested in singles only). No model, picks or stakes: on 2,032 Kalshi doubles matches nothing beat the price. Doubles results now grade your logged doubles bets, and a research log records each match's Kalshi and Polymarket prices so the disagreement signal can be tested on doubles later.</li>
+    <li><b>🚫 Polymarket disagrees (stay-away flag)</b>. On the same 10,000+ matches: when Polymarket was 5+ pts less sure of the favourite than Kalshi, the favourite was upset 33.1% / 32.6% of the time vs 25.4% / 26.6% priced, in both halves. Backing it lost 12.5% / 11.1% (vs 5–6% when the markets agree). The board now marks those favourites "Don't back" (pre-match only) and raises the upset risk. Polymarket pairing also improved: players are now matched by name tokens as well as our ratings index (coverage went from about 67% of upcoming matches to 84–100%, depending on what Polymarket lists).</li>
+    <li><b>Scenario batch</b> (tools/scenarios). The favourite or underdog's last match: won a deciding-set tiebreak, came back from a set down, went the full distance, or was very easy (opponent won 4 games or fewer); the bye effect (a seed's first match vs someone who already won a round there); rest measured in hours from Kalshi's match end times (under 20 h, under 30 h, one side rested 40 h+); thin markets and wide spreads. 0 of 21 rules held in both halves on Pinnacle (47k) and Kalshi (19.6k). All priced. On thin ITF markets, backing the underdog lost 10–15%.</li>
+    <li><b>Upset momentum</b> (tools/upset_momentum). Does a player who just pulled off an upset do it again as the underdog? No. They won 25.7% / 29.6% vs 26.5% / 29.3% priced at Pinnacle, and 28.4% / 27.7% vs 28.3% / 26.5% on Kalshi; backing them lost 3–12%. After two upsets in a row they did slightly <i>worse</i> than priced: the market over-rates a hot underdog a little, so a favourite facing one isn't in extra danger.</li>
+    <li><b>Live check of the risk badges</b> (from the match archive, updated every refresh; hover a badge to see it). On 900+ live matches the ⚠ upset-risk and 🛡 steadier labels haven't changed the upset rate beyond the price (⚠ 38 upsets vs 39.1 expected; 🛡 95 vs 93.4). They're historical tendencies, not live-proven. Upsets happen at about the price's rate, so the reliable way to avoid them is a bigger favourite and fewer legs.</li>
+    <li><b>Locks at 70%+, everything-and-anything</b> (tools/lock70, tools/lock70_kalshi). Every feature from every study (storylines, travel, retirements, book gaps, entry status, head-to-head detail, playing styles, rankings, ages, round, tier, surface) on 14,459 favourites Pinnacle priced 70–85%, every single condition and every pair of the best 80: 3,826 rules, each needing to win 3+ pts above the price and make money in three separate time periods. 106 passed, but the same search on fake results (drawn from the price) passed 21–110, so that's within luck. The leading theme, "the favourite got thrashed in their last meeting but is still 70–85%" (82–87% wins at Pinnacle), failed on Kalshi 2025–26: 71% vs 75% priced. No new 70% locks. The 70%+ favourites that do beat their price are the ones already flagged: veteran and tired favourites.</li>
+    <li><b>Playing-style matchups</b> (tools/style_matchup, 40,625 Pinnacle-priced matches). Every player's serve and return points won, ace and double-fault rates (from earlier matches, overall and on the surface), height, hand and nation, so each kind of matchup has thousands of examples: big server vs strong returner (on grass, on clay), lefty vs righty, tall vs short, clay-raised players on grass, players who rise on a surface. 1 of 19 rules held in both halves, less than luck's average of 1.4, and adding all of it to the price made it slightly less accurate. The one survivor, "two big servers -> back the underdog" (+7.5% / +17.3%, the tiebreak-lottery idea), didn't confirm on Kalshi 2025-26 (−5.9% on 74 matches). Styles matter on court, but the market already prices them.</li>
+    <li><b>Head-to-head detail</b> (tools/h2h_detail, 43,176 Pinnacle-priced matches, 20,729 where the players had met before). Not just who won, but how: straight sets or a split, share of games, breaks of serve each way, tiebreak record, a "lucky" win (won but lost the games count), how recent, same surface. 0 of 15 rules held in both halves, and adding all of it to the price changed log-loss by +0.0000 / −0.0004. How they played each other is already in the price.</li>
+    <li><b>"How did they do the last times they were priced like this?"</b> (tools/price_record). For every match, each player's past record against the price: overall, as a favourite, and at a price within 7.5 pts of today's. A favourite who had beaten their price at this level by 10+ pts won 62.4% / 64.8% next time vs 63.8% / 64.1% priced, and players who had fallen short didn't keep falling short. 0 rules held on Pinnacle (47k), Kalshi tour or Kalshi ITF. A safe-favourite model trained on Kalshi's own data (price, rankings, our model, ages, round) also lost on its top picks in both halves. The market already prices who a player is; their record at a price is luck.</li>
+    <li><b>Everything at once, and our logged upsets</b> (tools/upset_ml). Instead of one rule at a time, a gradient-boosted model got every feature we've built (storylines, travel, entry status, retirements, book gaps, fatigue, form, age, home, money flow, our model) plus the price. <b>Upsets:</b> the matches it flagged as most upset-prone didn't produce upsets in both halves, on Pinnacle or Kalshi. Our own live log agrees: 614 graded matches, 27.2% upsets vs 26.6% priced, and no badge or signal marked extra upsets beyond noise. <b>Safe favourites:</b> a first run looked like it found ~60% favourites that beat Pinnacle by +8% to +11% a year. That turned out to be a data leak (189 matches priced exactly 50/50 where the winner had been labelled the "favourite"). With them removed it's gone: −2.4% overall at Pinnacle odds, and worse than the price on Kalshi. There's no reliable way to pick "safe" 60% favourites beyond the price.</li>
+    <li><b>Locks at 70%+?</b> (tools/locks70, 8,097 Kalshi matches). Favourites priced 70–85% win about their price (75.0% / 79.5% vs 76.3% / 76.5% with the Lock filters) and lost 4.1% then made 1.6% after the fee, flipping between halves. One rule held both halves, exactly what luck averages (1.0): veteran favourites (30+) at 70–75%, already the staked veteran-favourite strategy. Locks stay at 85%+. 70–85% favourites still get a "win" call on the board, but they're not bets on their own.</li>
+    <li><b>Tired underdogs</b> (tools/tired_dog). Unlike tired favourites (still +15.6% / +17.5% when backed on Kalshi), tired underdogs aren't over-punished by the market. Backing an underdog with 400+ min in 10 days against a fresh favourite lost 13.7% and 10.0% at Pinnacle (normal is 4–6%), and on Kalshi the results flipped or matched the usual underdog loss. The board now says "Don't back" on them.</li>
+    <li><b>💰 Underdog value</b> (tools/dog_sweep, with the retuned ratings). For underdogs priced 15–30c that our model rates 10+ pts higher (20+ in ITF):
+      <ul style="margin:4px 0;padding-left:16px">
+        <li>Tour/Challenger: they won 28% against 23–24% priced and returned +15.3% then +11.1%, while all cheap underdogs returned +0.9% then −9.3%.</li>
+        <li>ITF: +3.2% then +3.1%, while all cheap ITF underdogs lost 10–13%.</li>
+        <li>Pricier underdogs (30–50%) flipped between halves, so they're out.</li>
+        <li>Toss-ups: still no pick beats the price (our model picks close-match winners only 50–52% of the time).</li>
+      </ul>
+      These are value bets that lose about 3 in 4, so stakes are small.</li>
+    <li><b>ITF favourites our ratings rate 30+ pts lower</b> (the Gogineni vs Mirarchi case, 5 Nov 2026: Kalshi 76–80%, our model 42%): backing them lost 11.3% and 9.7% in the two halves of 6,900 Kalshi ITF matches. The board now says "Don't back" on these and marks them as upset risk. Also fixed: thin ITF markets weren't detected as in play (Kalshi's listed start time can be hours off), so in-play prices were being treated as pre-match.</li>
+    <li><b>Ratings retuned</b> (tools/elo_tune: walk-forward replay of 1.6M matches since 1985; settings chosen on ITF 2016–21, judged on 2022–26). Ratings now learn faster, especially for newer players, count scorelines more, and weight Challenger and qualifying results at 80%. Elo log-loss improved from 0.5641 to 0.5600 on ITF and from 0.5760 to 0.5716 on all levels. The full model's 2016–26 walk-forward went from 0.5726 to 0.5685 (69.9% of winners). That's bigger than every feature added before it combined. On Kalshi ITF our model improved from 0.585 to 0.578, and the drift of opening prices toward our number got stronger (55–56% toward vs 35% away when we disagree by 20+ pts). On tour and Challenger matches next to Kalshi it's about unchanged.</li>
+    <li><b>ITF opening lines</b> (tools/itf_openers, 6,800 matches, each price path from Kalshi's first tradable quote, a median 12 h before the start):
+      <ul style="margin:4px 0;padding-left:16px">
+        <li>The opening price is almost as sharp as the close (log-loss 0.545/0.535 vs 0.537/0.529).</li>
+        <li><b>The price drifts toward our model after the open</b> (51–53% toward vs 36–39% away, bigger when we disagree more, both halves). Our ratings do lead the ITF market a little.</li>
+        <li>Betting our raw model at the open still lost 2–17%, because the spread and fee are bigger than the drift.</li>
+        <li>A 13/90 model+market blend at a 6%+ edge was positive out of sample (+4.8%, positive closing-line value) on only ~70 bets. It's now a paper strategy (ITF early line) until the live record confirms it.</li>
+      </ul></li>
+    <li><b>Live matches</b> keep their pre-match price and verdict; the in-play price is shown separately (it used to replace the pre-match read once a match started).</li>
+    <li><b>🔒 Locks</b> (tools/locks): a market favourite at 85%+, our model within 10 pts, no risk flags, not ITF. These won 93.2% and 93.7% in the two halves (priced at 90.8%) and returned +1.4% and +2.0% at the real ask. At 90%+ they won 95–96%. Shown as YES picks, with small stakes when the price is 95¢ or less.</li>
+    <li><b>Total games.</b> Anchored to Pinnacle's price, the engine was within 0.3 games per match on average. Best-of-3 matches ran ~0.3 games short, while grass and best-of-5 ran longer (+0.65 on grass). These offsets are now built into the totals. Kalshi's totals still beat our fair price, so games over/unders are bet only via the Books tab: US books against Pinnacle's own totals and games spreads, tennis first.</li>
+  </ul>
+  <p><b>Units.</b> Stakes are quarter-Kelly in units (1u = 1% of bankroll by default), capped at ${B.config.max_units}u.</p>
+  <p><b>Strategies being tracked:</b> ${Object.values(s).map(x => esc(x.label)).join(" · ")}. Every pick is logged before the match and graded automatically on the Model record tab. Trust the strategies that keep positive CLV and ROI over hundreds of bets; drop the ones that don't.</p>
+  <p class="note">Not financial advice. Betting loses money for most people; bet only what you can afford to lose. Data: Jeff Sackmann's archive (CC BY-NC-SA), TennisMyLife, ESPN, Kalshi and Polymarket public APIs.</p></div>
+  ${(B.notes || []).length ? `<p class="note">Last refresh notes: ${B.notes.map(esc).join(" · ")}</p>` : ""}`;
+}
+
+// ------------------------------------------------------------- render + events
+function render() {
+  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === S.tab));
+  renderFilters();
+  if (!B) return;
+  const f = { picks: renderPicks, board: renderBoard, books: renderBooks, tracker: renderTracker, record: renderRecord, guide: renderGuide }[S.tab] || renderPicks;
+  $("#main").innerHTML = f();
+  const q = $("#q"); if (q) q.oninput = e => { S.q = e.target.value; const pos = e.target.selectionStart; render(); const n = $("#q"); n.focus(); n.setSelectionRange(pos, pos); };
+}
+document.addEventListener("click", e => {
+  const t = e.target.closest("button, [data-open]");
+  if (!t) return;
+  if (t.dataset.goto) { S.tab = "board"; store.set("te_tab", S.tab); S.open.add(t.dataset.goto); render();
+    const el = document.querySelector(`[data-open="${t.dataset.goto}"]`); el && el.scrollIntoView({ block: "start" }); return; }
+  if (t.dataset.tab) { S.tab = t.dataset.tab; store.set("te_tab", S.tab); render(); window.scrollTo(0, 0); return; }
+  if (t.dataset.f) { S.f = t.dataset.f; store.set("te_filter", S.f); render(); return; }
+  if (t.dataset.open) { S.open.has(t.dataset.open) ? S.open.delete(t.dataset.open) : S.open.add(t.dataset.open); render(); return; }
+  if (t.dataset.lc) {
+    const m = B.matches.find(x => x.id === t.dataset.lc); const st = m._live; const k = t.dataset.k;
+    if (k === "tb") st.tb = !st.tb; else if (k === "srv") st.srv = +t.dataset.v;
+    else st[k] = Math.max(0, st[k] + +t.dataset.d);
+    if (k === "ga" || k === "gb") st.tb = st.ga === 6 && st.gb === 6;
+    render(); return;
+  }
+  if (t.dataset.log) {
+    const tk = t.dataset.log; let pre = null;
+    for (const m of B.matches) for (const b of m.bets || []) if (b.ticker === tk) pre = { label: b.label, match: m.names.join(" vs "), price: b.ask, units: b.units || 1, ticker: tk, type: b.kind === "match" ? "Straight" : "Sets/games", where: "Kalshi", strategy: (b.tags || []).map(x => B.config.strategies[x]?.label || x).join(", "), tour: m.tour };
+    betForm(pre || {}); return;
+  }
+  if (t.dataset.logcombo) { const c = JSON.parse(t.dataset.logcombo); betForm({ label: c.legs.join(" + "), match: Array.isArray(c.names[0]) ? c.names.map(n => n.join(" v ")).join(" & ") : c.names.join(" vs "), type: "Combo", where: "Kalshi", price: c.take ? c.take / 100 : null, units: c.legs.length === 2 ? 0.5 : c.legs.length === 3 ? 0.25 : 0.1, strategy: `${c.legs.length}-leg value parlay` }); return; }
+  if (t.dataset.rr) {
+    const sel = S.rr || [], k = t.dataset.rr;
+    if (sel.includes(k)) { if (sel.length > 3) S.rr = sel.filter(x => x !== k); }
+    else S.rr = sel.length >= 4 ? [...sel.slice(1), k] : [...sel, k];
+    render(); return;
+  }
+  if (t.dataset.rrstake) { store.set("te_rr_stake", +t.dataset.rrstake); render(); return; }
+  if (t.dataset.logrr) { const c = JSON.parse(t.dataset.logrr); betForm({ label: `Round robin (${c.n} bets): ` + c.legs.map(l => l.replace(" to win", "")).join(", "), match: c.names.map(n => n.join(" v ")).join(" & "), type: "Combo", where: "Kalshi", units: Math.round(c.u * 100) / 100, strategy: `${c.legs.length}-leg round robin (TAKE legs)` }); return; }
+  if (t.dataset.logbook) { const f = JSON.parse(t.dataset.logbook); betForm({ label: f.l || `${f.n} to win (${f.b})`, match: f.m, type: f.ty || "Straight", where: "Sportsbook", odds: f.o, units: f.u || 1, ticker: f.t, strategy: f.s || "Sportsbook beats Pinnacle" }); return; }
+  if (t.dataset.logfut) { const f = JSON.parse(t.dataset.logfut); betForm({ label: `${f.n} ${f.s === "yes" ? "to win" : "not to win"} ${f.tn}`, match: f.tn, type: "Futures", where: "Kalshi", price: f.s === "yes" ? f.a : 1 - f.b, units: 0.5, ticker: f.t, side: f.s, strategy: "Tournament winner (draw sim)", tour: f.tour }); return; }
+  if (t.id === "addbet") return betForm();
+  if (t.id === "settings") return settingsForm();
+  if (t.id === "ladder") return ladderForm();
+  if (t.id === "dlg-x") return $("#dlg").close();
+  if (t.id === "export") { const blob = new Blob([JSON.stringify({ bets: bets(), settings: tsettings() })], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "tennis-edge-bets.json"; a.click(); return; }
+  if (t.id === "import") { const i = document.createElement("input"); i.type = "file"; i.accept = "application/json"; i.onchange = async () => { try { const d = JSON.parse(await i.files[0].text()); if (Array.isArray(d.bets)) { saveBets(d.bets); if (d.settings) store.set("te_settings", d.settings); render(); } } catch { alert("That file isn't a Tennis Edge backup."); } }; i.click(); return; }
+  if (t.dataset.set) { const bs = bets(); const b = bs.find(x => x.id === t.dataset.set); if (b) { b.status = t.dataset.st; b.settled = Date.now(); saveBets(bs); render(); } return; }
+  if (t.dataset.del) { if (confirm("Delete this bet?")) { saveBets(bets().filter(x => x.id !== t.dataset.del)); render(); } return; }
+});
+
+async function load() {
+  try {
+    const r = await fetch("board.json?t=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) throw new Error(r.status);
+    const nb = await r.json();
+    if (B) nb.matches.forEach(m => { const o = B.matches.find(x => x.id === m.id); if (o && o._live) m._live = o._live; });
+    B = nb;
+    try { const r2 = await fetch("sportsbook.json?t=" + Date.now(), { cache: "no-store" }); if (r2.ok) SB = await r2.json(); } catch {}
+    $("#upd").innerHTML = `Updated <b>${ago(B.generated)}</b><br>${B.n_matches} matches · refreshes ~20 min`;
+    render();
+  } catch (e) {
+    $("#upd").textContent = "Couldn't load the board — retrying";
+    if (!B) $("#main").innerHTML = `<div class="card empty" style="margin-top:14px">The board hasn't been generated yet, or you're offline.</div>`;
+  }
+}
+load();
+setInterval(load, 5 * 60 * 1000);
+setInterval(() => { if (B) $("#upd").innerHTML = `Updated <b>${ago(B.generated)}</b><br>${B.n_matches} matches · refreshes ~20 min`; }, 30000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+</script>
+</body>
+</html>
