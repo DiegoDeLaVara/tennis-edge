@@ -482,7 +482,7 @@ def run(data, cfg, do_smart=True, verbose=True):
         if RULES and m.get("p_mkt") is not None:
             md0 = m["model"]
             snap = {"p_close": m["p_mkt"], "p_open": OPEN.get(m["event"]) or m["p_mkt"], "series": m["series"], "ctx": m.get("ctx"),
-                    "flow": m.get("flow"), "risk": m.get("risk"),
+                    "flow": m.get("flow"), "risk": m.get("risk"), "poly": m.get("poly"),
                     "model": {k: md0.get(k) for k in ("p_model", "p_mrate", "dis", "form", "load")}}
             ff = tuner.flat_features(snap)
             if ff:

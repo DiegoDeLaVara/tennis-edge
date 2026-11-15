@@ -57,6 +57,9 @@ def flatten(rows):
              "flow_share_to_fav": None if fl.get("net_share") is None else fl["net_share"] * (1 if fa else -1),
              "big_money_to_fav": None if fl.get("big_net") is None else np.sign(fl["big_net"]) * (1 if fa else -1),
              "volume": fl.get("vol"), "itf": int("ITF" in e["series"])}
+        pl = e.get("poly") or {}
+        if pl.get("poly_price") is not None:                    # logged from 2026-11-15
+            o["poly_minus_price_fav"] = (pl["poly_price"] if fa else 1 - pl["poly_price"]) - (pa if fa else 1 - pa)
         if md.get("form"):
             f = md["form"]; o["form_gap_fav"] = (f[0] - f[1]) * (1 if fa else -1)
         if md.get("load"):

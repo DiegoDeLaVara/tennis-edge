@@ -212,6 +212,9 @@ def flat_features(snap):
          "flow_share_to_fav": None if fl.get("net_share") is None else fl["net_share"] * sgn,
          "big_money_to_fav": None if fl.get("big_net") is None else (0 if fl["big_net"] == 0 else math.copysign(1, fl["big_net"])) * sgn,
          "volume": fl.get("vol"), "itf": int("ITF" in snap.get("series", ""))}
+    pl = snap.get("poly") or {}
+    if pl.get("poly_price") is not None:
+        o["poly_minus_price_fav"] = (pl["poly_price"] if fa else 1 - pl["poly_price"]) - (pa if fa else 1 - pa)
     if md.get("form"):
         f = md["form"]
         if f[0] is not None and f[1] is not None:
