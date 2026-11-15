@@ -1188,6 +1188,7 @@ def update_archive(data, board, results):
             "q": [{k: q.get(k) for k in ("bid", "ask", "vol", "vol24", "oi")} for q in m["q"]],
             "model": {k: md.get(k) for k in ("p_model", "p_elo", "p_stats", "p_mrate", "p_model_mr", "p", "p_adj", "dis", "form", "load", "h2h", "pa", "pb", "stat_w")},
             "ctx": m.get("ctx"), "entry": m.get("entry"),
+            "poly": {k: (m.get("poly") or {}).get(k) for k in ("poly_price", "poly_vol")} if m.get("poly") else old.get("poly"),
             "risk": {k: (m.get("risk") or {}).get(k) for k in ("level", "net")} | {
                 "flags": [t.split(":")[0][:60] for k in ("stay", "warn", "good", "avoid") for t in ((m.get("risk") or {}).get(k) or [])]},
             "verdict": (m.get("verdict") or {}).get("k"),
