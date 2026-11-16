@@ -1,6 +1,18 @@
 {
- "ts": 1794262488,
- "n_archive": 341,
- "status": "waiting: 341 graded archive matches, need 600 for a fair three-way split",
+ "ts": 1794844170,
+ "n_archive": 1775,
+ "candidates": 39,
+ "held": 6,
+ "luck_held": [
+  1,
+  2,
+  2,
+  3,
+  0,
+  5,
+  7,
+  1
+ ],
+ "status": "nothing kept: 6 held in all three periods vs up to 7 in luck runs",
  "rules": []
 }
