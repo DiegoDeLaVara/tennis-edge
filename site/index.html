@@ -254,7 +254,9 @@ const surfColor = { Hard: "#3b6ea8", Clay: "#c0602c", Grass: "#3d8a4e", Carpet: 
 const unitVal = () => { const t = tsettings(); return t.bankroll * t.unit_pct / 100; };
 function tsettings() { return store.get("te_settings", { bankroll: B?.config?.bankroll ?? 1000, unit_pct: (B?.config?.unit_pct ?? 0.01) * 100 }); }
 function sigBadges(m, side) {
-  return (m.signals || []).map(s => {
+  // rows and pick cards show only Polymarket sharps; the Kalshi tape signals (big $, steam, line move, money flow) didn't
+  // beat the price on 2,267 live matches, so they live in match details (2026-11-18)
+  return (m.signals || []).filter(s => s.k === "smart").map(s => {
     const toward = s.dir > 0 ? 0 : 1;
     const agree = side == null ? null : toward === side;
     const nm = m.names[toward].split(" ").slice(-1)[0];
@@ -264,7 +266,7 @@ function sigBadges(m, side) {
 }
 
 // ------------------------------------------------------------- filters
-const FILTERS = [["all", "All"], ["value", "+EV only"], ["atp", "ATP"], ["wta", "WTA"], ["C", "Challengers"], ["S", "ITF"], ["money", "Big $ / sharps"], ["live", "Live"], ["disagree", "Markets disagree"], ["doubles", "Doubles"]];
+const FILTERS = [["all", "All"], ["value", "+EV only"], ["atp", "ATP"], ["wta", "WTA"], ["C", "Challengers"], ["S", "ITF"], ["money", "Poly sharps"], ["live", "Live"], ["disagree", "Markets disagree"], ["doubles", "Doubles"]];
 function renderFilters() {
   const show = S.tab === "board";
   $("#filters").hidden = !show;
@@ -278,7 +280,7 @@ function passes(m) {
   if (f === "atp" || f === "wta") return m.tour === f && !["C", "S"].includes(m.level);
   if (f === "C" || f === "S") return m.level === f;
   if (f === "value") return (m.bets || []).some(b => b.ev >= 0.03 && b.kind === "match");
-  if (f === "money") return (m.signals || []).length > 0;
+  if (f === "money") return (m.signals || []).some(s => s.k === "smart");
   if (f === "live") return m.status === "live";
   if (f === "disagree") return !!polyGap(m);
   return true;
@@ -705,7 +707,7 @@ function matchRow(m) {
     <div class="who">
       ${[0, 1].map(i => `<div class="${fav === i ? "fav" : ""}"><span class="nm">${esc(m.names[i])}${(m.entry || [])[i] ? ` <small class="note" title="${esc(entryName[m.entry[i]] || m.entry[i])}">(${esc(m.entry[i])})</small>` : ""}</span><span class="pp" style="color:var(--${i ? "b" : "a"})">${p == null ? "" : pct(i ? 1 - p : p)}</span></div>`).join("")}
       ${p != null ? `<div class="bar2"><i style="width:${p * 100}%"></i><i style="width:${(1 - p) * 100}%"></i></div>${pm != null ? `<div class="mk"><i style="left:calc(${pm * 100}% - 1px)" title="market"></i></div>` : ""}` : ""}
-      <div class="mtags">${dot}<span class="badge">${esc(m.tourney)}${m.round ? " · " + esc(m.round) : ""}</span>${status}${m.status === "pre" ? verdictChip(m.verdict) : riskBadge(m.risk)}${sigBadges({ ...m, signals: (m.signals || []).slice(0, 2) }, null)}${(m.signals || []).length > 2 ? `<span class="badge sharp">+${m.signals.length - 2}</span>` : ""}${m.model ? "" : `<span class="badge">no model</span>`}${polyBadge(m)}</div>
+      <div class="mtags">${dot}<span class="badge">${esc(m.tourney)}${m.round ? " · " + esc(m.round) : ""}</span>${status}${m.status === "pre" ? verdictChip(m.verdict) : riskBadge(m.risk)}${sigBadges(m, null)}${m.model ? "" : `<span class="badge">no model</span>`}${polyBadge(m)}</div>
     </div>
     <div class="edgecol">${best && best.ev > 0 ? `<b class="pos">${sgn(best.ev)}</b><span>${esc(best.label.replace(" to win", ""))}</span>` : (m.p_live != null ? `<b style="color:var(--mute)">${cents(m.p_live)}</b><span>live · was ${cents(pm)}</span>` : `<b style="color:var(--mute)">${pm == null ? "—" : cents(pm)}</b><span>market</span>`)}</div>
   </button>${S.open.has(m.id) ? matchDetail(m) : ""}`;
@@ -763,7 +765,8 @@ function matchDetail(m) {
     ${bets.map(b => `<tr><td>${esc(b.label)}${b.tags.length ? ` <span class="badge good">${b.units}u</span>` : ""}</td><td class="n">${pct(b.p)}</td><td class="n">${cents(b.ask)}</td><td class="n ${b.ev >= 0 ? "pos" : "neg"}">${sgn(b.ev)}</td><td class="n">${b.take_at ?? "—"}¢</td><td><button class="btn small" data-log="${esc(b.ticker)}">Log</button></td></tr>`).join("")}</table></div></div>`);
   else if (m.q) out.push(`<div><h3>Kalshi</h3><div class="kv">${[0, 1].map(i => `<div><span>${esc(m.names[i])}</span><b class="num">${cents(m.q[i].bid)} / ${cents(m.q[i].ask)}</b></div>`).join("")}</div></div>`);
   const fl = m.flow;
-  if (fl && fl.n) out.push(`<div><h3>Money flow (Kalshi tape, pre-match)</h3>${(m.signals || []).map(s => `<div class="sig">${esc(s.txt)} → <b>${esc(m.names[s.dir > 0 ? 0 : 1])}</b></div>`).join("") || `<div class="note">No strong one-way money.</div>`}
+  if (fl && fl.n) out.push(`<div><h3>Money flow (Kalshi tape, pre-match)</h3>${(m.signals || []).filter(s => s.k !== "smart").map(s => `<div class="sig">${esc(s.txt)} → <b>${esc(m.names[s.dir > 0 ? 0 : 1])}</b></div>`).join("") || `<div class="note">No strong one-way money.</div>`}
+    <div class="note" style="margin-top:4px">Information only: on 2,267 live matches, big tickets, steam, line moves and one-way flow didn't beat the price (their side won about what it was priced; following them lost 2–17%).</div>
     <div class="kv" style="margin-top:8px"><div><span>Traded</span><b class="num">$${Math.round(fl.vol).toLocaleString()}</b></div>
     <div><span>Net toward ${esc(m.names[0].split(" ").slice(-1)[0])}</span><b class="num ${fl.net >= 0 ? "pos" : "neg"}">$${Math.round(fl.net).toLocaleString()}</b></div>
     <div><span>Big tickets ($250+)</span><b class="num">${fl.big_n} · $${Math.round(fl.big_net).toLocaleString()} net</b></div>
