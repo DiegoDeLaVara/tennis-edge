@@ -23,21 +23,22 @@ WORK = ROOT / "work"
 
 
 def dedupe(rows):
-    """Same pair within 7 days from a *different* source is the same match (source dates are approximate):
-    keep the first, so pass richer sources first. Within one source, distinct ids are distinct matches."""
+    """Same pair from a *different* source is the same match when within 7 days, or within 21 days with the same
+    winner (source dates are estimates: TennisMyLife's can run ~10 days late, e.g. its 2026 US Open final is dated
+    26 Sep). Keep the first, so pass richer sources first. Within one source, distinct ids are distinct matches."""
     seen, out = {}, []
     for m in rows:
         pk = tuple(sorted((m["w"], m["l"])))
         srcn = m["uid"].split("|")[0]
         hit = False
-        for d in range(m["date"] - 7, m["date"] + 8):
+        for d in range(m["date"] - 21, m["date"] + 22):
             s0 = seen.get((pk, d))
-            if s0 is not None and s0 != srcn:
+            if s0 is not None and s0[0] != srcn and (abs(d - m["date"]) <= 7 or s0[1] == m["w"]):
                 hit = True
                 break
         if hit:
             continue
-        seen[(pk, m["date"])] = srcn
+        seen.setdefault((pk, m["date"]), (srcn, m["w"]))
         out.append(m)
     return out
 
@@ -88,7 +89,9 @@ def main():
     rows += src.archive_rows(args.archive, "atp", ["", "_qual_chall", "_futures"], [y for y in years])
     rows += src.archive_rows(args.archive, "wta", ["", "_qual_itf"], years)
     # archive's 2026 ATP tour file is superseded by TennisMyLife's complete 2026
-    rows = [m for m in rows if not (m["uid"].startswith("atp|2026-") and m["level"] in ("G", "M", "A", "F", "D") and m["round"] and not m["round"].startswith("Q"))]
+    # (the whole 2026 ATP *tour* file; Challenger/qualifying files stay. The old test `not round.startswith("Q")` also
+    # kept "QF" rows, which TML has too -> quarter-finals were counted twice - fixed 2026-11-18)
+    rows = [m for m in rows if not (m["uid"].startswith("atp|2026-") and m.get("file") == "tour")]
     print("archive rows", len(rows), round(time.time() - t0, 1), "s")
     surfaces = src.Surfaces()
     for m in rows:

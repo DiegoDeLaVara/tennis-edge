@@ -92,6 +92,7 @@ def archive_rows(root, tour, families, years):
                 for r in csv.DictReader(fh):
                     m = std_row(r, tour, src)
                     if m:
+                        m["file"] = src                  # which archive file: tour / qual / futures
                         yield m
 
 
