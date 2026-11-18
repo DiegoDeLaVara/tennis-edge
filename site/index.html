@@ -264,7 +264,7 @@ function sigBadges(m, side) {
 }
 
 // ------------------------------------------------------------- filters
-const FILTERS = [["all", "All"], ["value", "+EV only"], ["atp", "ATP"], ["wta", "WTA"], ["C", "Challengers"], ["S", "ITF"], ["money", "Sharp/smart $"], ["live", "Live"], ["doubles", "Doubles"]];
+const FILTERS = [["all", "All"], ["value", "+EV only"], ["atp", "ATP"], ["wta", "WTA"], ["C", "Challengers"], ["S", "ITF"], ["money", "Sharp/smart $"], ["live", "Live"], ["disagree", "Markets disagree"], ["doubles", "Doubles"]];
 function renderFilters() {
   const show = S.tab === "board";
   $("#filters").hidden = !show;
@@ -280,6 +280,7 @@ function passes(m) {
   if (f === "value") return (m.bets || []).some(b => b.ev >= 0.03 && b.kind === "match");
   if (f === "money") return (m.signals || []).length > 0;
   if (f === "live") return m.status === "live";
+  if (f === "disagree") return !!polyGap(m);
   return true;
 }
 
@@ -520,7 +521,7 @@ function renderPicks() {
     <p class="note" style="margin:6px 2px">Near-certain, not certain. On 8,000 Kalshi matches this filter won 93–94% of the time (95–96% at 90%+) and made a small profit (+1.4% / +2.0%) at the real price. That's because big favourites are slightly under-priced. Djokovic at 90% lost today, so keep stakes small and never chain them into a big parlay.</p>`;
   h += `<h2 class="sec">✅ Bets to take now <span>${takes.length ? takes.length + " right now" : "none right now"}</span></h2>`;
   h += takes.length ? `<div class="card list">${takes.map(takeCard).join("")}</div>`
-    : `<div class="card empty">Nothing to take right now — that's the normal state. Bets only appear here when a price is clearly off; the board checks every ~20 minutes.</div>`;
+    : `<div class="card empty">Nothing to take right now — that's the normal state. Bets only appear here when a price is clearly off; the board checks every ~10 minutes.</div>`;
   const dropped = (B.dropped || []).filter(d => d.start > now);
   if (dropped.length) h += `<h2 class="sec">⛔ No longer a bet <span>was a TAKE earlier, not any more</span></h2><div class="card list">${dropped.map(d => `<div class="pick">
       <div><div class="what" style="color:var(--mute)">${esc(d.label)}</div><div class="sub">${esc(d.names.join(" vs "))} · ${esc(d.tourney)} · ${dayOf(d.start)} ${when(d.start)}</div></div>
@@ -672,6 +673,26 @@ function renderFutures() {
 
 // ------------------------------------------------------------- board tab
 const entryName = { Q: "Qualifier", WC: "Wildcard", LL: "Lucky loser", PR: "Protected ranking (back from injury)", SE: "Special exempt", Alt: "Alternate" };
+function polyGap(m) {
+  // Kalshi vs Polymarket on the favourite, pre-match only. When Polymarket was 5+ pts less sure of the favourite,
+  // favourites were upset 33% vs 26% priced (tools/poly_gap); Kalshi cheaper than Polymarket is the price_gap strategy.
+  const pl = m.poly, q = m.p_mkt;
+  if (!pl || pl.poly_price == null || q == null || m.status !== "pre") return null;
+  // thin markets show stale listing prices ($0-75 traded gave 30-40 pt "gaps"): need real money on both sides
+  if ((pl.poly_vol || 0) < 1000) return null;
+  const fi = q >= 0.5 ? 0 : 1, pk = fi ? 1 - q : q, pp = fi ? 1 - pl.poly_price : pl.poly_price;
+  const kq = (m.q || [])[fi] || {};
+  if (kq.ask == null || kq.bid == null || kq.ask - kq.bid > 0.08) return null;
+  if (Math.abs(pp - pk) < 0.05) return null;
+  return { fi, pk, pp, less: pp < pk, who: m.names[fi].split(" ").slice(-1)[0] };
+}
+function polyBadge(m) {
+  const g = polyGap(m);
+  if (!g) return "";
+  const tip = g.less ? `Polymarket gives ${m.names[g.fi]} ${pct(g.pp)} vs Kalshi's ${pct(g.pk)}. When Polymarket was 5+ pts less sure of the favourite, favourites were upset 33% of the time vs 26% priced (10,000 matches, both halves). Don't back the favourite here.`
+    : `Polymarket gives ${m.names[g.fi]} ${pct(g.pp)} vs Kalshi's ${pct(g.pk)}: Kalshi is cheaper on the favourite. Check the Picks tab for a TAKE card (Kalshi cheaper than Polymarket).`;
+  return `<span class="badge ${g.less ? "warn" : "good"}" title="${esc(tip)}">⚖ ${esc(g.who)}: Poly ${pct(g.pp)} · Kalshi ${pct(g.pk)}</span>`;
+}
 function matchRow(m) {
   const md = m.model, pm = m.p_mkt;
   const p = md ? md.p : pm;
@@ -684,7 +705,7 @@ function matchRow(m) {
     <div class="who">
       ${[0, 1].map(i => `<div class="${fav === i ? "fav" : ""}"><span class="nm">${esc(m.names[i])}${(m.entry || [])[i] ? ` <small class="note" title="${esc(entryName[m.entry[i]] || m.entry[i])}">(${esc(m.entry[i])})</small>` : ""}</span><span class="pp" style="color:var(--${i ? "b" : "a"})">${p == null ? "" : pct(i ? 1 - p : p)}</span></div>`).join("")}
       ${p != null ? `<div class="bar2"><i style="width:${p * 100}%"></i><i style="width:${(1 - p) * 100}%"></i></div>${pm != null ? `<div class="mk"><i style="left:calc(${pm * 100}% - 1px)" title="market"></i></div>` : ""}` : ""}
-      <div class="mtags">${dot}<span class="badge">${esc(m.tourney)}${m.round ? " · " + esc(m.round) : ""}</span>${status}${m.status === "pre" ? verdictChip(m.verdict) : riskBadge(m.risk)}${sigBadges({ ...m, signals: (m.signals || []).slice(0, 2) }, null)}${(m.signals || []).length > 2 ? `<span class="badge sharp">+${m.signals.length - 2}</span>` : ""}${m.model ? "" : `<span class="badge">no model</span>`}</div>
+      <div class="mtags">${dot}<span class="badge">${esc(m.tourney)}${m.round ? " · " + esc(m.round) : ""}</span>${status}${m.status === "pre" ? verdictChip(m.verdict) : riskBadge(m.risk)}${sigBadges({ ...m, signals: (m.signals || []).slice(0, 2) }, null)}${(m.signals || []).length > 2 ? `<span class="badge sharp">+${m.signals.length - 2}</span>` : ""}${m.model ? "" : `<span class="badge">no model</span>`}${polyBadge(m)}</div>
     </div>
     <div class="edgecol">${best && best.ev > 0 ? `<b class="pos">${sgn(best.ev)}</b><span>${esc(best.label.replace(" to win", ""))}</span>` : (m.p_live != null ? `<b style="color:var(--mute)">${cents(m.p_live)}</b><span>live · was ${cents(pm)}</span>` : `<b style="color:var(--mute)">${pm == null ? "—" : cents(pm)}</b><span>market</span>`)}</div>
   </button>${S.open.has(m.id) ? matchDetail(m) : ""}`;
@@ -999,7 +1020,7 @@ function renderGuide() {
   return `<h2 class="sec">How to bet with this board</h2><div class="card" style="padding:12px 14px;font-size:14px">
   <ol style="margin:0;padding-left:18px">
     <li><b>Set your unit:</b> My bets → Bankroll &amp; units. Use money you can afford to lose; 1 unit = 1% of it.</li>
-    <li><b>Check Picks 2–3 times a day</b> (prices change; the board refreshes every ~20 min). Bet only green <b>TAKE</b> cards, only at the price shown <b>or better</b>, and only the units shown.</li>
+    <li><b>Check Picks 2–3 times a day</b> (prices change; the board refreshes every ~10 min). Bet only green <b>TAKE</b> cards, only at the price shown <b>or better</b>, and only the units shown.</li>
     <li><b>Books tab:</b> sportsbook prices that beat Pinnacle are the best-proven edge. Bet them at that book if the price is still there.</li>
     <li><b>🔒 Locks:</b> win ~94% but pay little. Bet them as singles at the listed price; never chain several into a parlay.</li>
     <li><b>💰 Underdog value:</b> lose about 3 in 4 and still profit over time. Keep them small and judge them after 100+ bets, not 5.</li>
@@ -1127,6 +1148,7 @@ function renderGuide() {
     <li><b>ITF limit orders</b> (tools/itf_limits, 6,637 ITF matches, hourly prices from the open to the start). Instead of paying the ask, post a buy order at our price when the market opens and wait (ITF orders that rest in the book pay no Kalshi fee). Every version lost in both halves. Bids 1c above the best bid filled 16–29% of the time and lost 4–21%. Deeper bids (our price minus 3–10%) filled 11–26% and lost 7–14%. The price at the close was 1–3c worse than what we paid. That's the catch with limit orders: you get filled when the price is about to move against you, and the matches that drift our way never come down to our order.</li>
     <li><b>Late news: lucky losers, wildcards, injury returns</b> (tools/entry_study, 44,949 Pinnacle matches joined to each player's entry status). Lucky losers (got in hours before), wildcards, players back from injury on a protected ranking, special exempts and alternates are all priced about right. The one interesting result: qualifiers who are the <i>favourite</i> won 67.8% / 65.6% vs 62.6% / 62.2% priced (+5.7% / +2.5% in the two halves, about 1,000 bets each), probably because they've already won two or three matches on those courts that week. On fresh Kalshi matches (2025–26) it pointed the same way but proved nothing: 116 bets, won 67.2% vs 63.7% priced, +2.1% ± 6.8%, while all favourites lost 3.3%. A watch item, not a bet. Medical timeouts: no free data source (the live score feed only marks retirements, which are already priced).</li>
     <li><b>Kalshi vs Polymarket backtest</b> (tools/poly_gap, 12,265 matches on both markets, Jun–Nov 2026). The two markets are equally sharp (log-loss 0.5854 vs 0.5859), but their average (0.5843) beats both, so when they disagree each one knows something. The staked "Kalshi cheaper than Polymarket" rule (Kalshi ask + fee 3c+ below Polymarket) returned +12.4% and +16.9% in the two halves (204 bets, pooled +14.7% ± 11%). 69% of its picks were underdogs, which won 43–44% vs about 41% paid. This is the one "upset finder" with support: not a fact about the players, but another market rating the underdog higher than Kalshi does. Not yet proven, so it stays at its small stake.</li>
+    <li><b>⚖ Markets-disagree badge</b> (Matches tab, plus a "Markets disagree" filter). Shown on a match row when Polymarket and Kalshi differ by 5+ pts on the favourite before the match, with both prices. Orange = Polymarket is less sure of the favourite (don't back it: those favourites were upset 33% vs 26% priced). Green = Kalshi is cheaper on the favourite (check Picks for a TAKE card). Only shown when Polymarket has $1,000+ traded and Kalshi's spread is 8c or less, because thin markets show stale prices. The board now refreshes every ~10 minutes, so these short-lived gaps show up sooner.</li>
     <li><b>Player records</b> (match details → each player's card). Career, this year and last year, overall and by surface (current surface in bold). They count every level in our data (tour, Challenger, ITF and qualifying; walkovers left out), so they're higher than the ATP/WTA official tour-only numbers. Building them exposed a data bug: January–May 2026 ATP tour results had been dropped from the ratings (only quarter-finals got through). That's fixed and the ratings were rebuilt with every match.</li>
     <li><b>Upset correlations in our own live data</b> (tools/upset_live). 1,592 matches the board logged before they started, 103 features each (our model's parts, form, fatigue, rest, ages, rankings, money flow, price moves, order-book volume and open interest, risk flags, verdict, entry status), single conditions and pairs. Upsets ran 28.7% vs 28.5% priced. 318 rules showed extra upsets in both halves, but fake results drawn from the price produced 56–581 (mean 267), so that's luck. A model with all 103 features was far less accurate than the price alone. The archive now also records Polymarket's price, the one upset signal that held up, so future scans can test it on live data.</li>
     <li><b>Pro wallets on Polymarket</b> (tools/wallet_study). Every pre-match trade on 11,634 Polymarket tennis markets (Jul–Nov 2026), 33,651 wallets. Wallets were ranked only on earlier months, then their pre-match positions were followed in later months. They did no better than random, equally active wallets: −0.5% vs −0.9% at Polymarket's price, −2.6% vs −2.1% at Kalshi's. Stricter "pro" definitions (top 25, 40+ matches with 10–20% profit, $5k+ positions, fading the worst) flipped between halves or stayed within luck. The purple "proven winners hold $X" note is shown as information, not a reason to bet. Polymarket retired the old API it used; the board now uses the new one and watches up to 500 holders per player instead of 20.</li>
@@ -1227,7 +1249,7 @@ async function load() {
     if (B) nb.matches.forEach(m => { const o = B.matches.find(x => x.id === m.id); if (o && o._live) m._live = o._live; });
     B = nb;
     try { const r2 = await fetch("sportsbook.json?t=" + Date.now(), { cache: "no-store" }); if (r2.ok) SB = await r2.json(); } catch {}
-    $("#upd").innerHTML = `Updated <b>${ago(B.generated)}</b><br>${B.n_matches} matches · refreshes ~20 min`;
+    $("#upd").innerHTML = `Updated <b>${ago(B.generated)}</b><br>${B.n_matches} matches · refreshes ~10 min`;
     render();
   } catch (e) {
     $("#upd").textContent = "Couldn't load the board — retrying";
@@ -1236,7 +1258,7 @@ async function load() {
 }
 load();
 setInterval(load, 5 * 60 * 1000);
-setInterval(() => { if (B) $("#upd").innerHTML = `Updated <b>${ago(B.generated)}</b><br>${B.n_matches} matches · refreshes ~20 min`; }, 30000);
+setInterval(() => { if (B) $("#upd").innerHTML = `Updated <b>${ago(B.generated)}</b><br>${B.n_matches} matches · refreshes ~10 min`; }, 30000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
 </script>
 </body>

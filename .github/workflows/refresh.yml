@@ -34,7 +34,7 @@ jobs:
 
       - run: pip install -q requests
 
-      - name: Refresh every 20 minutes
+      - name: Refresh every 10 minutes
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           REPO_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
@@ -62,7 +62,7 @@ jobs:
             # stop for new code on main, or before the job's time limit
             git fetch -q origin main --depth=1 && [ "$(git rev-parse origin/main)" != "$head" ] && { echo "new code on main"; break; }
             [ $(( $(date +%s) - start )) -gt 19200 ] && break
-            wait=$(( 1200 - ($(date +%s) - t0) )); [ $wait -gt 0 ] && sleep $wait
+            wait=$(( 600 - ($(date +%s) - t0) )); [ $wait -gt 0 ] && sleep $wait     # every ~10 min (2026-11-18; was 20)
           done
 
       - name: Start the next run
