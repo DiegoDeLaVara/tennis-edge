@@ -258,13 +258,13 @@ function sigBadges(m, side) {
     const toward = s.dir > 0 ? 0 : 1;
     const agree = side == null ? null : toward === side;
     const nm = m.names[toward].split(" ").slice(-1)[0];
-    const lab = { sharp: "Sharp $", steam: "Steam", drift: "Line move", flow: "Money flow", smart: "Smart $" }[s.k] || s.k;
+    const lab = { sharp: "Kalshi big $", steam: "Steam", drift: "Line move", flow: "Money flow", smart: "Poly sharps" }[s.k] || s.k;
     return `<span class="badge ${agree === false ? "bad" : "sharp"}" title="${esc(s.txt)}">${lab} → ${esc(nm)}</span>`;
   }).join("");
 }
 
 // ------------------------------------------------------------- filters
-const FILTERS = [["all", "All"], ["value", "+EV only"], ["atp", "ATP"], ["wta", "WTA"], ["C", "Challengers"], ["S", "ITF"], ["money", "Sharp/smart $"], ["live", "Live"], ["disagree", "Markets disagree"], ["doubles", "Doubles"]];
+const FILTERS = [["all", "All"], ["value", "+EV only"], ["atp", "ATP"], ["wta", "WTA"], ["C", "Challengers"], ["S", "ITF"], ["money", "Big $ / sharps"], ["live", "Live"], ["disagree", "Markets disagree"], ["doubles", "Doubles"]];
 function renderFilters() {
   const show = S.tab === "board";
   $("#filters").hidden = !show;
@@ -769,7 +769,7 @@ function matchDetail(m) {
     <div><span>Big tickets ($250+)</span><b class="num">${fl.big_n} · $${Math.round(fl.big_net).toLocaleString()} net</b></div>
     <div><span>Opened → now</span><b class="num">${cents(fl.px_first)} → ${cents(fl.px_last)}</b></div>
     <div><span>Biggest single bet</span><b class="num">$${Math.round(fl.whale).toLocaleString()} on ${esc(m.names[fl.whale_dir > 0 ? 0 : 1].split(" ").slice(-1)[0])}</b></div></div></div>`);
-  if (m.poly) out.push(`<div><h3>Polymarket smart money</h3><div class="kv"><div><span>Polymarket price</span><b class="num">${cents(m.poly.poly_price)}</b></div><div><span>Volume</span><b class="num">$${m.poly.poly_vol.toLocaleString()}</b></div>
+  if (m.poly) out.push(`<div><h3>Polymarket sharps (wallets that beat the closing price)</h3><div class="kv"><div><span>Polymarket price</span><b class="num">${cents(m.poly.poly_price)}</b></div><div><span>Volume</span><b class="num">$${m.poly.poly_vol.toLocaleString()}</b></div>
     ${[0, 1].map(i => `<div><span>Proven winners on ${esc(m.names[i].split(" ").slice(-1)[0])}</span><b class="num">$${m.poly.smart[i].toLocaleString()}</b></div>`).join("")}</div>
     ${m.poly.who.flat().length ? `<div class="note" style="margin-top:4px">${m.poly.who.map((w, i) => w.length ? `${esc(m.names[i])}: ${w.map(esc).join(", ")}` : "").filter(Boolean).join("<br>")}</div>` : ""}</div>`);
   if (md) out.push(liveCalc(m));
