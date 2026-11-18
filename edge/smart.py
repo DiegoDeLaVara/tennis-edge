@@ -106,8 +106,10 @@ def rank_wallets(prev=None, days=75, min_markets=15, top=400, max_new=1500, k_sh
     only newly closed matches are processed, so history grows past the API's recent window."""
     prev = prev or {}
     agg = prev.get("agg", {})                         # wallet -> [sum clv*usd, sum usd, n, name, pnl, t_last]
-    done = set(prev.get("done", []))
     now = time.time()
+    done = dict(prev.get("done_ts") or {})            # cid -> when it was counted (pruned after 90 days)
+    for c in prev.get("done", []):                    # older list format
+        done.setdefault(c, now)
     since = time.strftime("%Y-%m-%dT00:00:00Z", time.gmtime(now - days * 86400))
     evs = match_events(True, pages=40, since_iso=since)
     evs = [e for e in evs if e["cid"] not in done and e["volume"] >= 500 and max(e["prices"]) > 0.98 and "/" not in e["a"]]
@@ -155,7 +157,7 @@ def rank_wallets(prev=None, days=75, min_markets=15, top=400, max_new=1500, k_sh
     for w, a in agg.items():
         a[0] *= f; a[1] *= f; a[2] *= f; a[4] *= f
     for cid, out in res:
-        done.add(cid)
+        done[cid] = now
         for w, (cu, usd, name, pnl) in out.items():
             a = agg.setdefault(w, [0.0, 0.0, 0.0, name, 0.0, now])
             a[0] += cu; a[1] += usd; a[2] += 1; a[3] = name or a[3]; a[4] += pnl; a[5] = now
@@ -171,7 +173,7 @@ def rank_wallets(prev=None, days=75, min_markets=15, top=400, max_new=1500, k_sh
     ranked.sort(key=lambda x: -x["score"])
     return {"built": now, "events": len(evs), "tracked": len(agg), "wallets": ranked[:top],
             "agg": {w: [round(a[0], 2), round(a[1], 2), round(a[2], 3), a[3], round(a[4], 2), round(a[5])] for w, a in agg.items()},
-            "done": sorted(done)[-20000:], "method": "clv"}
+            "done_ts": {c: round(t) for c, t in done.items() if now - t < 90 * 86400}, "method": "clv"}
 
 
 def positions(cid, smart, prices=None):

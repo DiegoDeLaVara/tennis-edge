@@ -182,6 +182,32 @@ def market_prob(qa, qb):
     return None
 
 
+def seed_sharps(prev):
+    """One-time merge of state/sharps_seed.json.gz (tools/seed_sharps: Jul-Nov 2026 closing-line-value tallies from the
+    wallet study) into the live tally, so the sharps list starts with months of history. Both tallies are put on the
+    live tally's time reference (120-day decay) before adding."""
+    f = ROOT / "state" / "sharps_seed.json.gz"
+    if not f.exists():
+        return prev
+    seed = json.load(gzip.open(f, "rt"))
+    ref = prev.get("built") or NOW
+    k = 0.5 ** ((ref - seed["built"]) / 86400 / 120)
+    agg = dict(prev.get("agg") or {})
+    for w, a in seed["agg"].items():
+        b = agg.get(w)
+        if b:
+            agg[w] = [b[0] + a[0] * k, b[1] + a[1] * k, b[2] + a[2] * k, b[3], b[4] + a[4] * k, max(b[5], a[5])]
+        else:
+            agg[w] = [a[0] * k, a[1] * k, a[2] * k, a[3], a[4] * k, a[5]]
+    out = dict(prev)
+    done = dict(prev.get("done_ts") or {c: NOW for c in prev.get("done") or []})
+    for c in seed["done"]:
+        done.setdefault(c, NOW)
+    out.update({"agg": agg, "done_ts": done, "built": ref, "method": "clv"})
+    out.pop("done", None)
+    return out
+
+
 def player_card(R, k, t):
     p = R.P.get(k)
     if not p:
@@ -315,9 +341,14 @@ def run(data, cfg, do_smart=True, verbose=True):
             smart_db = json.loads(sf.read_text())
         except ValueError:
             smart_db = {}
-    if do_smart and (NOW - smart_db.get("built", 0) > cfg["smart_refresh_hours"] * 3600 or smart_db.get("method") != "clv"):
+    if do_smart and (NOW - smart_db.get("built", 0) > cfg["smart_refresh_hours"] * 3600 or smart_db.get("method") != "clv"
+                     or not smart_db.get("seeded")):
         try:
-            smart_db = smart.rank_wallets(prev=smart_db if smart_db.get("method") == "clv" else None)
+            prev = smart_db if smart_db.get("method") == "clv" else {"built": NOW}
+            if not prev.get("seeded"):
+                prev = seed_sharps(prev)
+            smart_db = smart.rank_wallets(prev=prev)
+            smart_db["seeded"] = True
             sf.write_text(json.dumps(smart_db))
         except Exception as e:
             notes.append(f"smart wallet ranking failed: {e}")
