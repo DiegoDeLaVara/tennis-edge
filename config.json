@@ -112,10 +112,10 @@
       "min_poly_vol": 2000,
       "max_spread": 0.04,
       "min_price": 0.1,
-      "max_price": 0.9,
+      "max_price": 0.5,
       "proven": false,
       "kelly_mult": 0.5,
-      "why": "Kalshi's ask is below Polymarket's price after the fee: two markets disagree, take the cheaper one."
+      "why": "Kalshi's ask is below Polymarket's price after the fee: two markets disagree, take the cheaper one. Underdogs only (ask under 50c): on 12,000 matches on both markets (Jun-Nov 2026, Polymarket price within 30 min of Kalshi's quote), underdog gap bets returned +26.9% (+19.9% / +38.3% in the two halves, 141 bets; +53% when Polymarket had $10k+ traded) while favourite gap bets lost 12.7% in both halves (tools/poly_gap)."
     },
     "futures": {
       "label": "Tournament winner (draw sim)",
