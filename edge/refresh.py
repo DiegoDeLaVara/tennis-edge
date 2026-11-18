@@ -315,9 +315,9 @@ def run(data, cfg, do_smart=True, verbose=True):
             smart_db = json.loads(sf.read_text())
         except ValueError:
             smart_db = {}
-    if do_smart and NOW - smart_db.get("built", 0) > cfg["smart_refresh_hours"] * 3600:
+    if do_smart and (NOW - smart_db.get("built", 0) > cfg["smart_refresh_hours"] * 3600 or smart_db.get("method") != "clv"):
         try:
-            smart_db = smart.rank_wallets()
+            smart_db = smart.rank_wallets(prev=smart_db if smart_db.get("method") == "clv" else None)
             sf.write_text(json.dumps(smart_db))
         except Exception as e:
             notes.append(f"smart wallet ranking failed: {e}")
@@ -426,7 +426,7 @@ def run(data, cfg, do_smart=True, verbose=True):
 
     def smart_job(item):
         m, (e, flipped) = item
-        side, who = smart.positions(e["cid"], sw) if sw else ([0, 0], [[], []])
+        side, who = smart.positions(e["cid"], sw, e.get("prices")) if sw else ([0, 0], [[], []])
         if flipped:
             side, who = side[::-1], who[::-1]
         pr = e["prices"][::-1] if flipped else e["prices"]
@@ -438,7 +438,7 @@ def run(data, cfg, do_smart=True, verbose=True):
                 tot = sum(res["smart"])
                 if tot >= 200 and max(res["smart"]) >= 0.75 * tot:
                     d = 1 if res["smart"][0] > res["smart"][1] else -1
-                    m["signals"].append({"k": "smart", "dir": d, "txt": f"Polymarket wallets with winning tennis records hold ${max(res['smart']):,.0f} on {m['names'][0 if d > 0 else 1]} (info only: following them didn't beat the price in testing)"})
+                    m["signals"].append({"k": "smart", "dir": d, "txt": f"Polymarket sharps (wallets that beat the closing price) hold ${max(res['smart']):,.0f} on {m['names'][0 if d > 0 else 1]} (on its own this didn't beat the price; with a Kalshi-cheaper gap it did)"})
 
     # ---- Polymarket price for doubles (team names: each Kalshi team must share a name token with a different Polymarket team)
     pd_ev = [e for e in poly_all if "/" in e["a"]]
@@ -531,9 +531,17 @@ def run(data, cfg, do_smart=True, verbose=True):
                     tags.append(name)
                     u = max(u, units(p_, ask, cfg) * sc.get("kelly_mult", 1.0))
             gap = price_gap(m, i, q, strat["price_gap"])
+            sm_ = (m.get("poly") or {}).get("smart") or [0, 0]
+            sm_tot = sum(sm_)
+            pros_for = sm_tot >= 1000 and sm_[i] >= 0.75 * sm_tot           # CLV-ranked wallets hold $1k+, 75%+ on this side
+            pros_against = sm_tot >= 1000 and sm_[1 - i] >= 0.75 * sm_tot
+            if gap is not None and pros_against:
+                gap = None        # tools/wallet_study: gap bets with the sharps on the other side lost 45% (19 bets) - skip
             if gap is not None:
                 tags.append("price_gap")
                 u = max(u, units(gap[0], ask, cfg) * strat["price_gap"].get("kelly_mult", 1.0))
+                if pros_for:
+                    tags.append("pros_agree")   # paper: gap + sharps agree returned +49% vs +20% gap alone (both halves)
             pin = (m.get("book") or {}).get("fair")
             sp = strat.get("pinnacle_gap")
             pf = pin[i] if pin else None

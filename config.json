@@ -172,6 +172,12 @@
       "p_edge": 0.03,
       "why": "Favourites aged 32+ won about 4 pts more than Kalshi priced, in both halves of 8,000 matches: +3.7% then +3.4% ROI at the real ask after the fee (about 330 bets each). Small stakes until the live record confirms it; skipped when the match is flagged stay-away."
     },
+    "pros_agree": {
+      "label": "Kalshi cheaper than Polymarket + sharps agree (paper)",
+      "proven": false,
+      "kelly_mult": 0,
+      "why": "A Kalshi-cheaper-than-Polymarket bet where Polymarket wallets ranked by closing-line value (they usually buy before the price moves their way) hold $1,000+ with 75%+ on the same side. Walk-forward on 11,600 Polymarket markets (Jul-Nov 2026): +48.9% on 108 bets (+48.7% / +49.0% in the two halves) vs +19.5% for the gap with the sharps silent; with the sharps on the other side the gap lost 45% (19 bets), so those gap bets are skipped. Paper-tracked; the self-learning loop stakes it after 150+ live bets if it holds."
+    },
     "qual_fav": {
       "label": "Qualifier favourite (paper)",
       "min_price": 0.5,
