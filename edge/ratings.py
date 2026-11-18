@@ -16,7 +16,7 @@ SHRINK_PTS = 900.0         # pseudo serve points pulling a player's rates to the
 # faster learning (K0 400, offset 2), scorelines count 1.5x more, Challenger/qualifying results count 80%.
 # ITF test log-loss 0.5641 -> 0.5600, all levels 0.5760 -> 0.5716. Bump RATINGS_VER whenever these change so the
 # cloud swaps its rolling state for the rebuilt seed (edge/refresh.load_state).
-RATINGS_VER = 4        # 3: per-year, per-surface win/loss tallies (Player.rec); 4: 2026 duplicate fix
+RATINGS_VER = 5        # 3: per-year, per-surface W-L tallies; 4: 2026 duplicate fix; 5: QF no longer labelled qualifying
 LEVEL_K = {"G": 1.0, "M": 1.0, "F": 1.0, "A": 1.0, "C": 0.8, "S": 0.85, "D": 0.85, "Q": 0.8, "O": 0.85}
 MARGIN = 1.5
 

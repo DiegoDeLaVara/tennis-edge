@@ -68,7 +68,7 @@ def day_offset(rnd, draw, level):
 
 def norm_level(src, lvl, rnd):
     lvl = (lvl or "").strip()
-    if rnd and rnd.startswith("Q"):
+    if rnd and (rnd == "Q" or (rnd.startswith("Q") and rnd[1:].isdigit())):    # Q1-Q4 qualifying; "QF" is a quarter-final
         return "Q"
     if lvl in ("250", "500"):                    # TennisMyLife's tour levels: checked before isdigit (fixed 2026-11-17;
         return "A"                               # they were labelled "S" = ITF/satellite)
