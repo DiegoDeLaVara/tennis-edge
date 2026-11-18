@@ -16,7 +16,7 @@ SHRINK_PTS = 900.0         # pseudo serve points pulling a player's rates to the
 # faster learning (K0 400, offset 2), scorelines count 1.5x more, Challenger/qualifying results count 80%.
 # ITF test log-loss 0.5641 -> 0.5600, all levels 0.5760 -> 0.5716. Bump RATINGS_VER whenever these change so the
 # cloud swaps its rolling state for the rebuilt seed (edge/refresh.load_state).
-RATINGS_VER = 2
+RATINGS_VER = 3        # 3: per-year, per-surface win/loss tallies (Player.rec)
 LEVEL_K = {"G": 1.0, "M": 1.0, "F": 1.0, "A": 1.0, "C": 0.8, "S": 0.85, "D": 0.85, "Q": 0.8, "O": 0.85}
 MARGIN = 1.5
 
@@ -60,7 +60,7 @@ class Dec:
 
 
 class Player:
-    __slots__ = ("name", "elo", "n", "selo", "sn", "last", "sv", "rt", "ssv", "srt", "form", "recent", "hand", "ht", "ioc", "born", "rank", "wins", "losses")
+    __slots__ = ("name", "elo", "n", "selo", "sn", "last", "sv", "rt", "ssv", "srt", "form", "recent", "hand", "ht", "ioc", "born", "rank", "wins", "losses", "rec")
 
     def __init__(self, name):
         self.name = name
@@ -76,6 +76,7 @@ class Player:
         self.hand = self.ht = self.ioc = self.born = None
         self.rank = None
         self.wins = self.losses = 0
+        self.rec = {}                                       # "year|surface" (surface "*" = all) -> [wins, losses], every level we have
 
 
 def k_factor(n):
@@ -199,6 +200,10 @@ class Ratings:
         L.form.add(-(1 - eb), 1, t, FORM_HL)
         W.n += 1; L.n += 1
         W.wins += 1; L.losses += 1
+        yr = date.fromordinal(t).year
+        for key in (f"{yr}|*", f"{yr}|{surface}") if surface else (f"{yr}|*",):
+            W.rec.setdefault(key, [0, 0])[0] += 1
+            L.rec.setdefault(key, [0, 0])[1] += 1
         # serve / return stats, opponent-adjusted
         try:
             wsv, w1, w2 = float(m["w_svpt"]), float(m["w_1stWon"]), float(m["w_2ndWon"])
@@ -261,7 +266,7 @@ class Ratings:
             keep.add(k)
             out["players"][k] = [p.name, round(p.elo, 2), p.n, {s: [round(p.selo[s], 2), p.sn[s]] for s in SURFACES if p.sn[s]},
                                  p.last, dec(p.sv), dec(p.rt), {s: [dec(p.ssv[s]), dec(p.srt[s])] for s in SURFACES if p.ssv[s].w},
-                                 dec(p.form), [list(r) for r in p.recent], p.hand, p.ht, p.ioc, p.born, p.rank, p.wins, p.losses]
+                                 dec(p.form), [list(r) for r in p.recent], p.hand, p.ht, p.ioc, p.born, p.rank, p.wins, p.losses, p.rec]
         out["h2h"] = {f"{a}~{b}": n for (a, b), n in self.h2h.items() if a in keep and b in keep}
         return out
 
@@ -281,6 +286,7 @@ class Ratings:
             p.form = Dec(*v[8])
             p.recent = [tuple(x) for x in v[9]]
             p.hand, p.ht, p.ioc, p.born, p.rank, p.wins, p.losses = v[10:17]
+            p.rec = v[17] if len(v) > 17 else {}
             r.P[k] = p
         r.h2h = {tuple(k.split("~")): n for k, n in d["h2h"].items()}
         return r

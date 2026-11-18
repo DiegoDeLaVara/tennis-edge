@@ -189,7 +189,24 @@ def player_card(R, k, t):
     form = [{"d": date.fromordinal(d).isoformat(), "w": w, "opp": o, "s": sc, "surf": sf} for (d, mn, w, o, sf, sc) in reversed(p.recent[-8:])]
     return {"known": True, "elo": round(p.elo), "selo": {s: round(v) for s, v in p.selo.items() if p.sn[s] >= 5}, "n": p.n,
             "rank": p.rank, "hand": p.hand, "ht": p.ht, "ioc": p.ioc, "age": round((t - p.born) / 365.25, 1) if p.born else None,
-            "wl": [p.wins, p.losses], "form": form, "days_off": t - p.last if p.last else None}
+            "wl": [p.wins, p.losses], "form": form, "days_off": t - p.last if p.last else None, "rec": records(p, t)}
+
+
+def records(p, t):
+    """Career, this year and last year, overall and by surface, from the per-year tallies (every level we have:
+    tour, Challenger, ITF and qualifying; walkovers excluded)."""
+    rec = getattr(p, "rec", None) or {}
+    if not rec:
+        return None
+    yr = date.fromordinal(t).year
+    out = {"career": {}, "this": {}, "last": {}, "year": yr}
+    for k, (w, l) in rec.items():
+        y, s = k.split("|")
+        c = out["career"].setdefault(s, [0, 0]); c[0] += w; c[1] += l
+        for tag, yy in (("this", yr), ("last", yr - 1)):
+            if int(y) == yy:
+                d = out[tag].setdefault(s, [0, 0]); d[0] += w; d[1] += l
+    return out
 
 
 def run(data, cfg, do_smart=True, verbose=True):

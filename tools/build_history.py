@@ -46,7 +46,9 @@ def recent_rows(after, surfaces, today=None):
     """Results after the archive ends: TML (ATP tour), ESPN (WTA tour, plus ATP as backup), Kalshi settlements."""
     today = today or date.today()
     rows = []
-    tml = [m for m in src.tml_rows(today.year) if m["date"] > after]
+    # the WHOLE current year from TML: main() drops the archive's ATP tour rows for this year because TML supersedes
+    # them, so filtering TML by `after` (the archive's end) lost Jan-May 2026 ATP tour matches (fixed 2026-11-17)
+    tml = list(src.tml_rows(today.year))
     print("tml", len(tml))
     rows += tml
     espn = []

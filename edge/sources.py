@@ -70,9 +70,11 @@ def norm_level(src, lvl, rnd):
     lvl = (lvl or "").strip()
     if rnd and rnd.startswith("Q"):
         return "Q"
+    if lvl in ("250", "500"):                    # TennisMyLife's tour levels: checked before isdigit (fixed 2026-11-17;
+        return "A"                               # they were labelled "S" = ITF/satellite)
     if src == "futures" or lvl.isdigit() or lvl in ("S", "ITF"):
         return "S"
-    if lvl in ("250", "500", "A", "P", "PM", "I", "T1", "T2", "T3", "T4", "T5", "W"):
+    if lvl in ("A", "P", "PM", "I", "T1", "T2", "T3", "T4", "T5", "W"):
         return "A"
     return lvl or "A"
 
